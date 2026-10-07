@@ -11,6 +11,8 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
+M.VERSION = {n:'6.0', date:'2026-10-07', label:'October 7, 2026'};
+M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
 M.SHORT = {'English':'Eng','Filipino':'Fil','Science':'Sci','Mathematics':'Math','TLE':'TLE','Araling Panlipunan':'AP',
@@ -81,6 +83,8 @@ const I = {
   edit:'<path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/>',
   broom:'<path d="M14 3l-4 9M7 12h8l2 9H5z"/>',
   check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  save:'<path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v6h8V3M7 21v-7h10v7"/>',
   pdf:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 16v-4h1.5a1.5 1.5 0 0 1 0 3H8M13 12v4h1a2 2 0 0 0 0-4z"/>'
 };
 M.ico = (n, style='') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${style?`style="${style}"`:''}>${I[n]||''}</svg>`;
@@ -176,6 +180,7 @@ function migrate(S){
   if(!Array.isArray(S.settings.myComments)) S.settings.myComments = [];
   S.ia = Array.isArray(S.ia) ? S.ia : [];
   S.ecr = Array.isArray(S.ecr) ? S.ecr : [];
+  S.bow = Array.isArray(S.bow) ? S.bow : [];
   S.settings.logos = Object.assign({deped:'', school:''}, S.settings.logos||{});
   S.ui = Object.assign({term:'1', subject:'GA', sex:'all', gradesTerm:'1', attTab:'seats', lfilter:'all'}, S.ui||{});
   S.classes.forEach(c => {
@@ -431,6 +436,8 @@ M.boot = () => {
   $('#modalWrap').onclick = e => { if(e.target.id==='modalWrap') M.closeModal(); };
   document.addEventListener('keydown', e => { if(e.key==='Escape' && !$('#modalWrap').hidden) M.closeModal(); });
   window.addEventListener('hashchange', M.route);
+  const setT = (id, t) => { const e = document.getElementById(id); if(e) e.textContent = t; };
+  setT('verChip', 'v' + M.VERSION.n); setT('verDate', M.VERSION.label); setT('devName', M.DEV.name); setT('devOrg', M.DEV.org);
   const net = () => { const p = $('#netPill'); p.textContent = navigator.onLine ? 'Online · works offline too' : 'Offline mode'; p.classList.toggle('off', !navigator.onLine); };
   window.addEventListener('online', net); window.addEventListener('offline', net); net();
   M.route();

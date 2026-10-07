@@ -220,7 +220,7 @@ function addClass(){
         M.S.ecr.push({id:M.uid('e'), title:`Grade ${info.grade} – ${info.section}`, grade:info.grade, section:info.section, subject:info.subject, sy:info.sy, terms:{}, docId, added:new Date().toISOString(),
           roster: [...info.males.map(n=>({name:n, sex:'M'})), ...info.females.map(n=>({name:n, sex:'F'}))]});
         M.save(); M.downloadBlob(blob, fname); M.closeModal(); M.route();
-        M.toast('ECR created — fill in scores in Excel, then upload it here');
+        M.toast('ECR created — tap “Work on ECR” to encode scores here, or fill it in Excel');
       } catch(e){ console.error(e); alert('Could not create the ECR: ' + e.message); btn.disabled = false; }
     };
   }, true);
@@ -239,7 +239,7 @@ M.views.classes = function view(el, args){
       <div class="row"><span class="chip green">${esc(E.subject||'Subject')}</span><span class="spacer"></span><span class="tiny muted">${terms.map(t=>'T'+t).join(' · ')||'no terms'}</span></div>
       <div class="title" style="margin-top:10px;font-size:17px"><b>${esc(E.title)}</b></div>
       <div class="small muted">${A?A.L.length:(E.roster||[]).length} learners${!terms.length?' · no scores uploaded yet':''}${A&&A.st.n?` · Term ${last} mean <b>${fmt(A.st.mean)}</b> · ${A.risk.length} below 75`:''}</div>
-      <div class="row" style="margin-top:14px"><a class="btn sm" href="#classes/${E.id}">Open</a><span class="spacer"></span><a class="btn sparkle" href="#classes/${E.id}/analyze/${last||'1'}">${ico('sparkle')} Analyze</a></div>
+      <div class="row" style="margin-top:14px"><a class="btn sm" href="#classes/${E.id}">Open</a>${E.docId?`<a class="btn sm" href="#classes/${E.id}/edit">${ico('edit')} Work on ECR</a>`:''}${E.model&&E.model.dirty?'<span class="chip gold" title="Edited in MASTRO — download the updated ECR">edited</span>':''}<span class="spacer"></span><a class="btn sparkle" href="#classes/${E.id}/analyze/${last||'1'}">${ico('sparkle')} Analyze</a></div>
     </div>`; }).join('')}</div>` : `<div class="card" style="margin-top:20px"><div class="empty">No class records yet. Upload your ECRs to start.</div></div>`}`;
   M.dropZone($('#eDrop'), $('#eFile'), async files => { for(const f of files) await importECR(f); });
   $('#eAdd').onclick = addClass;
@@ -280,7 +280,7 @@ async function importECR(file){
       const docId = M.uid('d');
       await M.docPut({id:docId, name:file.name, category:'Grades & Reports', formCode:'ECR', tags:`ECR, ${subject}, ${section}`, classId:'', notes:'Electronic class record', mime:file.type, size:file.size, added:new Date().toISOString(), blob:file}).catch(()=>{});
       const ex = M.S.ecr.find(e => M.normName(e.section)===M.normName(section) && M.normName(e.subject)===M.normName(subject));
-      if(ex && confirm(`Update the existing record for ${ex.title}? (Term sheets in this file replace the same terms.)`)){ Object.assign(ex.terms, terms); ex.docId = docId; ex.updated = new Date().toISOString(); }
+      if(ex && confirm(`Update the existing record for ${ex.title}? (Term sheets in this file replace the same terms.)${ex.model && ex.model.dirty ? '\n\nNote: scores you typed in MASTRO that are not yet in this file will be replaced by the file.' : ''}`)){ Object.assign(ex.terms, terms); ex.docId = docId; ex.model = null; ex.updated = new Date().toISOString(); }
       else M.S.ecr.push({id:M.uid('e'), title:`Grade ${grade} – ${section}`, grade, section, subject, sy:$('#eSY',b).value.trim(), terms, docId, added:new Date().toISOString()});
       M.save(); M.closeModal(); M.route(); M.toast('Class record saved');
     };
@@ -294,20 +294,23 @@ function detail(el, id, mode, termArg){
     <a class="btn sm" href="#classes">${ico('left','width:16px;height:16px')} Classes</a>
     <div><div class="title"><b>${esc(E.title)}</b> · ${esc(E.subject)}</div><div class="small muted">SY ${esc(E.sy||'')} · ${terms.length} term(s) loaded</div></div>
     <span class="spacer"></span>
-    <div class="seg" id="eT">${terms.map(t=>`<button data-t="${t}" class="${t===term?'on':''}">Term ${t}</button>`).join('')}</div>
-    <a class="btn sparkle" href="#classes/${E.id}/analyze/${term}">${ico('sparkle')} Analyze</a>
+    ${mode==='edit' ? '' : `<div class="seg" id="eT">${terms.map(t=>`<button data-t="${t}" class="${t===term?'on':''}">Term ${t}</button>`).join('')}</div>`}
+    ${E.docId ? `<a class="btn ${mode==='edit'?'primary':''}" href="#classes/${E.id}/edit">${ico('edit')} Work on ECR</a>` : ''}
+    ${mode==='edit' ? `<a class="btn" href="#classes/${E.id}/view/${term||''}">${ico('grades')} Summary</a>` : ''}
+    <a class="btn sparkle" href="#classes/${E.id}/analyze/${term||'1'}">${ico('sparkle')} Analyze</a>
   </div>
   <div class="row" style="margin-top:12px"><button class="btn sm" id="eUp">${ico('upload')} Update from new ECR file</button><input type="file" id="eUpF" accept=".xlsx,.xls,.xlsm" hidden><button class="btn sm" id="eEd">${ico('edit')} Rename</button>${E.docId?`<button class="btn sm" id="eDl">${ico('download')} Download ECR file</button>`:''}<span class="spacer"></span><button class="btn sm danger" id="eDel">Delete</button></div></div>
   <div id="eBody" style="margin-top:20px"></div>`;
-  $('#eT').onclick = e => { const b = e.target.closest('button'); if(b) location.hash = `#classes/${E.id}/${mode==='analyze'?'analyze':'view'}/${b.dataset.t}`; };
+  if($('#eT')) $('#eT').onclick = e => { const b = e.target.closest('button'); if(b) location.hash = `#classes/${E.id}/${mode==='analyze'?'analyze':'view'}/${b.dataset.t}`; };
   $('#eUp').onclick = () => $('#eUpF').click();
   $('#eUpF').onchange = e => { const f = e.target.files[0]; e.target.value=''; if(f) importECR(f); };
   if($('#eDl')) $('#eDl').onclick = async () => { const d = await M.docGet(E.docId); if(d && d.blob) M.downloadBlob(d.blob, d.name); else M.toast('File not found on this device'); };
   $('#eEd').onclick = () => { const t = prompt('Class record title:', E.title); if(t){ E.title = t.trim(); const s = prompt('Subject:', E.subject); if(s) E.subject = s.trim(); M.save(); M.route(); } };
   $('#eDel').onclick = () => { if(!confirm(`Delete ${E.title} · ${E.subject}?`)) return; M.S.ecr = M.S.ecr.filter(x=>x!==E); M.save(); location.hash = '#classes'; };
   const body = $('#eBody');
+  if(mode === 'edit') return M.ecrEditor(body, E, termArg);
   if(mode === 'analyze') return report(body, E, term);
-  const T = E.terms[term]; if(!T){ body.innerHTML = `<div class="card"><div class="empty">No scores yet. Open the ECR in Excel, encode the scores, then use <b>Update from new ECR file</b>.${(E.roster||[]).length?`<div class="small" style="margin-top:10px">${E.roster.length} learners in this class.</div>`:''}</div></div>`; return; }
+  const T = E.terms[term]; if(!T){ body.innerHTML = `<div class="card"><div class="empty">No scores yet. Tap <b>Work on ECR</b> to encode scores here in MASTRO, or encode them in Excel and use <b>Update from new ECR file</b>.${(E.roster||[]).length?`<div class="small" style="margin-top:10px">${E.roster.length} learners in this class.</div>`:''}</div></div>`; return; }
   const has = (k) => T.comp && T.comp[k];
   body.innerHTML = `<div class="card"><h2>Term ${term} · ${T.learners.length} learners <span class="tiny muted">(sheet “${esc(T.sheet)}”)</span></h2>
     <div class="table-wrap"><table><thead><tr><th>#</th><th class="sticky-col">Learner</th>${['ww','pt','qa'].filter(has).map(k=>`<th class="num">${k.toUpperCase()} PS${T.comp[k].w?` <span class="muted">(${T.comp[k].w}%)</span>`:''}</th>`).join('')}<th class="num">Initial</th><th class="num">Term grade</th><th>Descriptor</th></tr></thead>

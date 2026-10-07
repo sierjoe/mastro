@@ -26,11 +26,13 @@ M.views.forms = async function(el, args){
   if(code) return formPage(el, M.FORMS.find(f=>f.code===code) || M.FORMS[0]);
   const docs = await M.docsAll().catch(()=>[]);
   const count = (c) => docs.filter(d=>d.formCode===c).length;
+  const inUse = {}; for(const f of M.FORMS){ if(f.code==='SF9' || (M.TPL_FORMS||[]).includes(f.code)){ const t = await M.tplCurrent(f.code, docs.filter(d => d.formCode===f.code && d.isTemplate && d.blob).sort((a,b)=>b.added.localeCompare(a.added))); inUse[f.code] = t ? t.name : (f.code==='SF9' ? 'Built-in DepEd SF9' : ''); } }
   el.innerHTML = `<div class="grid g-3 forms-grid">${M.FORMS.map(f => `
     <a class="card form-card" href="#forms/${f.code}">
       <div class="row"><div class="sf-code">${f.code}</div><span class="spacer"></span>${f.gen?`<span class="chip green">Generate</span>`:(M.TPL_FORMS||[]).includes(f.code)?`<span class="chip gold">Auto-fill</span>`:''}<span class="chip">${count(f.code)} file(s)</span></div>
       <div class="title" style="margin-top:12px">${esc(f.title)}</div>
       <div class="small muted">${esc(f.desc)}</div>
+      ${inUse[f.code] ? `<div class="tiny" style="margin-top:8px"><span class="badge-cur">Currently used</span> ${esc(inUse[f.code])}</div>` : ''}
     </a>`).join('')}</div>`;
 };
 async function formPage(el, f){
@@ -234,8 +236,9 @@ function sf9View(el, lidArg){
       <button class="btn sm" id="d1">${ico('pdf')} PDF</button>
       <button class="btn sm primary" id="pAll">${ico('print')} Print all (${L.length})</button>
       <button class="btn sm primary" id="dAll">${ico('pdf')} Bulk PDF</button>
-      <button class="btn sm gold" id="xAll">${ico('download')} Excel (your template)</button>
+      <button class="btn sm gold" id="xAll" title="Fills the template currently used (see Options)">${ico('download')} Excel (your template)</button>
     </div>
+    <div class="small muted" id="sf9Tpl" style="margin-top:10px"></div>
     <div class="seg" id="sfTabs" style="margin-top:14px">${[['preview','Preview'],['att','Attendance'],['com','Teacher’s comments'],['opt','Options']].map(([k,t])=>`<button data-t="${k}" class="${ui.tab===k?'on':''}">${t}</button>`).join('')}</div>
   </div>
   <div id="sfBody" style="margin-top:20px"></div>
@@ -250,6 +253,7 @@ function sf9View(el, lidArg){
   $('#d1').onclick = () => makePdf(c, [l], layout, `SF9 ${l.name}.pdf`);
   $('#dAll').onclick = () => makePdf(c, L, layout, `SF9 ${c.grade}-${c.section} (${L.length} learners).pdf`);
   $('#xAll').onclick = () => makeXlsx(c, L);
+  M.tplCurrent('SF9').then(t => { const x = $('#sf9Tpl'); if(x) x.innerHTML = `Excel template currently used: <b>${esc(t ? t.name : 'Built-in DepEd SF9')}</b> · change it in Options`; });
   const body = $('#sfBody');
   if(ui.tab==='preview'){
     const D = M.sf9Data(c, l);
@@ -329,14 +333,15 @@ function comTab(body, c, L){
   body.querySelectorAll('[data-rmc]').forEach(a => a.onclick = e => { e.preventDefault(); M.S.settings.myComments.splice(+a.dataset.rmc, 1); M.save(); comTab(body, c, L); });
 }
 async function optTab(body, c, rerender){
-  const docs = (await M.docsAll().catch(()=>[])).filter(d => d.formCode==='SF9' && d.isTemplate);
+  const list = await M.tplList('SF9'); const cur = await M.tplCurrent('SF9', list);
   body.innerHTML = `<div class="grid g-2">
     <div class="card"><h2>Certificate of transfer</h2>
       <label class="row" style="cursor:pointer"><input type="checkbox" id="cert" ${c.sf9.cert?'checked':''}> Fill “Admitted to Grade” and “Eligible for Admission to Grade” (use at year end)</label>
       <p class="small muted">Eligible grade = current grade + 1 when the general average is 75 or higher; left blank otherwise.</p></div>
-    <div class="card"><h2>Excel template</h2>
-      <p class="small muted" style="margin-top:0">“Excel (your template)” fills your uploaded SF9 workbook (FRONT and BACK sheets) for every learner. ${docs.length?`Using your uploaded template: <b>${esc(docs[0].name)}</b>.`:'Currently using the template you sent (built in).'}</p>
-      <div class="row"><button class="btn sm" id="tplUp">${ico('upload')} Replace template</button>${docs.length?`<button class="btn sm danger" id="tplDel">Use built-in template</button>`:''}<input type="file" id="tplF" accept=".xlsx" hidden></div>
+    <div class="card"><div class="row"><h2 style="margin:0">Excel template</h2><span class="spacer"></span><button class="btn sm" id="tplUp">${ico('upload')} Upload template</button></div>
+      <p class="small muted">“Excel (your template)” fills the template marked <b>Currently used</b> (FRONT and BACK sheets) for every learner.</p>
+      ${M.tplListHtml(list, cur, 'Built-in DepEd SF9 (the template you sent)')}
+      <input type="file" id="tplF" accept=".xlsx" hidden>
       <p class="tiny muted">The template must keep the same cell layout as the DepEd file (Name in C17, grades in F32:H41, attendance in R5:AB9).</p></div>
     <div class="card"><h2>Age on the report card</h2>
       <label class="field">Compute age as of<input type="date" class="input" id="ageAsOf" value="${esc(c.sf9.ageAsOf || M.firstFridayJune(c.sy))}"></label>
@@ -346,9 +351,8 @@ async function optTab(body, c, rerender){
   $('#cert').onchange = e => { c.sf9.cert = e.target.checked; M.save(); };
   $('#ageAsOf').onchange = e => { c.sf9.ageAsOf = e.target.value; M.save(); };
   $('#tplUp').onclick = () => $('#tplF').click();
-  $('#tplF').onchange = async e => { const f = e.target.files[0]; if(!f) return; for(const d of docs) await M.docDel(d.id);
-    await M.docPut({id:M.uid('d'), name:f.name, category:'School Forms', formCode:'SF9', isTemplate:true, tags:'SF9, template', classId:'', notes:'', mime:f.type, size:f.size, added:new Date().toISOString(), blob:f}); M.toast('Template saved'); rerender(); };
-  if($('#tplDel')) $('#tplDel').onclick = async () => { for(const d of docs) await M.docDel(d.id); M.toast('Using built-in template'); rerender(); };
+  $('#tplF').onchange = async e => { const f = e.target.files[0]; if(!f) return; await M.tplAdd('SF9', f); M.toast('Template saved — now in use'); rerender(); };
+  M.tplListBind(body, 'SF9', rerender);
 }
 
 /* =====================================================================
@@ -389,8 +393,8 @@ async function makePdf(c, learners, layout, filename){
    so every border, merge, font and print setting stays exactly as designed.
    ===================================================================== */
 async function templateBuffer(){
-  const docs = (await M.docsAll().catch(()=>[])).filter(d => d.formCode==='SF9' && d.isTemplate && d.blob);
-  if(docs.length) return await docs[0].blob.arrayBuffer();
+  const cur = await M.tplCurrent('SF9');
+  if(cur) return await cur.blob.arrayBuffer();
   const r = await fetch('templates/SF9_Report_Card_Template.xlsx'); if(!r.ok) throw new Error('Template file missing'); return await r.arrayBuffer();
 }
 const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';

@@ -56,15 +56,17 @@ M.iaAnalyze = function(a, c){
 
 /* ---------------- list view ---------------- */
 M.views.items = function view(el, args){
+  if(args[0] === 'ecr') return M.iaViewEcr(el);
+  if(args[0] === 'bow') return M.iaViewBow(el, args[1]);
   if(args[0]) return detail(el, args[0], args[1]);
   const c = M.cls(); const t = M.S.ui.iaTerm || 'all';
   const all = list().sort((x,y) => (x.term+x.date).localeCompare(y.term+y.date));
   const shown = all.filter(a => t==='all' || a.term===t);
   el.innerHTML = `
-  <div class="card"><div class="row">
+  <div class="card">${M.iaTabs('tests')}<div class="row" style="margin-top:14px">
     <div class="seg" id="iaT">${[['all','All terms'],['1','Term 1'],['2','Term 2'],['3','Term 3']].map(([k,l])=>`<button data-t="${k}" class="${k===t?'on':''}">${l}</button>`).join('')}</div>
     <span class="spacer"></span><button class="btn primary" id="iaNew">${ico('plus')} New test / exam</button></div>
-    <p class="small muted" style="margin:12px 0 0">Add each summative test and term examination of ${esc(M.className(c))}, then upload the results (Excel/CSV, including your Answer Sheet Checker export) or type the answers. MASTRO computes MPS, item difficulty, discrimination, distractors and least-mastered competencies.</p></div>
+    <p class="small muted" style="margin:12px 0 0">Add each summative test and term examination of ${esc(M.className(c))}, upload the test paper for its <b>TOS</b>, then upload the results (Excel/CSV, including your Answer Sheet Checker export) or type the answers. MASTRO computes MPS, item difficulty, discrimination, distractors and least-mastered competencies.</p></div>
   ${shown.length ? `<div class="grid g-3" style="margin-top:20px">${shown.map(a => { const R = M.iaAnalyze(a, c); return `
     <a class="card form-card" href="#items/${a.id}">
       <div class="row"><span class="chip green">Term ${esc(a.term)}</span><span class="chip">${esc(a.type)}</span><span class="spacer"></span><span class="tiny muted">${esc(a.date||'')}</span></div>
@@ -73,6 +75,7 @@ M.views.items = function view(el, args){
       <div class="row" style="margin-top:12px;align-items:flex-end"><div><div class="tiny muted">MPS</div><div style="font-size:26px;font-weight:800;color:var(--green)">${R.N?fmt(R.mps,1):'—'}</div></div><span class="spacer"></span>${R.N?`<span class="chip ${R.mps>=75?'green':'gold'}">${esc(R.level)}</span>`:'<span class="chip">no results yet</span>'}</div>
     </a>`; }).join('')}</div>` : `<div class="card" style="margin-top:20px"><div class="empty">No tests yet${t!=='all'?' for Term '+t:''}. Tap <b>New test / exam</b>.</div></div>`}
   ${all.length>1 ? `<div class="card" style="margin-top:20px"><h2>MPS across tests</h2>${all.map(a => { const R = M.iaAnalyze(a, c); return `<div class="bar-row"><span>T${esc(a.term)} · ${esc(a.title)}</span><div class="bar-track"><div class="bar-fill ${R.mps<75?'low':''}" style="width:${R.mps}%"></div></div><b class="num" style="text-align:right">${R.N?fmt(R.mps,1):'—'}</b></div>`; }).join('')}</div>`:''}`;
+  M.iaTabsBind(el);
   $('#iaT').onclick = e => { const b = e.target.closest('button'); if(!b) return; M.S.ui.iaTerm = b.dataset.t; M.save(); view(el, []); };
   $('#iaNew').onclick = () => form(null);
 };
@@ -120,7 +123,7 @@ function detail(el, id, tabArg){
     <button class="btn sm" id="iX">${ico('download')} Excel</button>
     <button class="btn sm primary" id="iP">${ico('print')} Print report</button>
   </div>
-  <div class="seg" id="iTabs" style="margin-top:14px">${[['responses','Responses'],['analysis','Analysis'],['files','Test files']].map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}</button>`).join('')}</div></div>
+  <div class="seg" id="iTabs" style="margin-top:14px">${[['responses','Responses'],['analysis','Analysis'],['tos','TOS & BOW check'],['files','Test files']].map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}</button>`).join('')}</div></div>
   <div id="iBody" style="margin-top:20px"></div>`;
   $('#iEdit').onclick = () => form(a);
   $('#iX').onclick = () => exportXlsx(a, c);
@@ -130,6 +133,7 @@ function detail(el, id, tabArg){
   if(tab==='responses') responses(body, a, c, () => detail(el, id, 'responses'));
   if(tab==='analysis') analysis(body, a, c, R);
   if(tab==='files') files(body, a);
+  if(tab==='tos') M.iaTos(body, a, c, () => detail(el, id, 'tos'));
 }
 function responses(body, a, c, rerender){
   const L = M.sortedLearners(c);

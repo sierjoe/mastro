@@ -69,7 +69,10 @@ Sheet.prototype.rightOf = function(c, r, max=14){
   for(let i=0; i<max && x<=Math.max(this.maxC+2, 40); i++){
     const mm = this.master(x, r);
     if(mm.r !== r && mm.m){ x = mm.m.c2 + 1; continue; }
-    if(this.isEmpty(x, r)) return {c:mm.c, r:mm.r};
+    if(this.isEmpty(x, r)){
+      if(!mm.m){ const nx = this.master(x+1, r); if(nx.m && nx.r === r && nx.c === x+1 && this.isEmpty(x+1, r)) return {c:nx.c, r:nx.r}; }
+      return {c:mm.c, r:mm.r};
+    }
     const t = this.mtext(x, r); if(t && !/^:$/.test(t)) return null;
     x = (mm.m ? mm.m.c2 : x) + 1;
   }
@@ -119,9 +122,11 @@ const PERSON_LABELS = [
   [/^last\s*name\s*:?$/i, 'last'], [/^first\s*name\s*:?$/i, 'first'], [/^middle\s*name\s*:?$/i, 'middle'],
   [/learner\s*reference\s*number|^lrn\s*:?$/i, 'lrn'], [/^birth\s*date|^birthdate|date\s*of\s*birth/i, 'bday'], [/^sex\s*:?$/i, 'sexWord'], [/^age\s*:?$/i, 'age']
 ];
-function fillLabels(sh, values, rules){
+function fillLabels(sh, values, rules, r1, r2){
   sh.each((c, r, t) => {
     if(t.length > 60) return;
+    if((r1 && r < r1) || (r2 && r > r2)) return;
+    if(sh.master(c, r).c !== c || sh.master(c, r).r !== r) return;
     for(const [re, key, label] of rules){
       if(!re.test(t)) continue;
       const v = values[key]; if(v===undefined || v==='' || v===null) return;
@@ -281,27 +286,50 @@ const FORMS = {
     const ppl = [{name:X.head.schoolHead, sex:'', pos:X.s.headTitle||'School Head'}, {name:X.head.adviser, sex:'', pos:'Teacher / Class Adviser'}];
     let r = tbl.start; ppl.forEach(p => { while(!sh.isEmpty(tbl.nameCol, r) && r < tbl.start + 50) r++; sh.set(tbl.nameCol, r, p.name, 'Personnel'); if(tbl.map.position) sh.set(tbl.map.position, r, p.pos); r++; }); return '2 personnel rows (school head, adviser)'; }},
   SF8: {fill(sh, X){ fillLabels(sh, X.head, LABELS); fillSignatures(sh, X.head); const tbl = findTable(sh); if(!tbl) return 'No learner table found.'; return fillLearners(sh, tbl, X.learners).length + ' learner(s) (height/weight left for you)'; }},
-  SF10: {perLearner:true, fill(sh, X, p){
-    fillLabels(sh, X.head, LABELS); fillSignatures(sh, X.head);
-    fillLabels(sh, {last:p.last, first:p.first, middle:p.middle, lrn:p.lrn, bday:p.bday, sexWord: p.sex==='M'?'Male':p.sex==='F'?'Female':'', age:p.age}, PERSON_LABELS.map(([re,k]) => [re,k,k]));
-    // scholastic record: subject rows under "LEARNING AREAS", term columns 1/2/3, FINAL RATING, REMARKS
-    let la = null; sh.each((c, r, t) => { if(!la && /^learning\s*areas?$/i.test(t)) la = {c, r}; });
-    if(!la) return 'Learner info filled (no LEARNING AREAS table found).';
-    const hdrRows = [la.r, la.r+1, la.r+2]; const tc = {}; let fc = 0, rc = 0;
-    for(let c = la.c+1; c <= sh.maxC; c++) hdrRows.forEach(r => { const t = sh.mtext(c, r); const mm = sh.master(c, r); if(mm.c !== c) return;
+  SF10: {perLearner:true, paper:'8.5 × 13 in', fill(sh, X, p){
+    const find = (re, r1=1, r2=sh.maxR) => { let hit = null; sh.each((c, r, t) => { if(r < r1 || r > r2) return; if(re.test(t) && (!hit || r < hit.r || (r===hit.r && c < hit.c))) hit = {c, r}; }); return hit; };
+    const all = (re) => { const out = []; sh.each((c, r, t) => { if(re.test(t)) out.push({c, r}); }); return out.sort((a,b)=>a.r-b.r||a.c-b.c); };
+    // 1) learner's information — only the rows above "SCHOLASTIC RECORD" (never the elementary-school boxes)
+    const scho = find(/^scholastic\s*record/i); const elig = find(/eligibility/i);
+    const infoEnd = elig ? elig.r - 1 : scho ? scho.r - 1 : 12;
+    const ext = (p.name.match(/\b(JR\.?|SR\.?|II|III|IV)\b/i)||[])[0] || '';
+    fillLabels(sh, {last:p.last, first:p.first.replace(/\b(JR\.?|SR\.?|II|III|IV)\b/i,'').trim(), middle:p.middle, lrn:p.lrn, bday:p.bday, sexWord: p.sex==='M'?'MALE':p.sex==='F'?'FEMALE':'', ext}, [...PERSON_LABELS.map(([re,k]) => [re,k,k]), [/^name\s*ext/i,'ext','Name ext.']], 1, infoEnd);
+    // 2) scholastic record blocks: "LEARNING AREAS" rows that have a "Term Rating" header beside them
+    const blocks = all(/^learning\s*areas?$/i).filter(b => [b.r, b.r+1].some(r => { for(let c=b.c+1;c<=sh.maxC;c++) if(/term\s*rating|quarterly\s*rating|quarter/i.test(sh.mtext(c, r))) return true; return false; }));
+    if(!blocks.length) return 'Learner info filled (no LEARNING AREAS table found).';
+    const g = parseInt(X.head.grade, 10); const bi = isFinite(g) ? (((g - 7) % blocks.length) + blocks.length) % blocks.length : 0;
+    const la = blocks[bi]; const prevEnd = bi ? blocks[bi-1].r + 1 : (scho ? scho.r : 1);
+    // block header ("School:", "School ID:", "District:", "Division:", "Region:", "Classified as Grade:", "Section:", "School Year:", "Name of Adviser/Teacher:")
+    let hdr = null; for(let r = la.r - 1; r > prevEnd && r > la.r - 8; r--) if(/^school\s*:?$/i.test(sh.mtext(sh.master(2, r).c, r)) || find(/^school\s*:?$/i, r, r)) { hdr = r; break; }
+    // the Region box on SF10 is small: use the short form ("X" for "REGION X - NORTHERN MINDANAO")
+    const rs = (String(X.head.region||'').match(/region\s*([ivx]+|\d+[a-z]?)\b/i)||[])[1];
+    if(hdr) fillLabels(sh, Object.assign({}, X.head, rs ? {region: rs.toUpperCase()} : {}), LABELS, hdr, la.r - 1);
+    const tc = {}; let fc = 0, rc = 0;
+    for(let c = la.c+1; c <= sh.maxC; c++) [la.r, la.r+1, la.r+2].forEach(r => { const t = sh.mtext(c, r); const mm = sh.master(c, r); if(mm.c !== c) return;
       if(/^[1-4]$/.test(t) && !tc[t]) tc[t] = c; if(/final\s*(rating|grade)/i.test(t) && !fc) fc = c; if(/^remarks?$/i.test(t) && !rc) rc = c; });
     const subj = [[/^filipino/i,'Filipino'],[/^english/i,'English'],[/^math/i,'Mathematics'],[/^science/i,'Science'],[/^araling/i,'Araling Panlipunan'],[/pagpapakatao|values|^esp|gmrc/i,'Values Education'],[/^(tle|technology|epp)/i,'TLE'],[/^mapeh/i,'MAPEH'],[/^music|music\s*(and|&)\s*arts/i,'Music & Arts'],[/^(physical|pe\b|p\.e\.)/i,'PE & Health']];
+    const gaAt = find(/^general\s*average$/i, la.r + 1, la.r + 30); const stop = gaAt ? gaAt.r : la.r + 16;
     let rows = 0;
-    for(let r = la.r+1; r <= Math.min(sh.maxR, la.r+30); r++){
+    for(let r = la.r+1; r < stop; r++){
       const t = sh.mtext(la.c, r); if(!t) continue;
-      if(/general\s*average/i.test(t)){ if(fc && isNum(p.sd.ga)) sh.set(fc, r, p.sd.ga, 'General average'); if(rc && p.sd.gaRem) sh.set(rc, r, p.sd.gaRem); break; }
       const hit = subj.find(([re]) => re.test(t)); if(!hit) continue;
       const row = p.sd.subj.find(x => x.key === hit[1]); if(!row) continue;
       ['1','2','3'].forEach((q,i) => { if(tc[q] && isNum(row.t[i])) sh.set(tc[q], r, M.r2(row.t[i])); });
-      if(fc && isNum(row.fin)) sh.set(fc, r, row.fin); if(rc && row.rem) sh.set(rc, r, row.rem);
+      if(fc && isNum(row.fin)) sh.set(fc, r, row.fin); if(rc && row.rem && !row.sub) sh.set(rc, r, row.rem);
       rows++; sh.filled.push({cell: ref(la.c, r), label:'Grades', value: hit[1]});
     }
-    return `${rows} learning area row(s)`;
+    if(gaAt){ if(fc && isNum(p.sd.ga)) sh.set(fc, gaAt.r, p.sd.ga, 'General average'); if(rc && p.sd.gaRem) sh.set(rc, gaAt.r, p.sd.gaRem); }
+    // 3) certification
+    const cert = find(/i\s*certify/i);
+    if(cert){
+      const nx = (c, r) => sh.rightOf(c, r, 20);
+      let x = nx(cert.c, cert.r); if(x) sh.set(x.c, x.r, [p.first, p.middle, p.last].filter(Boolean).join(' ').toUpperCase(), 'Certification name');
+      const wl = find(/^with\s*lrn/i, cert.r, cert.r); if(wl){ x = nx(wl.c, wl.r); if(x) sh.set(x.c, x.r, p.lrn, 'Certification LRN'); }
+      const el = find(/eligible\s*for\s*admission/i, cert.r, cert.r); if(el && isNum(p.sd.ga) && p.sd.ga >= 75 && isFinite(g)){ x = nx(el.c, el.r); if(x) sh.set(x.c, x.r, g + 1, 'Eligible for grade'); }
+      fillLabels(sh, {school:X.head.school, schoolId:X.head.schoolId, lastSy:X.head.sy}, [[/^name\s*of\s*school/i,'school','School name'], [/^school\s*id/i,'schoolId','School ID'], [/last\s*school\s*year\s*attended/i,'lastSy','Last SY attended']], cert.r, cert.r + 2);
+    }
+    fillSignatures(sh, X.head);
+    return `Grade ${isFinite(g)?g:'?'} block (${bi+1} of ${blocks.length}) · ${rows} learning area row(s)`;
   }}
 };
 M.TPL_FORMS = Object.keys(FORMS);
@@ -328,92 +356,254 @@ function dropCalcChain(T){
   // force Excel to recalculate remaining formulas on open
   let cp = T.wb.getElementsByTagNameNS(NS,'calcPr')[0]; if(cp) cp.setAttribute('fullCalcOnLoad','1');
 }
-async function finish(T, filename){
+async function finish(T){
   const X = new XMLSerializer();
   T.zip.file('xl/workbook.xml', X.serializeToString(T.wb));
   T.zip.file('xl/_rels/workbook.xml.rels', X.serializeToString(T.rels));
   T.zip.file('[Content_Types].xml', X.serializeToString(T.ct));
-  const blob = await T.zip.generateAsync({type:'blob', compression:'DEFLATE', mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  M.downloadBlob(blob, filename);
+  return await T.zip.generateAsync({type:'blob', compression:'DEFLATE', mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
 }
-M.fillTemplate = async function(code, file, opts){
+
+/* ---------------- templates kept per form + the one "currently used" ---------------- */
+M.tplList = async (code) => (await M.docsAll().catch(()=>[])).filter(d => d.formCode===code && d.isTemplate && d.blob).sort((a,b)=>b.added.localeCompare(a.added));
+// returns the doc in use, or null (= built-in, where the form has one)
+M.tplCurrent = async (code, list) => {
+  list = list || await M.tplList(code); const id = (M.S.settings.tplCurrent||{})[code];
+  if(id === 'builtin') return null;
+  return list.find(d => d.id === id) || list[0] || null;
+};
+M.tplSetCurrent = (code, id) => { M.S.settings.tplCurrent = M.S.settings.tplCurrent || {}; M.S.settings.tplCurrent[code] = id; M.save(); };
+M.tplAdd = async (code, file) => {
+  const id = M.uid('d');
+  await M.docPut({id, name:file.name, category:'School Forms', formCode:code, isTemplate:true, tags:`${code}, template`, classId:'', notes:'Template', mime:file.type, size:file.size, added:new Date().toISOString(), blob:file});
+  M.tplSetCurrent(code, id); return id;
+};
+// list with "Currently used" badge, Use / Delete buttons. builtin = label of a built-in template (SF9) or null
+M.tplListHtml = (list, cur, builtin) => `<div class="tpl-list">${builtin ? `<div class="tpl-row ${!cur?'cur':''}"><span class="nm">${esc(builtin)}</span>${!cur?'<span class="badge-cur">Currently used</span>':`<button class="btn sm" data-tuse="builtin">Use this</button>`}</div>`:''}
+  ${list.map(d => `<div class="tpl-row ${cur && cur.id===d.id?'cur':''}"><span class="nm" title="${esc(d.name)}">${esc(d.name)}</span><span class="tiny muted">${esc(d.added.slice(0,10))}</span>
+    ${cur && cur.id===d.id ? '<span class="badge-cur">Currently used</span>' : `<button class="btn sm" data-tuse="${d.id}">Use this</button>`}<button class="icon-btn" data-tdel="${d.id}" title="Delete template" aria-label="Delete template">✕</button></div>`).join('')}
+  ${!list.length && !builtin ? '<div class="empty" style="padding:14px">No template uploaded yet.</div>' : ''}</div>`;
+M.tplListBind = (el, code, rerender) => {
+  $$('[data-tuse]', el).forEach(b => b.onclick = () => { M.tplSetCurrent(code, b.dataset.tuse); M.toast('Template in use changed'); rerender(); });
+  $$('[data-tdel]', el).forEach(b => b.onclick = async () => { if(!confirm('Delete this template from MASTRO?')) return; await M.docDel(b.dataset.tdel); if((M.S.settings.tplCurrent||{})[code] === b.dataset.tdel){ delete M.S.settings.tplCurrent[code]; M.save(); } rerender(); });
+};
+
+/* ---------------- fill: one engine for Excel download, on-screen view, print and PDF ---------------- */
+async function prepare(code, blob, opts){
   const F = FORMS[code]; const c = M.cls();
   const X = context(c, opts); X.sections = opts.sections;
-  const T = await openTemplate(await file.arrayBuffer());
+  const T = await openTemplate(await blob.arrayBuffer());
+  const srcs = [];
+  for(let i=0;i<T.sheets.length;i++){ const sht = T.sheets[i]; const st = sht.el.getAttribute('state');
+    srcs.push({sht, idx:i, xml: await T.zip.file(sht.path).async('string'), area: M.xvPrintArea(T.wb, i), hidden: !!st && st !== 'visible'}); }
+  const people = F.perLearner ? (opts.only ? X.learners.filter(p => p.l.id === opts.only) : X.learners.filter(p => M.counted(p.l))) : [null];
+  return {F, c, X, T, srcs, people};
+}
+function fillOne(B, src, p){ const doc = B.T.P.parseFromString(src.xml, 'application/xml'); const sh = new Sheet(doc, B.T.sst); const note = B.F.fill(sh, B.X, p); return {doc, sh, note}; }
+
+// pages to look at / print: [{label, html, paper}]
+M.templatePages = async function(code, blob, opts, onStep){
+  const B = await prepare(code, blob, opts);
+  if(!B.T.styles) B.T.styles = await M.xvBook(B.T.zip);
+  const pages = []; const report = [];
+  let n = 0;
+  for(const p of B.people){
+    const filledHere = [];
+    for(const src of B.srcs){ if(src.hidden) continue;
+      const f = fillOne(B, src, p); filledHere.push({src, ...f}); }
+    // class forms: show the sheets that received data (or the first sheet)
+    const show = B.F.perLearner ? filledHere : (filledHere.filter(x => x.sh.filled.length).length ? filledHere.filter(x => x.sh.filled.length) : filledHere.slice(0,1));
+    for(const x of show){
+      if(!x.src.drawings) x.src.drawings = await M.xvDrawings(B.T.zip, x.src.sht.path, x.doc);
+      const R = M.xvRender(x.doc, B.T.sst, B.T.styles, x.src.area, {drawings: x.src.drawings});
+      pages.push({label: p ? p.name : x.src.sht.name, lid: p ? p.l.id : null, html: R.html, paper: R.paper, W: R.W, H: R.H, k: R.k, margins: R.margins});
+      report.push({sheet: p ? p.name : x.src.sht.name, note: x.note, filled: x.sh.filled});
+    }
+    if(onStep) onStep(++n, B.people.length);
+    if(n % 4 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+  return {pages, report, perLearner: !!B.F.perLearner};
+};
+
+// Excel download (one sheet per learner for SF10)
+M.fillTemplate = async function(code, blob, opts){
+  const B = await prepare(code, blob, opts); const {T, F, c} = B;
   const Xs = new XMLSerializer(); const report = [];
   if(!F.perLearner){
-    for(const sht of T.sheets){
-      const doc = T.P.parseFromString(await T.zip.file(sht.path).async('string'), 'application/xml');
-      const sh = new Sheet(doc, T.sst); const note = F.fill(sh, X);
-      if(sh.filled.length){ T.zip.file(sht.path, Xs.serializeToString(doc)); report.push({sheet: sht.name, note, filled: sh.filled}); }
+    for(const src of B.srcs){
+      const f = fillOne(B, src, null);
+      if(f.sh.filled.length){ T.zip.file(src.sht.path, Xs.serializeToString(f.doc)); report.push({sheet: src.sht.name, note: f.note, filled: f.sh.filled}); }
     }
     dropCalcChain(T);
   } else {
-    // one copy of every template sheet per learner
-    const people = (opts.only ? X.learners.filter(p => p.l.id === opts.only) : X.learners.filter(p => M.counted(p.l)));
-    const srcs = []; for(const sht of T.sheets) srcs.push({sht, xml: await T.zip.file(sht.path).async('string')});
-    const areas = {}; [...T.wb.getElementsByTagNameNS(NS,'definedName')].forEach(d => { if(d.getAttribute('name')==='_xlnm.Print_Area') areas[+d.getAttribute('localSheetId')] = d.textContent.split('!').pop(); });
-    T.relEls.filter(r => /\/worksheet$/.test(r.getAttribute('Type'))).forEach(r => { const t = r.getAttribute('Target'); T.zip.remove(t.startsWith('/')?t.slice(1):'xl/'+t); r.parentNode.removeChild(r); });
-    [...T.ct.getElementsByTagName('Override')].filter(o => /worksheets\//.test(o.getAttribute('PartName'))).forEach(o => o.parentNode.removeChild(o));
+    // parts that belong to each template sheet (pictures, check boxes, comments) are copied for every learner
+    const ctOver = {}; [...T.ct.getElementsByTagName('Override')].forEach(o => ctOver[o.getAttribute('PartName').slice(1)] = o.getAttribute('ContentType'));
+    for(const src of B.srcs){ src.rels = await M.xvRels(T.zip, src.sht.path); src.parts = {};
+      for(const r of src.rels){ if(!r.target || !T.zip.file(r.target)) continue; src.parts[r.id] = {r, data: await T.zip.file(r.target).async('string'), sub: await M.xvRels(T.zip, r.target), subRaw: T.zip.file(r.target.replace(/([^\/]+)$/, '_rels/$1.rels')) ? await T.zip.file(r.target.replace(/([^\/]+)$/, '_rels/$1.rels')).async('string') : null}; } }
+    const relOf = (path) => path.replace(/([^\/]+)$/, '_rels/$1.rels');
+    // remove the template sheets and their parts
+    const removePart = (path) => { T.zip.remove(path); T.zip.remove(relOf(path)); [...T.ct.getElementsByTagName('Override')].filter(o => o.getAttribute('PartName') === '/'+path).forEach(o => o.parentNode.removeChild(o)); };
+    B.srcs.forEach(src => { Object.values(src.parts).forEach(pt => { if(!/\/(image)$/.test(pt.r.type)) removePart(pt.r.target); }); removePart(src.sht.path); });
+    T.relEls.filter(r => /\/worksheet$/.test(r.getAttribute('Type'))).forEach(r => r.parentNode.removeChild(r));
     dropCalcChain(T);
     const sheetsNode = T.wb.getElementsByTagNameNS(NS,'sheets')[0]; while(sheetsNode.firstChild) sheetsNode.removeChild(sheetsNode.firstChild);
     let dns = T.wb.getElementsByTagNameNS(NS,'definedNames')[0]; if(dns) while(dns.firstChild) dns.removeChild(dns.firstChild); else { dns = T.wb.createElementNS(NS,'definedNames'); sheetsNode.parentNode.insertBefore(dns, sheetsNode.nextSibling); }
     let k = 0; const used = new Set();
-    people.forEach((p, i) => srcs.forEach((src, si) => {
-      const doc = T.P.parseFromString(src.xml, 'application/xml'); const sh = new Sheet(doc, T.sst);
-      const note = F.fill(sh, X, p); k++;
-      [...doc.getElementsByTagNameNS(NS,'sheetView')].forEach(v => { if(k>1) v.removeAttribute('tabSelected'); });
-      let name = `${String(i+1).padStart(2,'0')} ${p.last}${srcs.length>1?' '+(si+1):''}`.replace(/[\[\]:*?\/\\']/g,'').slice(0,30); while(used.has(name)) name = name.slice(0,29)+'_'; used.add(name);
-      T.zip.file(`xl/worksheets/sheet${k}.xml`, Xs.serializeToString(doc));
+    const addCt = (path, type) => { if(!type) return; const o = T.ct.createElementNS(T.ct.documentElement.namespaceURI,'Override'); o.setAttribute('PartName','/'+path); o.setAttribute('ContentType', type); T.ct.documentElement.appendChild(o); };
+    B.people.forEach((p, i) => B.srcs.forEach((src, si) => {
+      const f = fillOne(B, src, p); k++;
+      [...f.doc.getElementsByTagNameNS(NS,'sheetView')].forEach(v => { if(k>1) v.removeAttribute('tabSelected'); });
+      let name = `${String(i+1).padStart(2,'0')} ${p.last}${B.srcs.length>1?' '+(si+1):''}`.replace(/[\[\]:*?\/\\']/g,'').slice(0,30); while(used.has(name)) name = name.slice(0,29)+'_'; used.add(name);
+      // check-box shape ids must be unique per sheet: shift them by 1024 per copy
+      const shift = (txt) => txt.replace(/_x0000_s(\d+)/g, (m, n) => '_x0000_s' + (+n + (k-1)*1024)).replace(/shapeId="(\d+)"/g, (m, n) => `shapeId="${+n + (k-1)*1024}"`).replace(/(<o:idmap[^>]*data=")([\d,]+)/g, (m, a, b) => a + b.split(',').map(x => +x + (k-1)).join(','));
+      const sheetPath = `xl/worksheets/sheet${k}.xml`;
+      T.zip.file(sheetPath, shift(Xs.serializeToString(f.doc)));
+      // copy the sheet's own parts
+      const relsXml = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'];
+      Object.entries(src.parts).forEach(([id, pt]) => {
+        if(/\/image$/.test(pt.r.type)){ relsXml.push(`<Relationship Id="${id}" Type="${pt.r.type}" Target="/${pt.r.target}"/>`); return; }
+        const np = pt.r.target.replace(/(\.\w+)$/, `_m${k}$1`);
+        T.zip.file(np, /vmlDrawing|drawing/.test(pt.r.type) ? shift(pt.data) : pt.data);
+        if(pt.subRaw) T.zip.file(relOf(np), pt.subRaw);
+        addCt(np, ctOver[pt.r.target]);
+        relsXml.push(`<Relationship Id="${id}" Type="${pt.r.type}" Target="/${np}"/>`);
+      });
+      src.rels.filter(r => !r.target).forEach(() => {});
+      relsXml.push('</Relationships>');
+      if(Object.keys(src.parts).length) T.zip.file(relOf(sheetPath), relsXml.join(''));
       const r = T.rels.createElementNS(T.rels.documentElement.namespaceURI,'Relationship'); r.setAttribute('Id','rIdF'+k); r.setAttribute('Type','http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet'); r.setAttribute('Target',`worksheets/sheet${k}.xml`); T.rels.documentElement.appendChild(r);
-      const o = T.ct.createElementNS(T.ct.documentElement.namespaceURI,'Override'); o.setAttribute('PartName',`/xl/worksheets/sheet${k}.xml`); o.setAttribute('ContentType','application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml'); T.ct.documentElement.appendChild(o);
+      addCt(sheetPath, 'application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml');
       const se = T.wb.createElementNS(NS,'sheet'); se.setAttribute('name', name); se.setAttribute('sheetId', k); se.setAttributeNS(RNS,'r:id','rIdF'+k); sheetsNode.appendChild(se);
-      if(areas[si]){ const dn = T.wb.createElementNS(NS,'definedName'); dn.setAttribute('name','_xlnm.Print_Area'); dn.setAttribute('localSheetId', k-1); dn.textContent = `'${name}'!${areas[si]}`; dns.appendChild(dn); }
-      if(si===0) report.push({sheet: name, note, filled: sh.filled});
+      if(src.area){ const dn = T.wb.createElementNS(NS,'definedName'); dn.setAttribute('name','_xlnm.Print_Area'); dn.setAttribute('localSheetId', k-1); dn.textContent = `'${name}'!${src.area}`; dns.appendChild(dn); }
+      if(si===0) report.push({sheet: name, note: f.note, filled: f.sh.filled});
     }));
     if(!dns.firstChild) dns.parentNode.removeChild(dns);
     if(T.zip.file('docProps/app.xml')) T.zip.file('docProps/app.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>Microsoft Excel</Application></Properties>');
   }
-  const fname = `${code} ${c.grade}-${c.section}${opts.month && FORMS[code].needs ? ' '+opts.month : ''} (filled).xlsx`;
-  await finish(T, fname);
-  return {report, fname};
+  const only = opts.only && B.people[0] ? ' ' + B.people[0].name : '';
+  const fname = `${code} ${c.grade}-${c.section}${opts.month && F.needs ? ' '+opts.month : ''}${only} (filled).xlsx`;
+  const blobOut = await finish(T);
+  if(!opts.noDownload) M.downloadBlob(blobOut, fname);
+  return {report, fname, blob: blobOut};
 };
 
+/* ---------------- viewer: pages on screen, print, PDF (template's own paper size) ---------------- */
+function progress(text){
+  let p = $('#pdfProg'); if(!p){ document.body.insertAdjacentHTML('beforeend', `<div id="pdfProg" class="prog glass"><div class="pt"></div><div class="bar-track"><div class="bar-fill"></div></div></div>`); p = $('#pdfProg'); }
+  $('.pt', p).textContent = text || '';
+  return { set:(t, f) => { $('.pt', p).textContent = t; $('.bar-fill', p).style.width = (f*100)+'%'; }, done:() => p.remove() };
+}
+M.xvProgress = progress;
+const paperName = (pp) => { const k = pp.map(x => +x.toFixed(2)).join('×'); return ({'8.5×13':'8.5 × 13 in (folio)','8.5×14':'8.5 × 14 in (legal)','8.5×11':'8.5 × 11 in (letter)','8.27×11.69':'A4','11.69×8.27':'A4 landscape','13×8.5':'13 × 8.5 in (folio, landscape)','14×8.5':'8.5 × 14 in landscape'})[k] || `${pp[0]} × ${pp[1]} in`; };
+M.xvPaperName = paperName;
+M.xvPrintPages = (pages) => M.doPrint(pages.map(p => p.html).join(''), M.xvPageCss(pages[0].paper));
+M.xvPdf = async function(pages, filename){
+  const pr = progress('Preparing PDF…');
+  try {
+    await Promise.all([M.loadScript('vendor/html2canvas.min.js'), M.loadScript('vendor/jspdf.umd.min.js')]);
+    const {jsPDF} = window.jspdf; const [pw, ph] = pages[0].paper;
+    const pdf = new jsPDF({orientation: pw > ph ? 'landscape' : 'portrait', unit:'in', format:[Math.min(pw,ph), Math.max(pw,ph)], compress:true});
+    let stage = $('#pdfStage'); if(!stage){ document.body.insertAdjacentHTML('beforeend','<div id="pdfStage" aria-hidden="true"></div>'); stage = $('#pdfStage'); }
+    for(let i=0;i<pages.length;i++){
+      // capture the sheet at full size (no CSS scaling), then place it on the page at the template's scale
+      const pg = pages[i]; stage.innerHTML = pg.html; const sc = $('.xv-scale', stage); sc.style.transform = 'none'; sc.style.position = 'static';
+      const target = sc.firstElementChild;
+      const canvas = await html2canvas(target, {scale: Math.max(1.5, Math.min(3, 2.4 * pg.k)), backgroundColor:'#ffffff', logging:false, useCORS:true, width: pg.W, height: pg.H, windowWidth: pg.W + 50});
+      if(i) pdf.addPage([Math.min(pw,ph), Math.max(pw,ph)], pw > ph ? 'landscape' : 'portrait');
+      const [mT, , , mL] = pg.margins;
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', mL, mT, pg.W * pg.k / 96, pg.H * pg.k / 96, undefined, 'FAST');
+      pr.set(`Rendering page ${i+1} of ${pages.length}…`, (i+1)/pages.length);
+    }
+    stage.innerHTML = ''; pr.set('Saving PDF…', 1);
+    M.downloadBlob(pdf.output('blob'), filename); M.toast('PDF downloaded');
+  } catch(e){ console.error(e); alert('Could not make the PDF: ' + e.message); }
+  pr.done();
+};
+// fit pages to the width of the viewer
+M.xvFit = (wrap) => {
+  const fit = () => { $$('.xvw', wrap).forEach(w => { const p = w.firstElementChild; const pw = p.offsetWidth, ph = p.offsetHeight; const k = Math.min(1, (wrap.clientWidth - 8) / pw);
+    w.style.width = (pw*k)+'px'; w.style.height = (ph*k)+'px'; p.style.transform = `scale(${k})`; }); };
+  fit(); window.addEventListener('resize', fit); const prev = M.onLeave; M.onLeave = () => { window.removeEventListener('resize', fit); if(prev) prev(); };
+};
+M.xvShow = (wrap, pages) => { wrap.innerHTML = `<div class="xv-stage">${pages.map(p => `<div class="xvw">${p.html}</div>`).join('')}</div>`; M.xvFit($('.xv-stage', wrap)); };
+
 /* ---------------- UI card used on the Forms pages ---------------- */
+const repHtml = (report) => { const total = report.reduce((a,r)=>a+r.filled.length, 0);
+  return `<div class="tpl-rep"><b>${total} cell(s) filled</b> — ${report.slice(0,6).map(r => `${esc(r.sheet)}: ${esc(r.note||'')}`).join(' · ')}${report.length>6?` · … (${report.length})`:''}${!total?' — nothing matched; check that the template has labels like “School ID”, “Section”, “LRN”, “NAME”.':''}
+  <details style="margin-top:8px"><summary class="small">Show what was filled</summary><div class="table-wrap" style="max-height:260px;margin-top:8px"><table><thead><tr><th>Sheet</th><th>Cell</th><th>Field</th><th>Value</th></tr></thead><tbody>${report.flatMap(r => r.filled.filter(x=>x.label).slice(0,400).map(x => `<tr><td>${esc(r.sheet)}</td><td>${x.cell}</td><td>${esc(x.label)}</td><td>${esc(x.value)}</td></tr>`)).join('')}</tbody></table></div></details></div>`; };
 M.templateCard = async function(el, f){
-  const docs = (await M.docsAll().catch(()=>[])).filter(d => d.formCode===f.code && d.isTemplate && d.blob).sort((a,b)=>b.added.localeCompare(a.added));
-  const tpl = docs[0]; const F = FORMS[f.code]; const c = M.cls();
+  const list = await M.tplList(f.code); const tpl = await M.tplCurrent(f.code, list); const F = FORMS[f.code]; const c = M.cls();
   const secs = (M.S.att && M.S.att.sections) || [];
-  el.innerHTML = `<div class="card tpl-card"><div class="row"><h2 style="margin:0">${f.code} template → auto-fill</h2><span class="spacer"></span>${tpl?`<span class="chip green">${esc(tpl.name)}</span>`:''}</div>
-    <p class="small muted">Upload your blank ${f.code} template (.xlsx). MASTRO reads its labels and fills ${F.perLearner?'one copy per learner with name, LRN, birthdate and term grades':'the headers (school, ID, region, division, SY, grade, section, adviser, school head), the learner list'}${f.code==='SF2'?', the daily marks, totals and the monthly summary':f.code==='SF4'?', and one row per section with registered learners, ADA, % attendance, drop-outs and transfers':f.code==='SF5'||f.code==='SF6'?', general averages, action taken and the summary counts':''} — keeping your template’s formatting.</p>
+  const L = M.sortedLearners(c).filter(M.counted);
+  const ui = M.tplUI = (M.tplUI && M.tplUI.code === f.code) ? M.tplUI : {code:f.code, lid:'', view:false};
+  el.innerHTML = `<div class="card tpl-card"><div class="row"><h2 style="margin:0">${f.code} template → auto-fill</h2><span class="spacer"></span>${tpl?`<span class="chip green" title="Template currently used">In use: ${esc(tpl.name)}</span>`:'<span class="chip gold">No template yet</span>'}</div>
+    <p class="small muted">Upload your blank ${f.code} template (.xlsx). MASTRO reads its labels and fills ${F.perLearner?'one copy per learner with name, LRN, birthdate, the grade-level block (school, grade, section, SY, adviser), term grades, general average and the certification':'the headers (school, ID, region, division, SY, grade, section, adviser, school head), the learner list'}${f.code==='SF2'?', the daily marks, totals and the monthly summary':f.code==='SF4'?', and one row per section with registered learners, ADA, % attendance, drop-outs and transfers':f.code==='SF5'||f.code==='SF6'?', general averages, action taken and the summary counts':''} — keeping your template’s formatting and paper size.</p>
+    <div class="row"><b class="small">Your ${f.code} templates</b><span class="spacer"></span><button class="btn sm" id="tplUp">${ico('upload')} Upload template</button></div>
+    ${M.tplListHtml(list, tpl, null)}
     <div class="row">
-      <button class="btn sm" id="tplUp">${ico('upload')} ${tpl?'Replace':'Upload'} template</button>
-      ${F.needs && F.needs.includes('month') ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">Month<input type="month" class="input" id="tplM" value="${M.today().slice(0,7)}" style="width:auto"></label>`:''}
+      ${F.needs && F.needs.includes('month') ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">Month<input type="month" class="input" id="tplM" value="${ui.month || M.today().slice(0,7)}" style="width:auto"></label>`:''}
       ${f.code==='SF4' ? `<div class="chips">${secs.map(x=>`<label class="chip" style="cursor:pointer"><input type="checkbox" data-tsec="${x.id}" ${x.classId===c.id?'checked':''}> ${esc(x.name)}</label>`).join('')}</div>`:''}
-      ${F.perLearner ? `<select class="input" id="tplL" style="width:auto"><option value="">All learners (${c.learners.filter(M.counted).length})</option>${M.sortedLearners(c).map(l=>`<option value="${l.id}">${esc(l.name)}</option>`).join('')}</select>`:''}
       <span class="spacer"></span>
-      <button class="btn primary" id="tplGo" ${tpl?'':'disabled'}>${ico('download')} Fill & download</button>
+      <button class="btn primary" id="tplView" ${tpl?'':'disabled'}>${ico('eye')} View filled ${F.perLearner?'(per learner)':'form'}</button>
+      <button class="btn" id="tplGo" ${tpl?'':'disabled'}>${ico('download')} Excel${F.perLearner?' (all learners)':''}</button>
     </div>
     <input type="file" id="tplFile" accept=".xlsx" hidden>
-    <div id="tplRep"></div></div>`;
+    <div id="tplRep"></div><div id="tplViewer"></div></div>`;
+  const rerender = () => M.templateCard(el, f);
+  M.tplListBind(el, f.code, rerender);
   $('#tplUp', el).onclick = () => $('#tplFile', el).click();
   $('#tplFile', el).onchange = async e => { const file = e.target.files[0]; e.target.value=''; if(!file) return;
     if(!/\.xlsx$/i.test(file.name)) return alert('Please use an .xlsx file (in Excel: File → Save As → Excel Workbook .xlsx).');
-    for(const d of docs) await M.docDel(d.id);
-    await M.docPut({id:M.uid('d'), name:file.name, category:'School Forms', formCode:f.code, isTemplate:true, tags:`${f.code}, template`, classId:'', notes:'Template', mime:file.type, size:file.size, added:new Date().toISOString(), blob:file});
-    M.toast('Template saved'); M.templateCard(el, f); };
+    await M.tplAdd(f.code, file); M.toast('Template saved — now in use'); rerender(); };
+  const opts = (extra) => { const o = {month: $('#tplM', el) ? $('#tplM', el).value : undefined, ...extra};
+    if(f.code==='SF4') o.sections = $$('[data-tsec]:checked', el).map(x => secs.find(s => s.id===x.dataset.tsec)).filter(Boolean); ui.month = o.month; return o; };
   $('#tplGo', el).onclick = async () => {
     const btn = $('#tplGo', el); btn.disabled = true; btn.textContent = 'Filling…';
-    try {
-      const opts = {month: $('#tplM', el) ? $('#tplM', el).value : undefined, only: $('#tplL', el) ? $('#tplL', el).value : ''};
-      if(f.code==='SF4') opts.sections = $$('[data-tsec]:checked', el).map(x => secs.find(s => s.id===x.dataset.tsec)).filter(Boolean);
-      const {report} = await M.fillTemplate(f.code, tpl.blob, opts);
-      const total = report.reduce((a,r)=>a+r.filled.length, 0);
-      $('#tplRep', el).innerHTML = `<div class="tpl-rep"><b>${total} cell(s) filled</b> — ${report.map(r => `${esc(r.sheet)}: ${esc(r.note||'')}`).join(' · ') || 'nothing matched; check that the template has labels like “School ID”, “Section”, “LRN”, “NAME”.'}
-        <details style="margin-top:8px"><summary class="small">Show what was filled</summary><div class="table-wrap" style="max-height:260px;margin-top:8px"><table><thead><tr><th>Sheet</th><th>Cell</th><th>Field</th><th>Value</th></tr></thead><tbody>${report.flatMap(r => r.filled.filter(x=>x.label).slice(0,400).map(x => `<tr><td>${esc(r.sheet)}</td><td>${x.cell}</td><td>${esc(x.label)}</td><td>${esc(x.value)}</td></tr>`)).join('')}</tbody></table></div></details></div>`;
-      M.toast('Filled template downloaded');
-    } catch(e){ console.error(e); alert('Could not fill the template: ' + e.message); }
-    btn.disabled = false; btn.innerHTML = `${ico('download')} Fill & download`;
+    try { const {report} = await M.fillTemplate(f.code, tpl.blob, opts({})); $('#tplRep', el).innerHTML = repHtml(report); M.toast('Filled template downloaded'); }
+    catch(e){ console.error(e); alert('Could not fill the template: ' + e.message); }
+    btn.disabled = false; btn.innerHTML = `${ico('download')} Excel${F.perLearner?' (all learners)':''}`;
   };
+  $('#tplView', el).onclick = () => { ui.view = true; viewer(); };
+  if(ui.view && tpl) viewer();
+  async function viewer(){
+    const V = $('#tplViewer', el); const T0 = `${f.code} ${c.grade}-${c.section}`;
+    if(F.perLearner){
+      if(!L.length){ V.innerHTML = '<div class="empty">No learners.</div>'; return; }
+      const l = L.find(x => x.id === ui.lid) || L[0]; ui.lid = l.id; const i = L.indexOf(l);
+      V.innerHTML = `<div class="row" style="margin-top:16px">
+          <button class="icon-btn" id="vPv" ${i?'':'disabled'}>${ico('left','width:18px;height:18px')}</button>
+          <select class="input" id="vSel" style="width:auto;max-width:300px">${L.map(x=>`<option value="${x.id}" ${x.id===l.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select>
+          <button class="icon-btn" id="vNx" ${i<L.length-1?'':'disabled'}>${ico('right','width:18px;height:18px')}</button>
+          <span class="small muted">${i+1} of ${L.length}</span><span class="spacer"></span>
+          <button class="btn sm" id="vP1">${ico('print')} Print</button><button class="btn sm" id="vD1">${ico('pdf')} PDF</button><button class="btn sm" id="vX1">${ico('download')} Excel</button>
+          <button class="btn sm primary" id="vPA">${ico('print')} Print all (${L.length})</button><button class="btn sm primary" id="vDA">${ico('pdf')} Bulk PDF</button><button class="btn sm" id="vClose">✕</button></div>
+        <div class="chips" id="vInfo" style="margin:10px 0"></div><div id="vPages"><div class="empty">Filling…</div></div>`;
+      const go = (id) => { ui.lid = id; viewer(); };
+      $('#vPv', V).onclick = () => go(L[i-1].id); $('#vNx', V).onclick = () => go(L[i+1].id); $('#vSel', V).onchange = e => go(e.target.value);
+      $('#vClose', V).onclick = () => { ui.view = false; V.innerHTML = ''; };
+      const one = await M.templatePages(f.code, tpl.blob, opts({only:l.id}));
+      if(!one.pages.length){ $('#vPages', V).innerHTML = '<div class="empty">Nothing to show.</div>'; return; }
+      $('#vInfo', V).innerHTML = `<span class="chip green">Template: ${esc(tpl.name)}</span><span class="chip">Paper: ${esc(paperName(one.pages[0].paper))}</span><span class="chip">${one.pages.length} page(s) per learner</span>${one.report[0]&&one.report[0].note?`<span class="chip">${esc(one.report[0].note)}</span>`:''}`;
+      M.xvShow($('#vPages', V), one.pages);
+      $('#vP1', V).onclick = () => M.xvPrintPages(one.pages);
+      $('#vD1', V).onclick = () => M.xvPdf(one.pages, `${f.code} ${l.name}.pdf`);
+      $('#vX1', V).onclick = () => M.fillTemplate(f.code, tpl.blob, opts({only:l.id})).then(() => M.toast('Excel downloaded'));
+      const allPages = async () => { const pr = progress('Filling…'); try { const r = await M.templatePages(f.code, tpl.blob, opts({}), (n, t) => pr.set(`Filling ${n} of ${t} learners…`, n/t)); return r.pages; } finally { pr.done(); } };
+      $('#vPA', V).onclick = async () => M.xvPrintPages(await allPages());
+      $('#vDA', V).onclick = async () => { const pg = await allPages(); M.xvPdf(pg, `${T0} (${L.length} learners).pdf`); };
+    } else {
+      V.innerHTML = `<div class="row" style="margin-top:16px"><b>${esc(T0)}${opts({}).month && F.needs?' · '+esc(M.monthName(opts({}).month)):''}</b><span class="spacer"></span>
+        <button class="btn sm" id="vP1">${ico('print')} Print</button><button class="btn sm" id="vD1">${ico('pdf')} PDF</button><button class="btn sm" id="vClose">✕</button></div>
+        <div class="chips" id="vInfo" style="margin:10px 0"></div><div id="vPages"><div class="empty">Filling…</div></div>`;
+      $('#vClose', V).onclick = () => { ui.view = false; V.innerHTML = ''; };
+      const r = await M.templatePages(f.code, tpl.blob, opts({}));
+      $('#tplRep', el).innerHTML = repHtml(r.report);
+      if(!r.pages.length){ $('#vPages', V).innerHTML = '<div class="empty">Nothing to show.</div>'; return; }
+      $('#vInfo', V).innerHTML = `<span class="chip green">Template: ${esc(tpl.name)}</span><span class="chip">Paper: ${esc(paperName(r.pages[0].paper))}</span><span class="chip">${r.pages.length} sheet(s)</span>`;
+      M.xvShow($('#vPages', V), r.pages);
+      $('#vP1', V).onclick = () => M.xvPrintPages(r.pages);
+      $('#vD1', V).onclick = () => M.xvPdf(r.pages, `${T0}.pdf`);
+    }
+  }
 };
 })();

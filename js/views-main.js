@@ -90,7 +90,9 @@ M.views.home = async function(el){
   el.innerHTML = (fresh ? `
   <div class="card welcome" style="margin-bottom:20px"><div class="row"><img src="icons/brand.png" alt="" style="width:64px;height:64px;object-fit:contain">
     <div class="grow"><h2 style="margin:0">Welcome to MASTRO</h2><div class="small muted">This device has no class data yet. Restore your MASTRO data file (kept in your Google Drive), or start by uploading your SF1, gradesheet or ECRs.</div></div>
-    <button class="btn primary" id="wRestore">${ico('upload')} Restore my data file</button><input type="file" id="wFile" accept=".json" hidden></div></div>` : '') + `
+    <button class="btn primary" id="wRestore">${ico('upload')} Restore my data file</button><input type="file" id="wFile" accept=".json" hidden></div></div>` : (M.backupDue() ? `
+  <div class="card backup-nudge" style="margin-bottom:20px"><div class="row">${ico('save','width:26px;height:26px;color:var(--gold)')}<div class="grow"><b>${s.lastBackup ? 'Your last full backup was ' + Math.floor((Date.now() - new Date(s.lastBackup).getTime())/864e5) + ' days ago' : 'You have no full backup yet'}</b><div class="small muted">One file keeps everything: grades, attendance, seat plans, cleaning points, ECRs, tests, templates and documents. Save it to your private Drive folder.</div></div>
+    <button class="btn gold" id="hBk">${ico('download')} Back up everything</button></div></div>` : '')) + `
   <div class="grid g-hero">
     <div class="card hero">
       <div class="muted small">${esc(s.school)} · SY ${esc(c.sy)}</div>
@@ -135,6 +137,7 @@ M.views.home = async function(el){
       <div class="card"><h2>Quick links</h2><div class="list">${(s.links||[]).map(l=>`<a class="item" href="${esc(l.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><div class="file-ico link">${ico('link')}</div><div class="grow"><div class="title">${esc(l.label)}</div><div class="tiny muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.url)}</div></div></a>`).join('') || '<div class="empty">Add links in Settings.</div>'}</div></div>
     </div>
   </div>`;
+  if($('#hBk')) $('#hBk').onclick = () => M.backupAll();
   if($('#wRestore')){ $('#wRestore').onclick = () => $('#wFile').click(); $('#wFile').onchange = e => { const f = e.target.files[0]; e.target.value=''; if(f) M.restoreFile(f); }; }
   const docs = (await M.docsAll().catch(()=>[])).sort((a,b)=>b.added.localeCompare(a.added)).slice(0,4);
   const rd = $('#recentDocs'); if(!rd) return;
@@ -579,10 +582,12 @@ M.views.settings = function(el){
         <label class="field">One per line: Label | URL<textarea class="input" id="links" rows="3">${esc((s.links||[]).map(l=>l.label+' | '+l.url).join('\n'))}</textarea></label></div>
     </div>
   </div>
-  <div class="card" style="margin-top:20px"><h2>Backup & restore</h2>
-    <p class="small muted" style="margin-top:0">Everything is saved only on this device (grades, checklist, attendance, cleaning points). Make a backup regularly and keep it in your Google Drive folder — restore it on another device (MacBook ↔ iPhone) to move your data.</p>
-    <div class="row"><button class="btn primary" id="bk">${ico('download')} Backup (records only)</button><button class="btn" id="bkAll">${ico('download')} Backup with documents</button><button class="btn" id="rs">${ico('upload')} Restore backup</button><input type="file" id="rsFile" accept=".json" hidden><span class="spacer"></span><button class="btn danger" id="reset">Reset to sample data</button></div>
-  </div>`;
+  <div class="card" style="margin-top:20px" id="bkCard"><div class="row"><h2 style="margin:0">Backup & restore</h2><span class="spacer"></span><span class="small ${M.backupDue()?'low':'muted'}">${s.lastBackup ? 'Last full backup: ' + new Date(s.lastBackup).toLocaleString() : 'No full backup yet'}</span></div>
+    <p class="small muted">Everything lives only on this device. <b>Back up everything</b> saves one file with all of it — keep it in your <b>private</b> Google Drive folder (never on GitHub) and restore it on another device (MacBook ↔ iPhone).</p>
+    <div id="bkSum" class="bk-sum"><div class="muted small">Counting…</div></div>
+    <div class="row" style="margin-top:14px"><button class="btn primary" id="bkAll">${ico('download')} Back up everything</button><button class="btn" id="rs">${ico('upload')} Restore backup</button><input type="file" id="rsFile" accept=".json" hidden><span class="spacer"></span><button class="btn sm" id="bk" title="Smaller file without uploaded documents">Records only</button><button class="btn sm danger" id="reset">Reset to sample data</button></div>
+  </div>
+  <div class="card about-card" style="margin-top:20px"><div class="row"><img src="icons/brand.png" alt="" style="width:46px;height:46px;object-fit:contain"><div class="grow"><b>MASTRO</b> <span class="ver-chip">v${M.VERSION.n}</span> <span class="small muted">${M.VERSION.label}</span><div class="small muted">Developed by <b>${esc(M.DEV.name)}</b> · ${esc(M.DEV.org)}</div></div></div></div>`;
   $$('[data-s]', el).forEach(i => i.onchange = () => { s[i.dataset.s] = i.value.trim(); M.save(); if(i.dataset.s==='theme') M.applyTheme(); M.toast('Saved'); });
   $$('[data-c]', el).forEach(i => i.onchange = () => { c[i.dataset.c] = i.dataset.c==='grade' ? (Number(i.value)||i.value) : i.value.trim(); M.save(); M.renderClassSelect(); M.toast('Saved'); });
   let logoKey = null;
@@ -600,6 +605,7 @@ M.views.settings = function(el){
   $('#impCls').onclick = () => $('#impFile2').click();
   $('#impFile2').onchange = e => { const f=e.target.files[0]; if(f) importXlsx(f); e.target.value=''; };
   $('#delCls').onclick = () => { if(M.S.classes.length<2) return M.toast('Keep at least one class'); if(!confirm(`Delete ${M.className(c)} and all its grades?`)) return; M.S.classes=M.S.classes.filter(x=>x.id!==c.id); M.S.activeClassId=M.S.classes[0].id; M.save(); M.route(); };
+  M.backupSummary().then(x => { const b = $('#bkSum'); if(b) b.innerHTML = x.html; });
   $('#bk').onclick = () => backup(false);
   $('#bkAll').onclick = () => backup(true);
   $('#rs').onclick = () => $('#rsFile').click();
@@ -607,12 +613,46 @@ M.views.settings = function(el){
   $('#reset').onclick = () => { if(!confirm('Replace all class records and attendance with the original sample data? Documents are kept.')) return; M.reset(); M.applyTheme(); M.route(); M.toast('Reset done'); };
 };
 const blobToB64 = (b) => new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(b); });
+// what a full backup contains (shown in Settings so you can see nothing is left out)
+M.backupSummary = async function(){
+  const S = M.S; const docs = await M.docsAll().catch(()=>[]);
+  const secs = (S.att && S.att.sections) || [];
+  const attDays = secs.reduce((a, x) => a + Object.keys(x.att||{}).length, 0);
+  const marks = secs.reduce((a, x) => a + Object.values(x.att||{}).reduce((b, r) => b + Object.keys(r||{}).length, 0), 0);
+  const seated = secs.reduce((a, x) => a + (x.seats||[]).filter(Boolean).length, 0);
+  const pts = secs.reduce((a, x) => a + ((x.clean && x.clean.log) || []).length, 0);
+  const weeks = secs.reduce((a, x) => a + Object.keys((x.clean && x.clean.weeks) || {}).length, 0);
+  const learners = S.classes.reduce((a, c) => a + c.learners.length, 0);
+  const tpl = docs.filter(d => d.isTemplate).length, ecrDocs = docs.filter(d => d.formCode === 'ECR').length;
+  const size = docs.reduce((a, d) => a + (d.size || (d.blob && d.blob.size) || 0), 0);
+  const rows = [
+    ['Classes & grades', `${S.classes.length} class(es) · ${learners} learners · Term 1–3 grades · checklist · SF9 comments & attendance`],
+    ['Attendance', `${secs.length} section(s) · ${attDays} school day(s) · ${marks} absent/late/excused mark(s) · school calendar`],
+    ['Seat plans', `${seated} seat(s) assigned`],
+    ['Cleaning & points', `${weeks} week(s) of groups · ${pts} point entr${pts===1?'y':'ies'} (QR scans)`],
+    ['Class records (ECR)', `${S.ecr.length} record(s)${S.ecr.some(e => e.model && e.model.dirty) ? ' · includes scores typed in MASTRO' : ''} · ${ecrDocs} ECR file(s)`],
+    ['Item analysis & TOS', `${S.ia.length} test(s) · ${S.bow.length} Budget(s) of Work`],
+    ['Documents', `${docs.length} file(s) (${M.fmtBytes(size)}) · ${tpl} template(s) · logos & seals`],
+    ['Settings', 'school details, signatories, comment bank, checklist items, links']];
+  return {html: `<div class="bk-grid">${rows.map(([k, v]) => `<div class="bk-k">${ico('check','width:15px;height:15px;color:var(--green)')} ${k}</div><div class="bk-v small">${esc(v)}</div>`).join('')}</div>`};
+};
+M.backupDue = () => { const t = M.S.settings.lastBackup; return !t || (Date.now() - new Date(t).getTime()) > 7 * 864e5; };
+M.backupAll = () => backup(true);
 async function backup(withDocs){
-  const out = {app:'MASTRO', version:2, exported:new Date().toISOString(), state:M.S, docs:[]};
+  const out = {app:'MASTRO', version:3, exported:new Date().toISOString(), full: !!withDocs, state:M.S, docs:[]};
+  if(withDocs){ M.S.settings.lastBackup = out.exported; M.save(); out.state = M.S; }
   const docs = await M.docsAll().catch(()=>[]);
   for(const d of docs){ const x = Object.assign({}, d); x.blob = (withDocs && d.blob) ? await blobToB64(d.blob) : null; if(!withDocs && d.blob) x.skipped = true; out.docs.push(x); }
-  M.downloadBlob(new Blob([JSON.stringify(out)], {type:'application/json'}), `MASTRO-backup-${M.today()}${withDocs?'-full':''}.json`);
-  M.toast('Backup downloaded');
+  const blob = new Blob([JSON.stringify(out)], {type:'application/json'});
+  const name = `MASTRO-backup-${M.today()}${withDocs?'-full':'-records'}.json`;
+  // iPhone/iPad: offer the share sheet (Save to Files / Google Drive); elsewhere download
+  const file = (typeof File === 'function') ? new File([blob], name, {type:'application/json'}) : null;
+  if(file && navigator.canShare && /iPhone|iPad|iPod/.test(navigator.userAgent) && navigator.canShare({files:[file]})){
+    try { await navigator.share({files:[file], title:name}); M.toast('Backup ready'); if(location.hash.startsWith('#settings')) M.route(); return; } catch(e){ if(e && e.name === 'AbortError') return; }
+  }
+  M.downloadBlob(blob, name);
+  M.toast(withDocs ? 'Full backup downloaded — save it to your private Drive folder' : 'Records backup downloaded');
+  if(location.hash.startsWith('#settings')) M.route();
 }
 M.restoreFile = (f) => restore(f);
 async function restore(file){
