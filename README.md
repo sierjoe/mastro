@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.0 · October 7, 2026)
+# MASTRO — Adviser's Workspace (v6.1 · October 7, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -20,6 +20,11 @@ Offline forms, documents and class management for the class adviser
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
 
+### New in v6.1
+- **Assessments** (sidebar, and on the phone's bottom bar): Create Assessment → pick the ECR section, term and column (WW 1–5, ST 1, ST 2, TE). Print answer sheets with each learner's name and a QR code (4 per A4, or 2 for long tests; or one learner's sheet). Scan with the phone camera or upload photos; scores go into that ECR column. Results and item analysis are kept per section.
+- **Grades → Grade slips**: 4 per A4 (all learners or one learner), temporary copy for parents.
+- SF4 prints in landscape, fitted to one page. Learners page: smaller summary, bigger checklist.
+
 ### New in v6
 - **Forms → templates**: every uploaded template is kept; the one marked **Currently used** is filled (tap *Use this* to switch). SF9 shows its template in use too.
 - **View filled forms** on screen (per learner for SF10, whole form for SF2–SF8) on the template's own paper size — SF10 on **8.5 × 13 in** — with **Print, PDF, Print all, Bulk PDF** and Excel.
@@ -32,7 +37,7 @@ Offline forms, documents and class management for the class adviser
 ## Update your GitHub copy (you already have v1 online)
 1. Unzip `MASTRO.zip`. Open the `mastro` folder.
 2. In your `mastro` repository on GitHub, click **Add file → Upload files**.
-3. Drag **everything inside the folder** (files and the folders `css`, `js`, `icons`, `vendor`, `templates`) into the page — v6 adds `js/xlsxview.js`, `js/ecredit.js`, `js/tests.js`, `vendor/pdf.min.js` and `vendor/pdf.worker.min.js`;
+3. Drag **everything inside the folder** (files and the folders `css`, `js`, `icons`, `vendor`, `templates`) into the page — v6.1 adds `js/assess.js`; v6 added `js/xlsxview.js`, `js/ecredit.js`, `js/tests.js`, `vendor/pdf.min.js` and `vendor/pdf.worker.min.js`;
    then **Commit changes**. Files with the same name are replaced.
 4. Optional clean-up: `js/app.js` and `vendor/exceljs.min.js` are no longer used — you can delete them on GitHub.
 5. Wait 1–2 minutes, then open your app link. On iPhone, open MASTRO once while online so it saves the new version.
@@ -55,4 +60,4 @@ is already loaded; to bring in newer SeatCheck records, go to **Attendance → M
 - Saved only on the device (browser storage). Use **Settings → Back up everything** often and keep the file in your Google Drive folder.
 - To move data to another device: **Settings → Restore backup** there.
 - Clearing Safari website data deletes MASTRO data — keep backups.
-- When you change files later, also edit `sw.js` and raise `mastro-v6.0.0` (e.g. to `mastro-v6.0.1`) so devices download the update.
+- When you change files later, also edit `sw.js` and raise `mastro-v6.1.0` (e.g. to `mastro-v6.1.1`) so devices download the update.

@@ -145,12 +145,12 @@ M.xvRender = function(doc, sst, styles, area, opts = {}){
   // paper, margins and fit
   const ps = g('pageSetup'), pm = g('pageMargins'), spr = g('pageSetUpPr');
   let [pw, ph] = PAPER[+(ps?.getAttribute('paperSize')||9)] || PAPER[9];
-  if((opts.orientation || ps?.getAttribute('orientation')) === 'landscape') [pw, ph] = [ph, pw];
+  if((opts.orientation || ps?.getAttribute('orientation')) === 'landscape' && pw < ph) [pw, ph] = [ph, pw];
   if(opts.paper){ [pw, ph] = opts.paper; }
   const mL = +(pm?.getAttribute('left') ?? 0.5), mR = +(pm?.getAttribute('right') ?? 0.5), mT = +(pm?.getAttribute('top') ?? 0.5), mB = +(pm?.getAttribute('bottom') ?? 0.5);
   const iw = (pw - mL - mR) * 96, ih = (ph - mT - mB) * 96;
-  const fit = spr?.getAttribute('fitToPage') === '1' || spr?.getAttribute('fitToPage') === 'true';
-  let k = fit ? Math.min(iw / W, ih / H) : Math.min(1, (+(ps?.getAttribute('scale')||100))/100, iw / W);
+  const fit = opts.fit || spr?.getAttribute('fitToPage') === '1' || spr?.getAttribute('fitToPage') === 'true';
+  let k = fit ? Math.min(1, iw / W, ih / H) : Math.min(1, (+(ps?.getAttribute('scale')||100))/100, iw / W);
   if(!fit && H * k > ih) k = Math.min(k, ih / H);
   return {W, H, k, paper:[pw, ph], margins:[mT, mR, mB, mL],
     html: `<div class="xv-page" style="width:${pw}in;height:${ph}in;padding:${mT}in ${mR}in ${mB}in ${mL}in"><div class="xv-fit" style="width:${(W*k).toFixed(1)}px;height:${(H*k).toFixed(1)}px"><div class="xv-scale" style="transform:scale(${k.toFixed(4)})">${html}</div></div></div>`};

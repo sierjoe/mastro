@@ -11,7 +11,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.0', date:'2026-10-07', label:'October 7, 2026'};
+M.VERSION = {n:'6.1', date:'2026-10-07', label:'October 7, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -83,6 +83,7 @@ const I = {
   edit:'<path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/>',
   broom:'<path d="M14 3l-4 9M7 12h8l2 9H5z"/>',
   check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  assess:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10.5h.01M11 10.5h5M8.5 14.5h.01M11 14.5h5M8 18l1.2 1.2L11.5 17"/>',
   eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   save:'<path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v6h8V3M7 21v-7h10v7"/>',
   pdf:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 16v-4h1.5a1.5 1.5 0 0 1 0 3H8M13 12v4h1a2 2 0 0 0 0-4z"/>'
@@ -95,13 +96,14 @@ M.NAV = [
   {id:'learners', label:'Learners', icon:'learners', eyebrow:'Roster & credentials checklist', title:'Learners'},
   {id:'grades', label:'Grades', icon:'grades', eyebrow:'Consolidated gradesheet', title:'Grades'},
   {id:'analysis', label:'Analysis', icon:'analysis', eyebrow:'Class analysis tools', title:'Analysis'},
+  {id:'assess', label:'Assessments', icon:'assess', eyebrow:'Answer sheets · scan · ECR', title:'Assessments'},
   {id:'items', label:'Item Analysis', icon:'items', eyebrow:'Summative tests & term examinations', title:'Item Analysis'},
   {id:'classes', label:'Classes', icon:'classes', eyebrow:'Electronic class records (ECR)', title:'Classes'},
   {id:'forms', label:'Forms', icon:'forms', eyebrow:'DepEd School Forms SF1–SF10', title:'Forms'},
   {id:'repo', label:'Repository', icon:'repo', eyebrow:'Documents & files', title:'Repository'},
   {id:'settings', label:'Settings', icon:'settings', eyebrow:'School, backup & data', title:'Settings'}
 ];
-M.TABBAR = ['home','attendance','learners','forms'];
+M.TABBAR = ['home','attendance','assess','learners'];
 
 /* ---------------- helpers ---------------- */
 const $ = M.$ = (s, el = document) => el.querySelector(s);
@@ -181,6 +183,7 @@ function migrate(S){
   S.ia = Array.isArray(S.ia) ? S.ia : [];
   S.ecr = Array.isArray(S.ecr) ? S.ecr : [];
   S.bow = Array.isArray(S.bow) ? S.bow : [];
+  S.asm = Array.isArray(S.asm) ? S.asm : [];
   S.settings.logos = Object.assign({deped:'', school:''}, S.settings.logos||{});
   S.ui = Object.assign({term:'1', subject:'GA', sex:'all', gradesTerm:'1', attTab:'seats', lfilter:'all'}, S.ui||{});
   S.classes.forEach(c => {
@@ -398,6 +401,17 @@ M.printHeader = (title) => {
 };
 M.printSign = (c, left='Prepared by:', right='Noted by:') => { const s = M.S.settings; return `<div class="p-sign"><div>${left}<div class="nm">${M.esc(c.adviser)}</div><div>Class Adviser</div></div><div>${right}<div class="nm">${M.esc(c.head||s.head)}</div><div>${M.esc(s.headTitle||'School Head')}</div></div></div>`; };
 // pageCss lets a form choose its own paper (e.g. "@page{size:A4 landscape;margin:8mm}")
+// print on one page: shrink the content to the printable area when it is too big
+M.doPrintFit = (html, size = 'A4 landscape', marginMm = 7) => {
+  const dims = /landscape/i.test(size) ? [297, 210] : [210, 297];
+  const W = dims[0] - 2*marginMm, H = dims[1] - 2*marginMm, px = 96 / 25.4;
+  const st = document.createElement('div');
+  st.style.cssText = `position:fixed;left:-20000px;top:0;width:${W}mm;visibility:hidden;font-family:"Bookman Old Style",Bookman,Georgia,serif;font-size:11pt;color:#000;background:#fff`;
+  st.innerHTML = html; document.body.appendChild(st);
+  const sw = Math.max(st.scrollWidth, W*px), sh = st.scrollHeight; st.remove();
+  const k = Math.min(1, (W*px) / sw, (H*px - 2) / sh);
+  M.doPrint(`<div class="fitbox" style="width:${W}mm;height:${H}mm;overflow:hidden"><div style="width:${sw}px;transform:scale(${k.toFixed(4)});transform-origin:0 0">${html}</div></div>`, `@page{size:${size};margin:${marginMm}mm}`);
+};
 M.doPrint = (html, pageCss) => {
   $('#printArea').innerHTML = html;
   $('#pageStyle').textContent = pageCss || '@page{size:A4;margin:14mm}';

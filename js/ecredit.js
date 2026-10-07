@@ -216,6 +216,19 @@ M.ecrWriteBack = async function(E){
 const f2 = (v) => isNum(v) ? (Math.round(v*100)/100).toFixed(2) : '';
 const f0 = (v) => isNum(v) ? String(v) : '';
 function commit(E){ E.terms = M.ecrTermsFromModel(E.model); E.model.dirty = true; E.model.edited = new Date().toISOString(); clearTimeout(commit.t); commit.t = setTimeout(M.save, 350); }
+// used by Assessments: put a score / highest possible score into the ECR model
+M.ecrCompSlot = (T, comp) => { if(/^ww(\d)$/.test(comp)) return {k:'ww', j: +comp.slice(2) - 1};
+  const want = {st1:/st\s*1|summative\s*test\s*1/i, st2:/st\s*2|summative\s*test\s*2/i, te:/^te$|term\s*exam|quarterly|exam/i}[comp];
+  const labs = (T && T.labels && T.labels.ex) || []; let j = labs.findIndex(x => want && want.test(String(x)));
+  if(j < 0) j = {st1:0, st2:1, te:2}[comp]; return {k:'ex', j}; };
+M.ecrPutScores = function(E, term, comp, scores, hps){
+  const T = E.model && E.model.terms[term]; if(!T) throw new Error(`The ECR of ${E.title} has no Term ${term} sheet.`);
+  const {k, j} = M.ecrCompSlot(T, comp); if(j >= T.hps[k].length) throw new Error(`${E.title}: this ECR has no ${comp.toUpperCase()} column.`);
+  if(isNum(hps)) T.hps[k][j] = hps;
+  Object.entries(scores).forEach(([slot, v]) => { const sx = slot[0], i = +slot.slice(1); if(T.scores[sx] && T.scores[sx][i]) T.scores[sx][i][k][j] = v; });
+  commit(E); clearTimeout(commit.t); M.save();
+};
+M.ecrGetScore = (E, term, comp, slot) => { const T = E.model && E.model.terms[term]; if(!T) return null; const {k, j} = M.ecrCompSlot(T, comp); const r = T.scores[slot[0]] && T.scores[slot[0]][+slot.slice(1)]; return r ? r[k][j] : null; };
 
 M.ecrEditor = async function(body, E, tab){
   body.innerHTML = '<div class="card"><div class="empty">Opening the ECR…</div></div>';

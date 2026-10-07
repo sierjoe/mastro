@@ -168,6 +168,7 @@ M.views.grades = function viewGrades(el){
       <span class="spacer"></span>
       <button class="btn sm" id="impBtn">${ico('upload')} Import Excel</button>
       <button class="btn sm" id="expBtn">${ico('download')} Export Excel</button>
+      <button class="btn sm gold" id="slipBtn">${ico('print')} Grade slips</button>
       <button class="btn sm primary" id="prtBtn">${ico('print')} Print Term ${t}</button>
       <input type="file" id="impFile" accept=".xlsx,.xls" hidden>
     </div>
@@ -179,6 +180,7 @@ M.views.grades = function viewGrades(el){
   </div>`;
   $('#termSeg').onclick = e => { const b=e.target.closest('button'); if(!b) return; M.S.ui.gradesTerm=b.dataset.t; M.save(); viewGrades(el); };
   $('#prtBtn').onclick = () => printGradesheet(c, t);
+  $('#slipBtn').onclick = () => gradeSlips(c, t);
   $('#expBtn').onclick = () => exportClassXlsx(c);
   $('#impBtn').onclick = () => $('#impFile').click();
   $('#impFile').onchange = e => { const f=e.target.files[0]; if(f) importXlsx(f); e.target.value=''; };
@@ -205,6 +207,53 @@ M.views.grades = function viewGrades(el){
     if(ins[i+1]) { ins[i+1].focus(); ins[i+1].select(); }
   });
 };
+
+/* ---------- grade slips: temporary copy of grades for parents (4 per A4) ---------- */
+function slipHtml(c, l, term, inc){
+  const s = M.S.settings; const D = M.sf9Data(c, l); const tN = +term; const lg = s.logos || {};
+  const rowsT = ['1','2','3'].map(t => M.termRow(c, t, l.id));
+  const cell = (v, show) => !show ? '' : isNum(v) ? `<span class="${Math.round(v) < PASS ? 'low' : ''}">${Math.round(v*100)/100 === Math.round(v) ? Math.round(v) : fmt(v, 0)}</span>` : '';
+  const fin = tN === 3;
+  const body = D.subj.map(x => `<tr><td class="l ${x.sub ? 'sub' : ''}">${esc(x.label)}</td>${x.t.map((v, i) => `<td>${cell(v, i < tN)}</td>`).join('')}<td>${fin && isNum(x.fin) ? cell(x.fin, true) : ''}</td><td>${fin && !x.sub ? esc(x.rem || '') : ''}</td></tr>`).join('');
+  const gaT = rowsT.map((r, i) => i < tN && isNum(r.GA) ? fmt(r.GA, 2) : '');
+  const gaDesc = isNum(rowsT[tN-1].GA) ? M.descriptor(rowsT[tN-1].GA) : '';
+  const name = l.name.replace(/\s*,\s*/, ', ');
+  const cm = inc.comment ? ((c.sf9.comments || {})[l.id] || {})[term] : '';
+  return `<div class="gslip">
+    <div class="gh">${lg.deped ? `<img src="${lg.deped}" alt="">` : '<span style="width:10mm"></span>'}<div class="t"><div class="a">Republic of the Philippines · Department of Education</div><div class="a">${esc(s.regionName || '')} · ${esc(s.division || '')}</div><div class="b">${esc(s.school || '')}</div><div class="c">School ID ${esc(s.schoolId || '')}${s.address ? ' · ' + esc(s.address) : ''}</div></div>${lg.school ? `<img src="${lg.school}" alt="">` : '<span style="width:10mm"></span>'}</div>
+    <div class="gt">GRADE SLIP<small>Term ${esc(term)} · School Year ${esc(String(c.sy))}</small></div>
+    <div class="gi"><div>Name: <b>${esc(name)}</b></div><div>LRN: <b>${esc(l.lrn || '—')}</b></div><div>Grade &amp; Section: <b>${esc(M.className(c))}</b></div><div>Sex: <b>${l.sex === 'M' ? 'Male' : l.sex === 'F' ? 'Female' : '—'}</b></div></div>
+    <table><colgroup><col style="width:37%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:19%"></colgroup><thead><tr><th>Learning Area</th><th>Term 1</th><th>Term 2</th><th>Term 3</th><th>Final</th><th>Remarks</th></tr></thead>
+      <tbody>${body}<tr class="ga"><td class="l">General Average</td>${gaT.map(v => `<td>${v}</td>`).join('')}<td>${fin && isNum(D.ga) ? D.ga : ''}</td><td>${fin ? esc(D.gaRem || '') : ''}</td></tr></tbody></table>
+    <div class="gx"><span>Term ${esc(term)} average: <b>${gaT[tN-1] || '—'}</b>${gaDesc ? ` · <b>${gaDesc}</b>` : ''}</span>${inc.att && D.totals && D.totals.days ? `<span>Days absent (SY to date): <b>${D.totals.abs}</b> of ${D.totals.days}</span>` : ''}</div>
+    ${inc.comment ? `<div class="gc"><b>Adviser's remarks:</b> ${esc(cm || '')}</div>` : ''}
+    <div class="gs"><div><div class="nm">${esc(c.adviser || '')}</div>Class Adviser</div><div><div class="nm">&nbsp;</div>Parent / Guardian's Signature</div></div>
+    <div class="gn">Temporary copy of grades — the official Report Card (SF9) is issued at the end of the school year. Descriptors: 90–100 Advancing · 80–89 Benchmarking · 75–79 Connecting · 65–74 Developing · below 65 Emerging.</div>
+  </div>`;
+}
+function gradeSlips(c, t0){
+  const L = M.sortedLearners(c).filter(M.counted); const ui = gradeSlips.ui = gradeSlips.ui || {term: t0, lid: '', att: true, comment: false};
+  if(!L.length) return M.toast('No learners in this class');
+  M.modal('Grade slips', `
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <label class="field" style="flex-direction:row;align-items:center;gap:8px">Grades up to<select class="input" id="gsT" style="width:auto">${['1','2','3'].map(x => `<option value="${x}" ${x===ui.term?'selected':''}>Term ${x}</option>`).join('')}</select></label>
+      <label class="row small" style="cursor:pointer;gap:6px"><input type="checkbox" id="gsA" ${ui.att?'checked':''}> Days absent</label>
+      <label class="row small" style="cursor:pointer;gap:6px"><input type="checkbox" id="gsC" ${ui.comment?'checked':''}> Adviser's remarks (SF9 comments)</label>
+    </div>
+    <div class="row" style="margin-top:12px;gap:10px;flex-wrap:wrap">
+      <select class="input" id="gsL" style="width:auto;max-width:300px">${L.map(l => `<option value="${l.id}" ${l.id===ui.lid?'selected':''}>${esc(l.name)}</option>`).join('')}</select>
+      <button class="btn" id="gsOne">${ico('print')} Print this learner's slip</button><span class="spacer"></span>
+      <button class="btn primary" id="gsAll">${ico('print')} Print all (${L.length}) · 4 per A4</button></div>
+    <div class="slip-prev" id="gsPrev" style="margin-top:14px"></div>
+    <p class="tiny muted">A4 portrait, 4 slips per page (cut along the dashed lines). Print at 100% / actual size.</p>`, b => {
+    const inc = () => ({att: $('#gsA', b).checked, comment: $('#gsC', b).checked});
+    const prev = () => { ui.term = $('#gsT', b).value; ui.lid = $('#gsL', b).value; Object.assign(ui, inc()); const l = L.find(x => x.id === ui.lid) || L[0]; $('#gsPrev', b).innerHTML = slipHtml(c, l, ui.term, inc()); };
+    ['#gsT','#gsA','#gsC','#gsL'].forEach(x => $(x, b).onchange = prev); prev();
+    const print = (list) => M.doPrint(M.quadPages(list.map(l => slipHtml(c, l, ui.term, inc())), 99, 142.5, 4), '@page{size:A4 portrait;margin:0}');
+    $('#gsOne', b).onclick = () => print([L.find(x => x.id === $('#gsL', b).value) || L[0]]);
+    $('#gsAll', b).onclick = () => print(L);
+  }, true);
+}
 
 /* =====================================================================
    ANALYSIS
@@ -316,11 +365,11 @@ M.views.learners = function viewLearners(el){
       <td><div class="row" style="gap:8px;flex-wrap:nowrap"><div class="bar-track" style="width:70px;height:8px"><div class="bar-fill ${sc<totalItems?'low':''}" style="width:${sc/totalItems*100}%"></div></div><span class="tiny ${sc<totalItems?'':'muted'}">${sc}/${totalItems}</span></div></td><td><button class="btn sm st-btn" data-st="${l.id}">${l.status?M.STATUS[l.status].short:'Active'}</button></td></tr>`;
   });
   el.innerHTML = `
-  <div class="grid g-4 ck-stats" style="margin-bottom:20px">
-    ${['1','2','3'].map(t=>{const d=termDone(t);return `<div class="card stat"><div class="label">Term ${t} grades</div><div class="value">${d}<span class="muted" style="font-size:16px">/${c.learners.length}</span></div>${meter(d,c.learners.length,d<c.learners.length)}</div>`;}).join('')}
-    ${items.map(it=>{const d=colDone(it);return `<div class="card stat"><div class="label">${esc(it.label)}</div><div class="value">${d}<span class="muted" style="font-size:16px">/${c.learners.length}</span></div>${meter(d,c.learners.length,d<c.learners.length)}</div>`;}).join('')}
-  </div>
-  <div class="card">
+  <div class="card" style="padding:16px 18px">
+    <div class="ck-strip">
+    ${['1','2','3'].map(t=>{const d=termDone(t);return `<div class="ck-mini"><span class="lbl" title="Term ${t} grades complete">Term ${t}</span><b>${d}<span class="muted">/${c.learners.length}</span></b>${meter(d,c.learners.length,d<c.learners.length)}</div>`;}).join('')}
+    ${items.map(it=>{const d=colDone(it);return `<div class="ck-mini"><span class="lbl" title="${esc(it.label)}">${esc(it.short||it.label)}</span><b>${d}<span class="muted">/${c.learners.length}</span></b>${meter(d,c.learners.length,d<c.learners.length)}</div>`;}).join('')}
+    </div>
     <div class="row" style="margin-bottom:14px">
       <input class="input" id="lq" placeholder="Search name or LRN…" value="${esc(viewLearners.q||'')}" style="max-width:260px">
       <div class="seg" id="lf">${[['all','All'],['missing','With missing'],['complete','Complete'],['tagged','Tagged status']].map(([v,t])=>`<button data-f="${v}" class="${v===f?'on':''}">${t}</button>`).join('')}</div>
@@ -329,8 +378,8 @@ M.views.learners = function viewLearners(el){
       <button class="btn sm" id="lPrint">${ico('print')} Print checklist</button>
       <button class="btn sm primary" id="addL">${ico('plus')} Add learner</button>
     </div>
-    <p class="small muted" style="margin:0 0 12px"><b>Upload SF1</b> (Excel from LIS) to mark LIS Enrolment automatically and use the SF1 names, LRNs and birthdates. Term columns fill in automatically from the gradesheet. Tap a document box to mark it submitted (tap again to undo). Tap a column title to mark the whole class.</p>
-    <div class="table-wrap"><table class="checklist">
+    <details class="small muted" style="margin:0 0 10px"><summary>How this works</summary><b>Upload SF1</b> (Excel from LIS) to mark LIS Enrolment automatically and use the SF1 names, LRNs and birthdates. Term columns fill in automatically from the gradesheet. Tap a document box to mark it submitted (tap again to undo). Tap a column title to mark the whole class.</details>
+    <div class="table-wrap checklist-wrap"><table class="checklist">
       <thead><tr><th>#</th><th class="sticky-col">Learner</th>${['1','2','3'].map(t=>`<th class="c">T${t}</th>`).join('')}${items.map(it=>`<th class="c sortable" data-all="${esc(it.id)}" title="Mark all learners">${esc(it.short||it.label)}</th>`).join('')}<th>Progress</th><th>Status</th></tr></thead>
       <tbody>${body || `<tr><td colspan="${totalItems+3}"><div class="empty">No learners match.</div></td></tr>`}</tbody>
     </table></div>
@@ -631,6 +680,7 @@ M.backupSummary = async function(){
     ['Seat plans', `${seated} seat(s) assigned`],
     ['Cleaning & points', `${weeks} week(s) of groups · ${pts} point entr${pts===1?'y':'ies'} (QR scans)`],
     ['Class records (ECR)', `${S.ecr.length} record(s)${S.ecr.some(e => e.model && e.model.dirty) ? ' · includes scores typed in MASTRO' : ''} · ${ecrDocs} ECR file(s)`],
+    ['Assessments', `${S.asm.length} assessment(s) · ${S.asm.reduce((a, x) => a + Object.keys(x.results || {}).length, 0)} scanned answer sheet(s)`],
     ['Item analysis & TOS', `${S.ia.length} test(s) · ${S.bow.length} Budget(s) of Work`],
     ['Documents', `${docs.length} file(s) (${M.fmtBytes(size)}) · ${tpl} template(s) · logos & seals`],
     ['Settings', 'school details, signatories, comment bank, checklist items, links']];

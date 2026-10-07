@@ -463,6 +463,9 @@ table.month th.dim{opacity:.45}
   .print-only .sf9-page:last-child{break-after:auto;page-break-after:auto}
   .print-only .xv-page{break-after:page;page-break-after:always;box-shadow:none;margin:0}
   .print-only .xv-page:last-child{break-after:auto;page-break-after:auto}
+  .print-only .quad-page{break-after:page;page-break-after:always;margin:0}
+  .print-only .quad-page:last-child{break-after:auto;page-break-after:auto}
+  .print-only .fitbox{break-after:page}
   .print-only .xv-t td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 @media (max-width:860px){
@@ -582,3 +585,64 @@ tr.sel td{background:rgba(47,138,97,.10)}
 .bk-k{font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;white-space:nowrap}
 @media (max-width:600px){.bk-grid{grid-template-columns:1fr}.bk-v{margin:-4px 0 6px 21px}}
 @media (max-height:820px){.nav{gap:3px}.nav a{padding:8px 14px}.brand{padding-bottom:14px}.dev-card{padding:9px 11px}}
+
+/* ---------- A4 pages with 4 (or 2) cells: answer sheets, grade slips ---------- */
+.quad-page{position:relative;width:210mm;height:297mm;overflow:hidden;background:#fff;color:#000;box-sizing:border-box}
+.quad-cell{position:absolute;overflow:hidden;box-sizing:border-box}
+.quad-cell > svg{display:block;width:100%;height:100%}
+.quad-page .cut{position:absolute;border:0 dashed #b5b5b5}
+.quad-page .cut.v{left:105mm;top:0;bottom:0;border-left-width:.2mm}
+.quad-page .cut.h{top:148.5mm;left:0;right:0;border-top-width:.2mm}
+/* ---------- Assessments ---------- */
+.sheet-prev{display:flex;justify-content:center;padding:10px;background:rgba(127,127,127,.08);border-radius:16px}
+.sheet-prev svg{width:min(100%,420px);height:auto;box-shadow:0 10px 30px rgba(0,0,0,.18);background:#fff}
+.scan-wrap.omr{position:relative;aspect-ratio:3/4;max-height:62vh;margin:0 auto;border-radius:18px;overflow:hidden;background:#000}
+.scan-wrap.omr video{width:100%;height:100%;object-fit:cover}
+.omr-guide{position:absolute;inset:7% 10%;pointer-events:none}
+.omr-guide i{position:absolute;width:26px;height:26px;border:3px solid rgba(255,255,255,.85)}
+.omr-guide i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0}.omr-guide i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0}
+.omr-guide i:nth-child(3){right:0;bottom:0;border-left:0;border-top:0}.omr-guide i:nth-child(4){left:0;bottom:0;border-right:0;border-top:0}
+.omr-review{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(220px,1fr);gap:16px;align-items:start;margin-top:6px}
+.omr-canvas{display:flex;justify-content:center}
+.omr-canvas canvas{max-width:100%;max-height:64vh;width:auto;height:auto;border-radius:12px;box-shadow:var(--neu-in);touch-action:manipulation;cursor:pointer}
+.omr-score{font-size:42px;font-weight:800;color:var(--green);line-height:1.1;margin:10px 0 4px}
+.omr-score span{font-size:18px;color:var(--ink-3);font-weight:700}
+@media (max-width:700px){.omr-review{grid-template-columns:1fr}}
+.key-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px}
+.key-grid label{display:flex;align-items:center;gap:6px}.key-grid label span{width:22px;text-align:right;font-weight:700;font-size:12px}
+.key-grid .input{padding:5px 6px}
+.ia-bars{display:flex;align-items:flex-end;gap:3px;height:160px;overflow-x:auto;padding-bottom:16px}
+.ia-b{position:relative;flex:1 0 12px;height:100%;display:flex;align-items:flex-end}
+.ia-b i{display:block;width:100%;border-radius:4px 4px 0 0}
+.ia-b span{position:absolute;bottom:-15px;left:0;right:0;text-align:center;font-size:9px;color:var(--ink-3)}
+/* ---------- Learners: compact monitoring strip ---------- */
+.ck-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px;margin-bottom:14px}
+.ck-mini{display:flex;align-items:center;gap:8px;padding:7px 11px;border-radius:12px;box-shadow:var(--neu-in);font-size:12px;min-width:0}
+.ck-mini b{font-size:13px}.ck-mini .lbl{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.ck-mini .bar-track{width:34px;height:6px!important;flex:none}
+.checklist-wrap{max-height:calc(100vh - 250px)!important}
+/* ---------- grade slips ---------- */
+.gslip{width:99mm;height:142.5mm;box-sizing:border-box;padding:5.5mm 6mm 4mm;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#111;display:flex;flex-direction:column;background:#fff;position:relative}
+.gslip .gh{display:flex;align-items:center;gap:2.5mm;border-bottom:.5mm solid #1f6b4a;padding-bottom:1.6mm}
+.gslip .gh img{width:12mm;height:12mm;object-fit:contain}
+.gslip .gh .t{flex:1;text-align:center;line-height:1.15}
+.gslip .gh .t .a{font-size:6.1pt;color:#333}.gslip .gh .t .b{font-size:8.6pt;font-weight:800;letter-spacing:.02em;margin-top:.4mm}.gslip .gh .t .c{font-size:5.8pt;color:#444}
+.gslip .gt{margin:1.8mm 0 1.6mm;text-align:center;font-weight:800;font-size:10.5pt;letter-spacing:.12em;color:#1f6b4a}
+.gslip .gt small{display:block;font-size:6.4pt;margin-top:.3mm;letter-spacing:.02em;color:#555;font-weight:600}
+.gslip .gi{display:grid;grid-template-columns:1fr auto;gap:1mm 3mm;font-size:6.8pt;margin-bottom:2mm}
+.gslip .gi b{font-size:8.2pt}
+.gslip table{width:100%;border-collapse:collapse;font-size:7pt;table-layout:fixed}
+.gslip th{white-space:nowrap;overflow:hidden;text-transform:none;letter-spacing:0;color:#123;position:static}
+.gslip td{white-space:normal;position:static;background:none;color:inherit}
+.gslip th,.gslip td{border:.18mm solid #555;padding:.75mm .9mm;text-align:center;line-height:1.15}
+.gslip th{background:#e8f1ec;font-size:6pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.gslip td.l{text-align:left}.gslip td.sub{padding-left:3.2mm;font-style:italic;color:#333}
+.gslip tr.ga td{font-weight:800;background:#f6f1df;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.gslip .low{color:#b22}
+.gslip .gx{display:flex;justify-content:space-between;gap:2mm;font-size:6.6pt;margin-top:2mm;color:#222}
+.gslip .gc{font-size:6.4pt;margin-top:1.2mm;border:.18mm dashed #999;padding:.8mm 1.2mm;min-height:6mm;max-height:10mm;overflow:hidden}
+.gslip .gs{display:flex;justify-content:space-between;gap:5mm;margin-top:auto;font-size:6.2pt;text-align:center}
+.gslip .gs div{flex:1}.gslip .gs .nm{font-weight:800;font-size:7.2pt;border-top:.2mm solid #000;padding-top:.6mm;margin-top:7mm;text-transform:uppercase}
+.gslip .gn{font-size:5.3pt;color:#666;text-align:center;margin-top:1.2mm;line-height:1.2}
+.slip-prev{display:flex;justify-content:center;padding:10px;background:rgba(127,127,127,.08);border-radius:16px;overflow:auto}
+.slip-prev .gslip{box-shadow:0 10px 30px rgba(0,0,0,.18);zoom:1.35}

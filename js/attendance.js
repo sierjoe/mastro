@@ -468,7 +468,7 @@ function reportsTab(el, s, rerender){
   $('#sf2P').onclick = () => { keep(); M.doPrint(sf2Html(s, ym), '@page{size:A4 landscape;margin:7mm}'); };
   $('#sf2X').onclick = () => { keep(); sf2Xlsx(s, ym); };
   const pick = () => $$('[data-sec]:checked').map(x => A().sections.find(y=>y.id===x.dataset.sec)).filter(Boolean);
-  $('#sf4P').onclick = () => { keep(); M.doPrint(sf4Html(pick(), ym), '@page{size:A4 landscape;margin:7mm}'); };
+  $('#sf4P').onclick = () => { keep(); M.doPrintFit(sf4Html(pick(), ym), 'A4 landscape', 7); M.toast('SF4 · A4 landscape, fitted to one page'); };
   $('#sf4X').onclick = () => { keep(); sf4Xlsx(pick(), ym); };
 }
 const pct = (a,b) => b ? (a/b*100).toFixed(2)+'%' : '';

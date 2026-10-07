@@ -415,7 +415,7 @@ M.templatePages = async function(code, blob, opts, onStep){
     const show = B.F.perLearner ? filledHere : (filledHere.filter(x => x.sh.filled.length).length ? filledHere.filter(x => x.sh.filled.length) : filledHere.slice(0,1));
     for(const x of show){
       if(!x.src.drawings) x.src.drawings = await M.xvDrawings(B.T.zip, x.src.sht.path, x.doc);
-      const R = M.xvRender(x.doc, B.T.sst, B.T.styles, x.src.area, {drawings: x.src.drawings});
+      const R = M.xvRender(x.doc, B.T.sst, B.T.styles, x.src.area, Object.assign({drawings: x.src.drawings}, /^SF[24]$/.test(code) ? {orientation:'landscape', fit:true} : {}));
       pages.push({label: p ? p.name : x.src.sht.name, lid: p ? p.l.id : null, html: R.html, paper: R.paper, W: R.W, H: R.H, k: R.k, margins: R.margins});
       report.push({sheet: p ? p.name : x.src.sht.name, note: x.note, filled: x.sh.filled});
     }
