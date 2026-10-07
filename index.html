@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MASTRO</title>
+<meta name="description" content="MASTRO — offline forms, documents and class management for the class adviser.">
+<meta name="theme-color" content="#1f6b4a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MASTRO">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="css/style.css">
+<style id="pageStyle">@page{size:A4;margin:14mm}</style>
+</head>
+<body>
+<div class="bg-orbs" aria-hidden="true"><span></span><span></span><span></span></div>
+
+<div class="shell">
+  <aside class="sidebar glass">
+    <div class="brand">
+      <img class="brand-logo" src="icons/brand.png" alt="MASTRO logo">
+      <div>
+        <div class="brand-name">MASTRO</div>
+        <div class="brand-sub">Adviser's Workspace</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="sidebar-foot">
+      <div class="offline-pill" id="netPill">Offline-ready</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="tb-title"><img class="m-logo" src="icons/brand.png" alt=""><div>
+        <div class="eyebrow" id="viewEyebrow"></div>
+        <h1 id="viewTitle">MASTRO</h1>
+      </div></div>
+      <div class="topbar-actions">
+        <label class="class-switch neu-in">
+          <select id="classSelect" aria-label="Active class"></select>
+        </label>
+      </div>
+    </header>
+    <section id="view" class="view"></section>
+  </main>
+</div>
+
+<nav class="tabbar glass" id="tabbar"></nav>
+
+<div class="modal-wrap" id="modalWrap" hidden>
+  <div class="modal glass" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h2 id="modalTitle"></h2>
+      <button class="icon-btn" id="modalClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="printArea" class="print-only"></div>
+
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="js/seed.js"></script>
+<script src="js/core.js"></script>
+<script src="js/views-main.js"></script>
+<script src="js/attendance.js"></script>
+<script src="js/forms.js"></script>
+<script src="js/sf1.js"></script>
+<script src="js/items.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/classes.js"></script>
+<script>M.boot();</script>
+</body>
+</html>
