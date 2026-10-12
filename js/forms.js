@@ -74,7 +74,7 @@ function sf2Card(){
     <div class="chips" style="margin:12px 0"><span class="chip green">From the seat-chart attendance of ${esc(sec.name)}</span><span class="chip">${D.days.length} class days</span><span class="chip">${D.rows.length} learners</span><span class="chip">${absent} absences · ${tardy} tardy</span><span class="chip ${sf1?'green':'gold'}">${sf1?`${sf1} names from SF1`:'Upload SF1 for official names'}</span></div>
     <div class="sf-preview">${M.sf2Html(sec, ui.month)}</div></div>`;
   $('#s2M').onchange = e => { if(e.target.value){ ui.month = e.target.value; sf2Card(); } };
-  $('#s2P').onclick = () => M.doPrint(M.sf2Html(sec, ui.month), '@page{size:A4 landscape;margin:7mm}');
+  $('#s2P').onclick = () => M.doPrint(M.sf2Html(sec, ui.month), '@page{size:A4 landscape}');
   $('#s2X').onclick = () => M.sf2Xlsx(sec, ui.month);
 }
 
@@ -192,8 +192,8 @@ function sf9Back(D){
 }
 // paper layouts: two panels side by side (landscape) or front/back on separate pages (portrait)
 M.SF9_LAYOUTS = {
-  duplex:   {label:'A4 portrait · front & back', cls:'a4p', fmt:'a4', orient:'portrait',  margin:8, w:194, h:280, both:false},
-  landscape:{label:'A4 landscape · both sides',  cls:'a4l', fmt:'a4', orient:'landscape', margin:8, w:281, h:193, both:true},
+  duplex:   {label:'A4 portrait · front & back', cls:'a4p', fmt:'a4', orient:'portrait',  margin:12.7, w:184, h:271, both:false},
+  landscape:{label:'A4 landscape · both sides',  cls:'a4l', fmt:'a4', orient:'landscape', margin:12.7, w:271, h:184, both:true},
   a5p:      {label:'A5 portrait · front & back', cls:'a5p', fmt:'a5', orient:'portrait',  margin:6, w:136, h:197, both:false},
   a5l:      {label:'A5 landscape · both sides',  cls:'a5l', fmt:'a5', orient:'landscape', margin:6, w:198, h:135, both:true}
 };
@@ -206,7 +206,7 @@ function sf9Pages(D, layout){
   if(L.both) return `<div class="sf9-page ${L.cls}">${slot(sf9Front(D))}${slot(sf9Back(D))}</div>`;
   return `<div class="sf9-page ${L.cls}">${slot(sf9Front(D))}</div><div class="sf9-page ${L.cls}">${slot(sf9Back(D))}</div>`;
 }
-const pageCss = (layout) => { const L = LAY(layout); return `@page{size:${L.fmt.toUpperCase()} ${L.orient};margin:${L.margin}mm}`; };
+const pageCss = (layout) => { const L = LAY(layout); return `@page{size:${L.fmt.toUpperCase()} ${L.orient}}`; };
 
 /* =====================================================================
    SF9 VIEW
@@ -346,9 +346,13 @@ async function optTab(body, c, rerender){
     <div class="card"><h2>Age on the report card</h2>
       <label class="field">Compute age as of<input type="date" class="input" id="ageAsOf" value="${esc(c.sf9.ageAsOf || M.firstFridayJune(c.sy))}"></label>
       <p class="small muted">Default is the 1st Friday of June (same basis as SF1). Birthdates come from your uploaded SF1 or from Learners → Edit details.</p></div>
-    <div class="card"><h2>Header lines</h2><p class="small muted" style="margin-top:0">Region, division, district and school ID are edited in Settings.</p><a class="btn sm" href="#settings">${ico('settings')} Open Settings</a></div>
+    <div class="card"><h2>Logo size on the report card ${M.newTag('sf9-logo-size')}</h2>
+      ${['deped','school'].map(k => { const has = (M.S.settings.logos||{})[k]; return `<div class="logo-size" style="margin-top:10px"><span style="width:110px">${k==='deped'?'DepEd seal':'School seal'}</span>${has ? `<input type="range" min="60" max="200" step="5" data-lsize="${k}" value="${Math.round(M.logoScale(k)*100)}"><b data-lsv="${k}" style="width:42px">${Math.round(M.logoScale(k)*100)}%</b>` : '<span class="muted">not uploaded — add it in Settings</span>'}</div>`; }).join('')}
+      <p class="small muted">Makes the SF9 seals bigger or smaller (also used on other printouts). Empty borders around an uploaded logo are trimmed automatically. Check the Preview tab.</p>
+      <h2 style="margin-top:16px">Header lines</h2><p class="small muted" style="margin-top:0">Region, division, district and school ID are edited in Settings.</p><a class="btn sm" href="#settings">${ico('settings')} Open Settings</a></div>
   </div>`;
   $('#cert').onchange = e => { c.sf9.cert = e.target.checked; M.save(); };
+  $$('[data-lsize]', body).forEach(r => r.oninput = () => { const st = M.S.settings; st.logoSize = st.logoSize || {}; st.logoSize[r.dataset.lsize] = +r.value; $(`[data-lsv="${r.dataset.lsize}"]`, body).textContent = r.value + '%'; clearTimeout(r._t); r._t = setTimeout(M.save, 300); });
   $('#ageAsOf').onchange = e => { c.sf9.ageAsOf = e.target.value; M.save(); };
   $('#tplUp').onclick = () => $('#tplF').click();
   $('#tplF').onchange = async e => { const f = e.target.files[0]; if(!f) return; await M.tplAdd('SF9', f); M.toast('Template saved — now in use'); rerender(); };

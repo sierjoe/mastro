@@ -47,16 +47,19 @@ M.parseSF1 = function(wb){
     }));
     for(let i = hr+1; i < rows.length; i++){
       const r = rows[i]; if(!r) continue;
-      let name = '';
-      if(cLast >= 0 && cFirst >= 0 && cLast !== cFirst) name = `${txt(r[cLast])}, ${txt(r[cFirst])}${cMid>=0 && txt(r[cMid]) ? ' ' + txt(r[cMid]) : ''}`.replace(/^, |, $/,'');
-      else if(cName >= 0) name = txt(r[cName]);
+      let name = '', np = null;
+      if(cLast >= 0 && cFirst >= 0 && cLast !== cFirst){ np = {last: txt(r[cLast]), first: txt(r[cFirst]), middle: cMid >= 0 ? txt(r[cMid]) : ''}; name = `${np.last}, ${np.first}${np.middle ? ' ' + np.middle : ''}`.replace(/^, |, $/,''); }
+      else if(cName >= 0){ name = txt(r[cName]);
+        // LIS writes "LAST,FIRST,MIDDLE" — keep the three parts so first and middle names are never mixed up
+        const parts = name.split(',').map(x => x.trim()); if(parts.length >= 3){ np = {last: parts[0], first: parts[1], middle: parts.slice(2).join(' ').trim()}; name = `${np.last}, ${np.first}${np.middle ? ' ' + np.middle : ''}`; } }
+      if(np){ const ext = (np.first.match(/\s+(JR\.?|SR\.?|II|III|IV|V)$/i) || np.last.match(/\s+(JR\.?|SR\.?|II|III|IV|V)$/i) || [])[1]; if(ext){ np.first = np.first.replace(/\s+(JR\.?|SR\.?|II|III|IV|V)$/i, ''); np.last = np.last.replace(/\s+(JR\.?|SR\.?|II|III|IV|V)$/i, ''); np.ext = ext.toUpperCase(); } np.src = 'SF1'; np.verified = true; }
       const lrn = cLrn >= 0 ? txt(r[cLrn]).replace(/\D/g,'') : '';
       if(!name || !name.includes(',') || /TOTAL|PREPARED|CERTIFIED|LEGEND|^NAME/i.test(name)) continue;
       if(lrn && lrn.length < 6) continue;
       name = name.replace(/\s*,\s*/, ', ').replace(/\s+/g,' ');
       const key = lrn || M.normName(name); if(seen.has(key)) continue; seen.add(key);
       const sx = up(cSex >= 0 ? r[cSex] : '');
-      out.rows.push({lrn, name, sex: sx.startsWith('F') ? 'F' : sx.startsWith('M') ? 'M' : '', birthday: cBirth >= 0 ? toISO(r[cBirth]) : '', age: cAge >= 0 ? txt(r[cAge]) : ''});
+      out.rows.push({lrn, name, np, sex: sx.startsWith('F') ? 'F' : sx.startsWith('M') ? 'M' : '', birthday: cBirth >= 0 ? toISO(r[cBirth]) : '', age: cAge >= 0 ? txt(r[cAge]) : ''});
     }
   });
   return out;
@@ -112,13 +115,14 @@ M.importSF1 = async function(file){
       const stamp = {date: today, file: file.name};
       matched.forEach(({r, l}) => {
         if(use){ l.name = r.name; if(r.lrn) l.lrn = r.lrn; if(r.sex) l.sex = r.sex; if(r.birthday) l.birthday = r.birthday; }
+        if(r.np) l.np = Object.assign({}, r.np);
         l.sf1 = stamp;
         const cl = c.checklist[l.id] = c.checklist[l.id] || {}; cl.lis = cl.lis || today;
       });
       const sec = M.sectionFor(c); let added = 0;
       $$('[data-add]:checked', b).forEach(x => {
         const r = extra[+x.dataset.add];
-        const l = {id:M.uid('L'), name:r.name, lrn:r.lrn, sex:r.sex, birthday:r.birthday, remarks:'', sf1:stamp};
+        const l = {id:M.uid('L'), name:r.name, lrn:r.lrn, sex:r.sex, birthday:r.birthday, remarks:'', sf1:stamp}; if(r.np) l.np = Object.assign({}, r.np);
         c.learners.push(l); c.checklist[l.id] = {lis: today}; added++;
       });
       if(sec && added){

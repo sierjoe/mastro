@@ -406,7 +406,7 @@ function tosPrint(a, c, B, D, R){
     ${D.R.filter(r => r.inTerm || r.actual).map(r => `<tr><td>${r.k.code ? `<b>${esc(r.k.code)}</b> ` : ''}${esc(r.k.text)}${r.inTerm ? '' : ` <i>(Term ${esc(r.k.term)})</i>`}</td><td style="text-align:center">${r.inTerm?r.days:''}</td><td style="text-align:center">${r.inTerm?fmt(r.w*100,1):''}</td><td style="text-align:center">${r.inTerm?r.expected:''}</td>${r.by.map(x => `<td style="text-align:center;font-size:8pt">${x.join(', ')}</td>`).join('')}<td style="text-align:center"><b>${r.actual}</b></td></tr>`).join('')}
     <tr><td><b>TOTAL</b></td><td style="text-align:center"><b>${D.totalDays}</b></td><td style="text-align:center"><b>100</b></td><td style="text-align:center"><b>${D.R.reduce((s,r)=>s+r.expected,0)}</b></td>${D.lv.map(x => `<td style="text-align:center"><b>${x}</b></td>`).join('')}<td style="text-align:center"><b>${D.n - D.unmatched.length}</b></td></tr></tbody></table>
     <p style="font-size:9pt;margin-top:8px">Easy (Remembering + Understanding): ${D.groups.Easy} · Average (Applying + Analyzing): ${D.groups.Average} · Difficult (Evaluating + Creating): ${D.groups.Difficult}${D.unmatched.length ? ` · Not matched: items ${D.unmatched.join(', ')}` : ''}</p>` +
-    M.printSign(c, 'Prepared by:', 'Noted by:').replace('Class Adviser','Subject Teacher'), '@page{size:A4 landscape;margin:10mm}');
+    M.printSign(c, 'Prepared by:', 'Noted by:').replace('Class Adviser','Subject Teacher'), '@page{size:A4 landscape}');
 }
 
 M.iaViewEcr = viewEcr; M.iaViewBow = viewBow;

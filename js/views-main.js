@@ -249,7 +249,7 @@ function gradeSlips(c, t0){
     const inc = () => ({att: $('#gsA', b).checked, comment: $('#gsC', b).checked});
     const prev = () => { ui.term = $('#gsT', b).value; ui.lid = $('#gsL', b).value; Object.assign(ui, inc()); const l = L.find(x => x.id === ui.lid) || L[0]; $('#gsPrev', b).innerHTML = slipHtml(c, l, ui.term, inc()); };
     ['#gsT','#gsA','#gsC','#gsL'].forEach(x => $(x, b).onchange = prev); prev();
-    const print = (list) => M.doPrint(M.quadPages(list.map(l => slipHtml(c, l, ui.term, inc())), 99, 142.5, 4), '@page{size:A4 portrait;margin:0}');
+    const print = (list) => M.doPrint(M.quadPages(list.map(l => slipHtml(c, l, ui.term, inc())), 99, 142.5, 4), M.pageCss('A4'), {noFit:true});
     $('#gsOne', b).onclick = () => print([L.find(x => x.id === $('#gsL', b).value) || L[0]]);
     $('#gsAll', b).onclick = () => print(L);
   }, true);
@@ -375,6 +375,7 @@ M.views.learners = function viewLearners(el){
       <div class="seg" id="lf">${[['all','All'],['missing','With missing'],['complete','Complete'],['tagged','Tagged status']].map(([v,t])=>`<button data-f="${v}" class="${v===f?'on':''}">${t}</button>`).join('')}</div>
       <span class="spacer"></span>
       <button class="btn sm gold" id="lSf1">${ico('upload')} Upload SF1</button>
+      <button class="btn sm" id="lNp">${ico('edit')} Name parts ${M.newTag('name-parts')}</button>
       <button class="btn sm" id="lPrint">${ico('print')} Print checklist</button>
       <button class="btn sm primary" id="addL">${ico('plus')} Add learner</button>
     </div>
@@ -388,6 +389,7 @@ M.views.learners = function viewLearners(el){
   $('#lf').onclick = e => { const b=e.target.closest('button'); if(!b) return; M.S.ui.lfilter=b.dataset.f; M.save(); viewLearners(el); };
   $('#addL').onclick = () => learnerForm(c, null);
   $('#lPrint').onclick = () => printChecklist(c);
+  $('#lNp').onclick = () => M.nameCheck(c, () => viewLearners(el));
   $('#lSf1').onclick = () => M.pickSF1();
   el.querySelector('table.checklist').addEventListener('click', e => {
     const open = e.target.closest('[data-open]'); if(open){ e.preventDefault(); learnerProfile(c, c.learners.find(l=>l.id===open.dataset.open)); return; }
@@ -464,15 +466,40 @@ function learnerForm(c, l){
 }
 M.learnerForm = learnerForm;
 // keep Attendance (SF2/SF4) in step with the learner's status
+/* ---------- name parts: last / first / middle / extension, confirmed once and used on SF10 and other forms ---------- */
+M.nameCheck = function(c, done){
+  const L = M.sortedLearners(c); const only = {v: true};
+  const rowHtml = (l) => { const p = M.nameParts(l); return `<tr data-lid="${l.id}" class="${p.sure?'':'np-unsure'}"><td class="sticky-col small">${esc(l.name)}<div class="tiny ${p.sure?'muted':'low'}">${p.src==='SF1'?'from SF1':p.sure?'confirmed':'please check'}</div></td>
+    <td><input class="input np" data-f="last" value="${esc(p.last)}"></td><td><input class="input np" data-f="first" value="${esc(p.first)}"></td><td><input class="input np" data-f="middle" value="${esc(p.middle)}"></td><td><input class="input np" data-f="ext" value="${esc(p.ext)}" style="width:58px"></td>
+    <td><button class="btn sm np-swap" title="Move the last word of the first name into the middle name, or back">⇄</button></td></tr>`; };
+  M.modal('Name parts (SF10, forms)', `
+    <p class="small muted" style="margin-top:0">Filipino names can have two first names (<i>Angel Rose</i>) or a first name + middle name (<i>Angel Bautista</i>). Check each learner once — MASTRO then uses these parts on SF10 and other forms. Names imported from an LIS SF1 that lists LAST, FIRST, MIDDLE separately are already confirmed. Use <b>⇄</b> to move a word between First and Middle.</p>
+    <label class="row small" style="cursor:pointer;gap:6px;margin-bottom:8px"><input type="checkbox" id="npOnly" checked> Show only names that need checking (${L.filter(l => !M.nameParts(l).sure).length})</label>
+    <div class="table-wrap" style="max-height:52vh"><table class="np-t"><thead><tr><th class="sticky-col">Name in MASTRO</th><th>Last name</th><th>First name</th><th>Middle name</th><th>Ext.</th><th></th></tr></thead><tbody id="npBody"></tbody></table></div>
+    <div class="row" style="margin-top:14px"><span class="spacer"></span><button class="btn" id="npX">Cancel</button><button class="btn primary" id="npOk">Confirm shown names</button></div>`, b => {
+    const draw = () => { $('#npBody', b).innerHTML = L.filter(l => !only.v || !M.nameParts(l).sure).map(rowHtml).join('') || '<tr><td colspan="6"><div class="empty">All names are confirmed. Untick the box to review them.</div></td></tr>';
+      $$('.np-swap', b).forEach(btn => btn.onclick = () => { const tr = btn.closest('tr'); const F = $('[data-f=first]', tr), Mi = $('[data-f=middle]', tr);
+        if(Mi.value.trim()){ F.value = (F.value.trim() + ' ' + Mi.value.trim()).trim(); Mi.value = ''; } else { const w = F.value.trim().split(/\s+/); if(w.length > 1){ Mi.value = w.pop(); F.value = w.join(' '); } } }); };
+    draw();
+    $('#npOnly', b).onchange = e => { only.v = e.target.checked; draw(); };
+    $('#npX', b).onclick = M.closeModal;
+    $('#npOk', b).onclick = () => { let n = 0; $$('#npBody tr[data-lid]', b).forEach(tr => { const l = c.learners.find(x => x.id === tr.dataset.lid); if(!l) return; const g = (f) => $(`[data-f=${f}]`, tr).value.trim();
+        l.np = {last: g('last'), first: g('first'), middle: g('middle'), ext: g('ext').toUpperCase(), verified: true, src: (l.np && l.np.src === 'SF1') ? 'SF1' : 'you'}; n++; });
+      M.save(); M.closeModal(); M.toast(`${n} name(s) confirmed`); if(done) done(); };
+  }, true);
+};
 M.syncStatus = (c, l) => {
   const sec = M.sectionFor(c); const sid = M.sidFor(sec, l.id); if(!sid) return;
   const st = sec.students[sid];
   if(l.status==='TO' || l.status==='DO'){ st.outType = l.status==='TO' ? 'transferred' : 'dropped'; st.outDate = l.statusDate || M.today(); st.outNote = l.statusNote || st.outNote || ''; st.fromStatus = true; }
   else if(st.fromStatus){ delete st.outType; delete st.outDate; delete st.fromStatus; }
+  // Transferred In → SF2 / SF4 "transferred in" counts
+  if(l.status==='TI'){ st.inType = 'transferred'; st.inDate = l.statusDate || M.today(); st.inNote = l.statusNote || ''; st.inFromStatus = true; }
+  else if(st.inFromStatus){ delete st.inType; delete st.inDate; delete st.inNote; delete st.inFromStatus; }
 };
 M.setStatus = (c, l) => M.modal(`Status · ${l.name}`, `
-  <div class="list">${[['', 'Active', 'Counted in all statistics'], ...Object.entries(M.STATUS).map(([k,v]) => [k, v.label, k==='SARDO'?'Still counted; flagged for monitoring':'Left out of class statistics; shown as a reminder'])].map(([k,t,d]) => `<label class="item" style="cursor:pointer"><input type="radio" name="stR" value="${k}" ${(l.status||'')===k?'checked':''}><div class="grow"><div class="title">${t}</div><div class="tiny muted">${d}</div></div></label>`).join('')}</div>
-  <div class="grid g-2" style="margin-top:12px"><label class="field">Date<input type="date" class="input" id="stD" value="${M.esc(l.statusDate||M.today())}"></label><label class="field">Note<input class="input" id="stN" value="${M.esc(l.statusNote||'')}" placeholder="School transferred to / reason"></label></div>
+  <div class="list">${[['', 'Active', 'Counted in all statistics'], ...Object.entries(M.STATUS).map(([k,v]) => [k, v.label + (k==='TI' ? ' ' + M.newTag('st-ti') : ''), k==='SARDO'?'Still counted; flagged for monitoring':k==='TI'?'Transferee — counted in all statistics; shown in SF2/SF4 as transferred in; terms before the transfer are not marked missing':'Left out of class statistics; shown as a reminder'])].map(([k,t,d]) => `<label class="item" style="cursor:pointer"><input type="radio" name="stR" value="${k}" ${(l.status||'')===k?'checked':''}><div class="grow"><div class="title">${t}</div><div class="tiny muted">${d}</div></div></label>`).join('')}</div>
+  <div class="grid g-2" style="margin-top:12px"><label class="field">Date<input type="date" class="input" id="stD" value="${M.esc(l.statusDate||M.today())}"></label><label class="field">Note<input class="input" id="stN" value="${M.esc(l.statusNote||'')}" placeholder="School transferred to / from, or reason"></label></div>
   <div class="row" style="margin-top:14px"><span class="spacer"></span><button class="btn" id="stX">Cancel</button><button class="btn primary" id="stOk">Save</button></div>`,
   b => { $('#stX',b).onclick = M.closeModal; $('#stOk',b).onclick = () => { const v = (b.querySelector('[name=stR]:checked')||{}).value||'';
     l.status = v; l.statusDate = v ? ($('#stD',b).value || M.today()) : ''; l.statusNote = v ? $('#stN',b).value.trim() : ''; M.syncStatus(c, l); M.save(); M.closeModal(); M.route(); M.toast(v ? `Tagged ${M.STATUS[v].short}` : 'Marked active'); }; });
@@ -609,7 +636,7 @@ M.views.settings = function(el){
       </div>
       <h2 style="margin-top:22px">Printout logos</h2>
       <p class="small muted" style="margin-top:0">Shown on the SF9, SF2/SF4 and every printed report — DepEd seal on the upper left, school seal on the upper right.</p>
-      <div class="grid g-2" style="gap:12px">${['deped','school'].map(k=>`<div class="logo-slot"><div class="logo-prev">${(s.logos||{})[k]?`<img src="${s.logos[k]}" alt="">`:'<span class="muted small">none</span>'}</div><div><b class="small">${k==='deped'?'DepEd seal (left)':'School seal (right)'}</b><div class="row" style="margin-top:6px"><button class="btn sm" data-logo="${k}">${ico('upload')} Upload</button>${(s.logos||{})[k]?`<button class="btn sm danger" data-logorm="${k}">Remove</button>`:''}</div></div></div>`).join('')}</div>
+      <div class="grid g-2" style="gap:12px">${['deped','school'].map(k=>`<div class="logo-slot"><div class="logo-prev">${(s.logos||{})[k]?`<img src="${s.logos[k]}" alt="">`:'<span class="muted small">none</span>'}</div><div><b class="small">${k==='deped'?'DepEd seal (left)':'School seal (right)'}</b><div class="row" style="margin-top:6px"><button class="btn sm" data-logo="${k}">${ico('upload')} Upload</button>${(s.logos||{})[k]?`<button class="btn sm danger" data-logorm="${k}">Remove</button>`:''}</div>${(s.logos||{})[k]?`<label class="logo-size">Size ${M.newTag('logo-size')}<input type="range" min="60" max="200" step="5" data-lsize="${k}" value="${Math.round(M.logoScale(k)*100)}"><b data-lsv="${k}">${Math.round(M.logoScale(k)*100)}%</b></label>`:''}</div></div>`).join('')}</div>
       <input type="file" id="logoFile" accept="image/*" hidden>
       <h2 style="margin-top:22px">SF9 header lines</h2>
       <div class="grid g-2" style="gap:12px">${f('regionName','Region')}${f('division','Division')}${f('district','District')}${f('municipality','Municipality, Province')}</div>
@@ -641,6 +668,7 @@ M.views.settings = function(el){
   $$('[data-c]', el).forEach(i => i.onchange = () => { c[i.dataset.c] = i.dataset.c==='grade' ? (Number(i.value)||i.value) : i.value.trim(); M.save(); M.renderClassSelect(); M.toast('Saved'); });
   let logoKey = null;
   $$('[data-logo]', el).forEach(b => b.onclick = () => { logoKey = b.dataset.logo; $('#logoFile').click(); });
+  $$('[data-lsize]', el).forEach(r => r.oninput = () => { s.logoSize = s.logoSize || {}; s.logoSize[r.dataset.lsize] = +r.value; $(`[data-lsv="${r.dataset.lsize}"]`, el).textContent = r.value + '%'; clearTimeout(r._t); r._t = setTimeout(M.save, 300); });
   $$('[data-logorm]', el).forEach(b => b.onclick = () => { s.logos[b.dataset.logorm] = ''; M.save(); M.route(); });
   $('#logoFile').onchange = async e => { const f = e.target.files[0]; e.target.value=''; if(!f || !logoKey) return;
     s.logos[logoKey] = await M.shrinkImage(f, 360); M.save(); M.route(); M.toast('Logo saved'); };

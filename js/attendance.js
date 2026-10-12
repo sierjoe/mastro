@@ -358,7 +358,7 @@ async function printQrCards(s){
     const q = qrcode(0, 'M'); q.addData(`MASTRO:${s.id}:${sid}`); q.make();
     return `<div class="qr-card">${q.createSvgTag({cellSize:4, margin:0, scalable:true})}<div class="qn">${esc(nick(s,sid))}</div><div class="qf">${esc(M.attFullName(s,sid))}</div><div class="qs">${esc(s.name)} · Cleaning task card</div></div>`;
   }).join('');
-  M.doPrint(`<div class="qr-grid">${cards}</div>`, '@page{size:A4;margin:10mm}');
+  M.doPrint(`<div class="qr-grid">${cards}</div>`, '@page{size:A4}');
 }
 async function scanner(s, rerender){
   await M.loadScript('vendor/jsQR.js');
@@ -465,10 +465,10 @@ function reportsTab(el, s, rerender){
   ['#rG','#rEM','#rEF','#rA'].forEach(q => $(q).onchange = () => { keep(); rerender(); });
   $('#rM').onchange = e => { if(e.target.value){ u.month = e.target.value; rerender(); } };
   $('#sf4Secs').onchange = () => { u.sf4 = $$('[data-sec]:checked').map(x=>x.dataset.sec); };
-  $('#sf2P').onclick = () => { keep(); M.doPrint(sf2Html(s, ym), '@page{size:A4 landscape;margin:7mm}'); };
+  $('#sf2P').onclick = () => { keep(); M.doPrint(sf2Html(s, ym), '@page{size:A4 landscape}'); };
   $('#sf2X').onclick = () => { keep(); sf2Xlsx(s, ym); };
   const pick = () => $$('[data-sec]:checked').map(x => A().sections.find(y=>y.id===x.dataset.sec)).filter(Boolean);
-  $('#sf4P').onclick = () => { keep(); M.doPrintFit(sf4Html(pick(), ym), 'A4 landscape', 7); M.toast('SF4 · A4 landscape, fitted to one page'); };
+  $('#sf4P').onclick = () => { keep(); M.doPrintFit(sf4Html(pick(), ym), 'A4 landscape'); M.toast('SF4 · A4 landscape, fitted to one page'); };
   $('#sf4X').onclick = () => { keep(); sf4Xlsx(pick(), ym); };
 }
 const pct = (a,b) => b ? (a/b*100).toFixed(2)+'%' : '';

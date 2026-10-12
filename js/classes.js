@@ -104,7 +104,7 @@ M.ecrAnalyze = function(E, term){
   const weakest = comps.filter(c=>c.s.n).sort((a,b)=>a.s.mean-b.s.mean)[0];
   const acts = [];
   ['ww','pt','qa'].forEach(k => { const cp = T.comp && T.comp[k]; if(!cp) return; (cp.hps||[]).forEach((h, i) => { if(!isNum(h) || h<=0) return;
-    const v = L.map(x => (x[k]||[])[i]); const got = v.filter(isNum); acts.push({k, no:(cp.labels && /[a-z]/i.test(cp.labels[i]||'')) ? cp.labels[i] : i+1, hps:h, mean: got.length ? got.reduce((a,b)=>a+b,0)/got.length/h*100 : null, missing: v.filter(x=>!isNum(x)).length}); }); });
+    const v = L.map(x => (x[k]||[])[i]); const got = v.filter(isNum); acts.push({k, no:((cp.labels && /[a-z]/i.test(cp.labels[i]||'')) ? cp.labels[i] : i+1) + ((cp.titles||[])[i] ? ' · ' + cp.titles[i] : ''), hps:h, mean: got.length ? got.reduce((a,b)=>a+b,0)/got.length/h*100 : null, missing: v.filter(x=>!isNum(x)).length}); }); });
   const missingBy = L.map(x => ({x, n: ['ww','pt'].reduce((a,k) => a + ((T.comp&&T.comp[k]&&T.comp[k].hps)||[]).filter((h,i)=>isNum(h)&&h>0&&!isNum((x[k]||[])[i])).length, 0)})).filter(y => y.n).sort((a,b)=>b.n-a.n);
   const ranked = L.filter(x => isNum(g(x))).sort((a,b)=>g(b)-g(a));
   const risk = ranked.filter(x => Math.round(g(x)) < 75).reverse().map(x => { const why = [];

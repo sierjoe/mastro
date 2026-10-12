@@ -15,7 +15,7 @@ const parseRef = (x) => { const m = x.match(/^([A-Z]+)(\d+)$/); return {c:colNum
 const clean = (t) => String(t||'').replace(/\s+/g,' ').trim();
 
 /* ---------------- sheet model ---------------- */
-function Sheet(doc, sst, styles){
+function Sheet(doc, sst, styles, keepF){
   this.doc = doc; this.sst = sst; this.styles = styles;
   this.sd = doc.getElementsByTagNameNS(NS,'sheetData')[0];
   this.cells = new Map(); this.rows = new Map(); this.maxR = 0; this.maxC = 0;
@@ -26,7 +26,7 @@ function Sheet(doc, sst, styles){
   [...doc.getElementsByTagNameNS(NS,'mergeCell')].forEach(m => { const [a,b] = m.getAttribute('ref').split(':'); if(!b) return; const A = parseRef(a), B = parseRef(b);
     const rg = {c1:A.c, r1:A.r, c2:B.c, r2:B.r}; for(let r=A.r;r<=B.r;r++) for(let c=A.c;c<=B.c;c++) this.merge.set(ref(c,r), rg); });
   // formulas pointing elsewhere are dropped (their cached values stay as plain values)
-  [...doc.getElementsByTagNameNS(NS,'f')].forEach(f => { const c = f.parentNode; const v = c.getElementsByTagNameNS(NS,'v')[0]; c.removeChild(f); if(c.getAttribute('t')==='str' && v){ /* keep text */ } });
+  if(!keepF) [...doc.getElementsByTagNameNS(NS,'f')].forEach(f => { const c = f.parentNode; c.removeChild(f); });
   this.filled = [];
 }
 Sheet.prototype.master = function(c, r){ const m = this.merge.get(ref(c,r)); return m ? {c:m.c1, r:m.r1, m} : {c, r, m:null}; };
@@ -61,6 +61,16 @@ Sheet.prototype.set = function(c, r, v, label){
   if(label) this.filled.push({cell: ref(m.c, m.r), label, value: String(v)});
   return true;
 };
+// formula cells keep their formula; only the shown (cached) result changes — Excel recalculates on open
+Sheet.prototype.cache = function(c, r, v){ const x = this.cells.get(ref(c, r)); if(!x) return; const f = x.getElementsByTagNameNS(NS,'f')[0]; if(!f) return this.set(c, r, v);
+  [...x.childNodes].filter(n => n.localName !== 'f').forEach(n => x.removeChild(n));
+  const e = this.doc.createElementNS(NS,'v');
+  if(typeof v === 'number' && isFinite(v)){ x.removeAttribute('t'); e.textContent = String(v); } else { x.setAttribute('t','str'); e.textContent = v == null ? '' : String(v); }
+  x.appendChild(e); };
+// write v into the first box to the right of a label, replacing whatever is there
+Sheet.prototype.setRight = function(re, v, label, r1, r2){ let done = false; this.each((c, r, t) => { if(done || (r1 && r < r1) || (r2 && r > r2) || !re.test(t)) return; const m = this.master(c, r); if(m.c !== c || m.r !== r) return;
+  const x = (m.m ? m.m.c2 : c) + 1; const tg = this.master(x, r); this.clear(tg.c, tg.r); if(v !== '' && v != null) this.set(tg.c, tg.r, v, label); done = true; }); return done; };
+Sheet.prototype.clear = function(c, r){ const m = this.master(c, r); const x = this.cells.get(ref(m.c, m.r)); if(!x || x.getElementsByTagNameNS(NS,'f')[0]) return; while(x.firstChild) x.removeChild(x.firstChild); x.removeAttribute('t'); };
 Sheet.prototype.isEmpty = function(c, r){ const m = this.master(c, r); return !clean(this.text(m.c, m.r)) || /^_+$/.test(clean(this.text(m.c, m.r))); };
 Sheet.prototype.each = function(fn){ for(const [k, x] of this.cells){ const p = parseRef(k); const t = clean(this.text(p.c, p.r)); if(t) fn(p.c, p.r, t); } };
 // next empty master cell to the right of (c,r), skipping the label's own merge
@@ -96,7 +106,7 @@ function context(c, opts){
   const fin = (l) => M.sf9Data(c, l);
   const learners = L.map(l => { const sd = fin(l); const failed = sd.subj.filter(x=>!x.sub && isNum(x.fin) && x.fin < 75).length;
     const sid = M.sidFor(sec, l.id); const row = D && sid ? D.rows.find(r => r.sid === sid) : null;
-    return {l, sex:l.sex, lrn:l.lrn, name:l.name, ...splitGiven(l.name), bday:fmtDate(l.birthday), age: sd.age, ga: sd.ga, sd,
+    return {l, sex:l.sex, lrn:l.lrn, name:l.name, ...M.nameParts(l), bday:fmtDate(l.birthday), age: sd.age, ga: sd.ga, sd,
       action: isNum(sd.ga) ? (failed ? (failed > 2 ? 'RETAINED' : 'CONDITIONAL') : 'PROMOTED') : '',
       remarks: l.status ? M.STATUS[l.status].label.toUpperCase() + (l.statusDate?' '+fmtDate(l.statusDate):'') + (l.statusNote?' – '+l.statusNote:'') : '',
       att: row }; });
@@ -292,8 +302,7 @@ const FORMS = {
     // 1) learner's information — only the rows above "SCHOLASTIC RECORD" (never the elementary-school boxes)
     const scho = find(/^scholastic\s*record/i); const elig = find(/eligibility/i);
     const infoEnd = elig ? elig.r - 1 : scho ? scho.r - 1 : 12;
-    const ext = (p.name.match(/\b(JR\.?|SR\.?|II|III|IV)\b/i)||[])[0] || '';
-    fillLabels(sh, {last:p.last, first:p.first.replace(/\b(JR\.?|SR\.?|II|III|IV)\b/i,'').trim(), middle:p.middle, lrn:p.lrn, bday:p.bday, sexWord: p.sex==='M'?'MALE':p.sex==='F'?'FEMALE':'', ext}, [...PERSON_LABELS.map(([re,k]) => [re,k,k]), [/^name\s*ext/i,'ext','Name ext.']], 1, infoEnd);
+    fillLabels(sh, {last:p.last, first:p.first, middle:p.middle, lrn:p.lrn, bday:p.bday, sexWord: p.sex==='M'?'MALE':p.sex==='F'?'FEMALE':'', ext:p.ext}, [...PERSON_LABELS.map(([re,k]) => [re,k,k]), [/^name\s*ext/i,'ext','Name ext.']], 1, infoEnd);
     // 2) scholastic record blocks: "LEARNING AREAS" rows that have a "Term Rating" header beside them
     const blocks = all(/^learning\s*areas?$/i).filter(b => [b.r, b.r+1].some(r => { for(let c=b.c+1;c<=sh.maxC;c++) if(/term\s*rating|quarterly\s*rating|quarter/i.test(sh.mtext(c, r))) return true; return false; }));
     if(!blocks.length) return 'Learner info filled (no LEARNING AREAS table found).';
@@ -323,7 +332,7 @@ const FORMS = {
     const cert = find(/i\s*certify/i);
     if(cert){
       const nx = (c, r) => sh.rightOf(c, r, 20);
-      let x = nx(cert.c, cert.r); if(x) sh.set(x.c, x.r, [p.first, p.middle, p.last].filter(Boolean).join(' ').toUpperCase(), 'Certification name');
+      let x = nx(cert.c, cert.r); if(x) sh.set(x.c, x.r, [p.first, p.middle, p.last, p.ext].filter(Boolean).join(' ').toUpperCase(), 'Certification name');
       const wl = find(/^with\s*lrn/i, cert.r, cert.r); if(wl){ x = nx(wl.c, wl.r); if(x) sh.set(x.c, x.r, p.lrn, 'Certification LRN'); }
       const el = find(/eligible\s*for\s*admission/i, cert.r, cert.r); if(el && isNum(p.sd.ga) && p.sd.ga >= 75 && isFinite(g)){ x = nx(el.c, el.r); if(x) sh.set(x.c, x.r, g + 1, 'Eligible for grade'); }
       fillLabels(sh, {school:X.head.school, schoolId:X.head.schoolId, lastSy:X.head.sy}, [[/^name\s*of\s*school/i,'school','School name'], [/^school\s*id/i,'schoolId','School ID'], [/last\s*school\s*year\s*attended/i,'lastSy','Last SY attended']], cert.r, cert.r + 2);
@@ -333,6 +342,7 @@ const FORMS = {
   }}
 };
 M.TPL_FORMS = Object.keys(FORMS);
+M.TPL = {FORMS, Sheet, fillLabels, fillSignatures, LABELS, context, ref, parseRef, colLet, colNum};
 
 /* ---------------- workbook plumbing ---------------- */
 async function openTemplate(buf){
@@ -372,6 +382,10 @@ M.tplCurrent = async (code, list) => {
   if(id === 'builtin') return null;
   return list.find(d => d.id === id) || list[0] || null;
 };
+M.TPL_BUILTIN = {SF7:{file:'templates/SF7_Template.xlsx', name:'Built-in DepEd SF7 (the template you sent)'}, SF8:{file:'templates/SF8_Template.xlsx', name:'Built-in DepEd SF8 with WHO growth tables (the template you sent)'}};
+// blob + name of the template in use (uploaded, or the built-in copy)
+M.tplInUse = async (code, list) => { const t = await M.tplCurrent(code, list); if(t) return {blob: t.blob, name: t.name, doc: t};
+  const b = M.TPL_BUILTIN[code]; if(!b) return null; try { const r = await fetch(b.file); if(!r.ok) return null; return {blob: await r.blob(), name: b.name, builtin: true}; } catch(e){ return null; } };
 M.tplSetCurrent = (code, id) => { M.S.settings.tplCurrent = M.S.settings.tplCurrent || {}; M.S.settings.tplCurrent[code] = id; M.save(); };
 M.tplAdd = async (code, file) => {
   const id = M.uid('d');
@@ -396,10 +410,11 @@ async function prepare(code, blob, opts){
   const srcs = [];
   for(let i=0;i<T.sheets.length;i++){ const sht = T.sheets[i]; const st = sht.el.getAttribute('state');
     srcs.push({sht, idx:i, xml: await T.zip.file(sht.path).async('string'), area: M.xvPrintArea(T.wb, i), hidden: !!st && st !== 'visible'}); }
-  const people = F.perLearner ? (opts.only ? X.learners.filter(p => p.l.id === opts.only) : X.learners.filter(p => M.counted(p.l))) : [null];
+  if(F.prep) await F.prep(X, T, opts, blob);
+  const people = F.items ? F.items(X, opts) : F.perLearner ? (opts.only ? X.learners.filter(p => p.l.id === opts.only) : X.learners.filter(p => M.counted(p.l))) : [null];
   return {F, c, X, T, srcs, people};
 }
-function fillOne(B, src, p){ const doc = B.T.P.parseFromString(src.xml, 'application/xml'); const sh = new Sheet(doc, B.T.sst); const note = B.F.fill(sh, B.X, p); return {doc, sh, note}; }
+function fillOne(B, src, p){ const doc = B.T.P.parseFromString(src.xml, 'application/xml'); const sh = new Sheet(doc, B.T.sst, null, !!B.F.keepFormulas); const note = B.F.fill(sh, B.X, p, src); return {doc, sh, note}; }
 
 // pages to look at / print: [{label, html, paper}]
 M.templatePages = async function(code, blob, opts, onStep){
@@ -415,8 +430,13 @@ M.templatePages = async function(code, blob, opts, onStep){
     const show = B.F.perLearner ? filledHere : (filledHere.filter(x => x.sh.filled.length).length ? filledHere.filter(x => x.sh.filled.length) : filledHere.slice(0,1));
     for(const x of show){
       if(!x.src.drawings) x.src.drawings = await M.xvDrawings(B.T.zip, x.src.sht.path, x.doc);
-      const R = M.xvRender(x.doc, B.T.sst, B.T.styles, x.src.area, Object.assign({drawings: x.src.drawings}, /^SF[24]$/.test(code) ? {orientation:'landscape', fit:true} : {}));
-      pages.push({label: p ? p.name : x.src.sht.name, lid: p ? p.l.id : null, html: R.html, paper: R.paper, W: R.W, H: R.H, k: R.k, margins: R.margins});
+      const base = Object.assign({drawings: x.src.drawings}, /^SF[24]$/.test(code) ? {orientation:'landscape', fit:true} : {});
+      // some forms print on more than one page (row ranges); unused learner rows can be hidden on screen/print
+      const areas = (B.F.areas && B.F.areas(x.sh, p)) || [{area: x.src.area}];
+      for(const ar of areas){
+        const R = M.xvRender(x.doc, B.T.sst, B.T.styles, ar.area || x.src.area, Object.assign({}, base, ar.opts || {}));
+        pages.push({label: p ? p.name : x.src.sht.name, lid: p && p.l ? p.l.id : null, html: R.html, paper: R.paper, W: R.W, H: R.H, k: R.k, margins: R.margins});
+      }
       report.push({sheet: p ? p.name : x.src.sht.name, note: x.note, filled: x.sh.filled});
     }
     if(onStep) onStep(++n, B.people.length);
@@ -429,7 +449,7 @@ M.templatePages = async function(code, blob, opts, onStep){
 M.fillTemplate = async function(code, blob, opts){
   const B = await prepare(code, blob, opts); const {T, F, c} = B;
   const Xs = new XMLSerializer(); const report = [];
-  if(!F.perLearner){
+  if(!F.perLearner && !F.items){
     for(const src of B.srcs){
       const f = fillOne(B, src, null);
       if(f.sh.filled.length){ T.zip.file(src.sht.path, Xs.serializeToString(f.doc)); report.push({sheet: src.sht.name, note: f.note, filled: f.sh.filled}); }
@@ -532,14 +552,16 @@ const repHtml = (report) => { const total = report.reduce((a,r)=>a+r.filled.leng
   return `<div class="tpl-rep"><b>${total} cell(s) filled</b> — ${report.slice(0,6).map(r => `${esc(r.sheet)}: ${esc(r.note||'')}`).join(' · ')}${report.length>6?` · … (${report.length})`:''}${!total?' — nothing matched; check that the template has labels like “School ID”, “Section”, “LRN”, “NAME”.':''}
   <details style="margin-top:8px"><summary class="small">Show what was filled</summary><div class="table-wrap" style="max-height:260px;margin-top:8px"><table><thead><tr><th>Sheet</th><th>Cell</th><th>Field</th><th>Value</th></tr></thead><tbody>${report.flatMap(r => r.filled.filter(x=>x.label).slice(0,400).map(x => `<tr><td>${esc(r.sheet)}</td><td>${x.cell}</td><td>${esc(x.label)}</td><td>${esc(x.value)}</td></tr>`)).join('')}</tbody></table></div></details></div>`; };
 M.templateCard = async function(el, f){
-  const list = await M.tplList(f.code); const tpl = await M.tplCurrent(f.code, list); const F = FORMS[f.code]; const c = M.cls();
+  const list = await M.tplList(f.code); const cur = await M.tplCurrent(f.code, list); const tpl = await M.tplInUse(f.code, list); const F = FORMS[f.code]; const c = M.cls();
   const secs = (M.S.att && M.S.att.sections) || [];
   const L = M.sortedLearners(c).filter(M.counted);
   const ui = M.tplUI = (M.tplUI && M.tplUI.code === f.code) ? M.tplUI : {code:f.code, lid:'', view:false};
   el.innerHTML = `<div class="card tpl-card"><div class="row"><h2 style="margin:0">${f.code} template → auto-fill</h2><span class="spacer"></span>${tpl?`<span class="chip green" title="Template currently used">In use: ${esc(tpl.name)}</span>`:'<span class="chip gold">No template yet</span>'}</div>
     <p class="small muted">Upload your blank ${f.code} template (.xlsx). MASTRO reads its labels and fills ${F.perLearner?'one copy per learner with name, LRN, birthdate, the grade-level block (school, grade, section, SY, adviser), term grades, general average and the certification':'the headers (school, ID, region, division, SY, grade, section, adviser, school head), the learner list'}${f.code==='SF2'?', the daily marks, totals and the monthly summary':f.code==='SF4'?', and one row per section with registered learners, ADA, % attendance, drop-outs and transfers':f.code==='SF5'||f.code==='SF6'?', general averages, action taken and the summary counts':''} — keeping your template’s formatting and paper size.</p>
+    ${f.code==='SF10' ? (() => { const un = L.filter(l => !M.nameParts(l).sure); return `<div class="flag" style="margin:6px 0 10px"><span class="dot ${un.length?'red':''}" ${un.length?'':'style="background:var(--green-2)"'}></span><div class="small">${un.length ? `<b>${un.length} learner(s)</b> have names MASTRO cannot split for sure (second first name vs. middle name).` : 'All learner names have confirmed first / middle name parts.'} <button class="btn sm" id="npBtn">${ico('learners')} Check name parts ${M.newTag('name-parts')}</button></div></div>`; })() : ''}
+    ${F.inputs ? '<div id="tplInputs" style="margin:6px 0 14px"></div>' : ''}
     <div class="row"><b class="small">Your ${f.code} templates</b><span class="spacer"></span><button class="btn sm" id="tplUp">${ico('upload')} Upload template</button></div>
-    ${M.tplListHtml(list, tpl, null)}
+    ${M.tplListHtml(list, cur, M.TPL_BUILTIN[f.code] ? M.TPL_BUILTIN[f.code].name : null)}
     <div class="row">
       ${F.needs && F.needs.includes('month') ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">Month<input type="month" class="input" id="tplM" value="${ui.month || M.today().slice(0,7)}" style="width:auto"></label>`:''}
       ${f.code==='SF4' ? `<div class="chips">${secs.map(x=>`<label class="chip" style="cursor:pointer"><input type="checkbox" data-tsec="${x.id}" ${x.classId===c.id?'checked':''}> ${esc(x.name)}</label>`).join('')}</div>`:''}
@@ -551,6 +573,8 @@ M.templateCard = async function(el, f){
     <div id="tplRep"></div><div id="tplViewer"></div></div>`;
   const rerender = () => M.templateCard(el, f);
   M.tplListBind(el, f.code, rerender);
+  if($('#npBtn', el)) $('#npBtn', el).onclick = () => M.nameCheck(c, rerender);
+  if(F.inputs) F.inputs($('#tplInputs', el), {c, tpl, rerender});
   $('#tplUp', el).onclick = () => $('#tplFile', el).click();
   $('#tplFile', el).onchange = async e => { const file = e.target.files[0]; e.target.value=''; if(!file) return;
     if(!/\.xlsx$/i.test(file.name)) return alert('Please use an .xlsx file (in Excel: File → Save As → Excel Workbook .xlsx).');

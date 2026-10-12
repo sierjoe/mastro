@@ -117,7 +117,7 @@ M.ecrTermsFromModel = function(model){
       ['ww','pt'].forEach(k => { rec[k+'Total'] = o[k+'Total']; rec[k+'PS'] = isNum(o[k+'PS']) ? M.r2(o[k+'PS']) : null; rec[k+'WS'] = o[k+'WS']; });
       rec.qaPS = isNum(o.exPS) ? M.r2(o.exPS) : null; rec.qaWS = o.exWS; rec.ig = isNum(o.ig) ? M.r2(o.ig) : null; rec.tg = o.tg;
       rec.noScores = !cnt(s.ww) && !cnt(s.pt) && !cnt(s.ex); learners.push(rec); }));
-    if(learners.some(x => !x.noScores)) out[t] = {sheet: T.sheet, comp: {ww:{w:Math.round(T.w.ww*100), hps:T.hps.ww, n:T.hps.ww.length, labels:T.labels.ww}, pt:{w:Math.round(T.w.pt*100), hps:T.hps.pt, n:T.hps.pt.length, labels:T.labels.pt}, qa:{w:Math.round(T.w.ex*100), hps:T.hps.ex, n:T.hps.ex.length, labels:T.labels.ex}}, learners};
+    if(learners.some(x => !x.noScores)) out[t] = {sheet: T.sheet, comp: {ww:{w:Math.round(T.w.ww*100), hps:T.hps.ww, n:T.hps.ww.length, labels:T.labels.ww, titles:(T.titles||{}).ww||[]}, pt:{w:Math.round(T.w.pt*100), hps:T.hps.pt, n:T.hps.pt.length, labels:T.labels.pt, titles:(T.titles||{}).pt||[]}, qa:{w:Math.round(T.w.ex*100), hps:T.hps.ex, n:T.hps.ex.length, labels:T.labels.ex, titles:(T.titles||{}).ex||[]}}, learners};
   });
   return out;
 };
@@ -275,54 +275,92 @@ function inputTab(eb, E, model, mark){
   eb.addEventListener('keydown', e => { const x = e.target; if(e.key !== 'Enter' || !x.dataset.sx) return; e.preventDefault(); const n = eb.querySelector(`[data-sx="${x.dataset.sx}"][data-i="${+x.dataset.i+1}"]`); if(n){ n.focus(); n.select(); } });
 }
 
+const CNAME = {ww:'WW', pt:'PT', ex:'Exam'};
+const NOTE_CHIPS = ['Absent','Excused','No output','Late submission','Incomplete','For make-up','Sick','Transferee'];
+function titlesModal(E, model, t, focus, done){
+  const T = model.terms[t]; T.titles = T.titles || {ww:[], pt:[], ex:[]};
+  const rows = KEYS.flatMap(k => T.hps[k].map((_, j) => ({k, j, lab: `${CNAME[k]} ${T.labels[k][j] || j+1}`})));
+  M.modal(`Output titles · Term ${t}`, `<p class="small muted" style="margin-top:0">Name each output so you remember what it was (e.g. “Quiz 1 – Figures of speech”, “PT 1 – Spoken poetry”). Titles are kept in MASTRO with this ECR and never change any grade.</p>
+    <div class="ttl-list">${rows.map(r => `<label class="field"><span><b>${esc(r.lab)}</b> <span class="tiny muted">HPS ${f0(T.hps[r.k][r.j]) || '—'}</span></span><input class="input" data-tk="${r.k}" data-tj="${r.j}" value="${esc((T.titles[r.k]||[])[r.j] || '')}" placeholder="Title of this output"></label>`).join('')}</div>
+    <div class="row" style="margin-top:14px"><span class="spacer"></span><button class="btn primary" id="ttlOk">Done</button></div>`, b => {
+    b.oninput = e => { const x = e.target; if(!x.dataset.tk) return; T.titles[x.dataset.tk] = T.titles[x.dataset.tk] || []; T.titles[x.dataset.tk][+x.dataset.tj] = x.value; clearTimeout(titlesModal.t); titlesModal.t = setTimeout(() => { E.terms = M.ecrTermsFromModel(model); M.save(); }, 300); };
+    $('#ttlOk', b).onclick = () => { E.terms = M.ecrTermsFromModel(model); M.save(); M.closeModal(); done(); };
+    const f = focus && b.querySelector(`[data-tk="${focus.k}"][data-tj="${focus.j}"]`); if(f) setTimeout(() => f.focus(), 50);
+  }, true);
+}
 function termTab(eb, E, model, t, ui, mark){
-  const T = model.terms[t];
-  const cols = []; // [{k, j}] editable item columns in order
-  KEYS.forEach(k => T.hps[k].forEach((_, j) => cols.push({k, j})));
+  const T = model.terms[t]; T.titles = T.titles || {ww:[], pt:[], ex:[]}; T.notes = T.notes || {};
   const nItems = {ww:T.hps.ww.length, pt:T.hps.pt.length, ex:T.hps.ex.length};
-  const head1 = `<tr class="h1"><th class="sticky-col" rowspan="2">Learner</th>
+  const head1 = `<tr class="h1"><th class="sticky-col" rowspan="2">Learner <button class="btn sm" id="ttlBtn" style="margin-left:6px;padding:3px 9px">${ico('edit','width:13px;height:13px')} Titles ${M.newTag('ecr-titles')}</button></th>
     <th colspan="${nItems.ww+3}" class="g-ww">WRITTEN / ORAL WORKS · <input class="w-in" data-w="ww" value="${Math.round(T.w.ww*100)}" inputmode="decimal">%</th>
     <th colspan="${nItems.pt+3}" class="g-pt">PERFORMANCE TASKS · <input class="w-in" data-w="pt" value="${Math.round(T.w.pt*100)}" inputmode="decimal">%</th>
     <th colspan="${nItems.ex+2}" class="g-ex">EXAMINATIONS · <input class="w-in" data-w="ex" value="${Math.round(T.w.ex*100)}" inputmode="decimal">%</th>
     <th rowspan="2">Initial<br>Grade</th><th rowspan="2">Term<br>Grade</th><th rowspan="2">Descriptor</th></tr>`;
   const lab = (k, j) => esc(T.labels[k][j] || (j+1));
-  const head2 = `<tr class="h2">${['ww','pt'].map(k => T.hps[k].map((_, j) => `<th>${lab(k,j)}</th>`).join('') + '<th class="cm">Total</th><th class="cm">PS</th><th class="cm">WS</th>').join('')}${T.hps.ex.map((_, j) => `<th>${lab('ex',j)}<div class="tiny muted">${f0(T.exW[j])}%</div></th>`).join('')}<th class="cm">PS</th><th class="cm">WS</th></tr>`;
+  const ttl = (k, j) => { const x = (T.titles[k]||[])[j]; return `<div class="ttl ${x?'':'empty'}" data-tk="${k}" data-tj="${j}" title="${esc(x || 'Add a title')}">${x ? esc(x) : '+ title'}</div>`; };
+  const head2 = `<tr class="h2">${['ww','pt'].map(k => T.hps[k].map((_, j) => `<th class="ttl-h">${lab(k,j)}${ttl(k,j)}</th>`).join('') + '<th class="cm">Total</th><th class="cm">PS</th><th class="cm">WS</th>').join('')}${T.hps.ex.map((_, j) => `<th class="ttl-h">${lab('ex',j)}<div class="tiny muted">${f0(T.exW[j])}%</div>${ttl('ex',j)}</th>`).join('')}<th class="cm">PS</th><th class="cm">WS</th></tr>`;
   const hpsRow = `<tr class="hps"><td class="sticky-col"><b>HIGHEST POSSIBLE SCORE</b></td>${['ww','pt'].map(k => T.hps[k].map((h, j) => `<td><input class="sc" data-hk="${k}" data-j="${j}" value="${f0(h)}" inputmode="decimal"></td>`).join('') + `<td class="cm" data-ht="${k}">${f0(cnt(T.hps[k])?sum(T.hps[k]):null)}</td><td class="cm">${f0(T.psMax[k])}</td><td class="cm">${T.w[k]}</td>`).join('')}${T.hps.ex.map((h, j) => `<td><input class="sc" data-hk="ex" data-j="${j}" value="${f0(h)}" inputmode="decimal"></td>`).join('')}<td class="cm">${f0(T.psMax.ex)}</td><td class="cm">${T.w.ex}</td><td></td><td></td><td></td></tr>`;
+  const nk = (sx, i, k, j) => `${sx}${i}|${k}|${j}`;
+  const cellTd = (sx, i, k, j, v) => { const n = T.notes[nk(sx,i,k,j)]; return `<td class="${n?'noted':''}" ${n?`title="${esc(n)}"`:''}><input class="sc" data-sx="${sx}" data-i="${i}" data-k="${k}" data-j="${j}" value="${f0(v)}" inputmode="decimal"></td>`; };
   const row = (sx, i) => { const s = T.scores[sx][i]; const o = calc(model, T, s); const name = model.roster[sx][i];
     return `<tr data-r="${sx}${i}" class="${!name?'emptyslot':''}"><td class="sticky-col"><span class="muted tiny">${i+1}</span> ${esc(name||'—')}</td>
-      ${['ww','pt'].map(k => s[k].map((v, j) => `<td><input class="sc" data-sx="${sx}" data-i="${i}" data-k="${k}" data-j="${j}" value="${f0(v)}" inputmode="decimal"></td>`).join('') + `<td class="cm" data-o="${k}Total">${f0(o[k+'Total'])}</td><td class="cm" data-o="${k}PS">${f2(o[k+'PS'])}</td><td class="cm" data-o="${k}WS">${f2(o[k+'WS'])}</td>`).join('')}
-      ${s.ex.map((v, j) => `<td><input class="sc" data-sx="${sx}" data-i="${i}" data-k="ex" data-j="${j}" value="${f0(v)}" inputmode="decimal"></td>`).join('')}<td class="cm" data-o="exPS">${f2(o.exPS)}</td><td class="cm" data-o="exWS">${f2(o.exWS)}</td>
+      ${['ww','pt'].map(k => s[k].map((v, j) => cellTd(sx, i, k, j, v)).join('') + `<td class="cm" data-o="${k}Total">${f0(o[k+'Total'])}</td><td class="cm" data-o="${k}PS">${f2(o[k+'PS'])}</td><td class="cm" data-o="${k}WS">${f2(o[k+'WS'])}</td>`).join('')}
+      ${s.ex.map((v, j) => cellTd(sx, i, 'ex', j, v)).join('')}<td class="cm" data-o="exPS">${f2(o.exPS)}</td><td class="cm" data-o="exWS">${f2(o.exWS)}</td>
       <td class="cm" data-o="ig">${f2(o.ig)}</td><td class="tg ${isNum(o.tg)&&o.tg<75?'low':''}" data-o="tg">${f0(o.tg)}</td><td class="ds" data-o="desc">${o.desc?`<span class="desc d-${o.desc}">${o.desc}</span>`:''}</td></tr>`; };
   const span = 1 + nItems.ww + 3 + nItems.pt + 3 + nItems.ex + 2 + 3;
   const body = ['M','F'].map(sx => `<tr class="group"><td class="sticky-col">${sx==='M'?'MALE':'FEMALE'}</td><td colspan="${span-1}"></td></tr>` +
     model.roster[sx].map((n, i) => (n || ui.empty) ? row(sx, i) : '').join('')).join('');
   const A = M.ecrTermsFromModel(model)[t]; const st = A ? M.stats(A.learners.map(x => x.tg)) : null;
+  const colName = (k, j) => `${CNAME[k]} ${T.labels[k][j] || j+1}${(T.titles[k]||[])[j] ? ' – ' + T.titles[k][j] : ''}`;
+  const notesList = () => { const ents = Object.entries(T.notes).filter(([, v]) => v).map(([key, v]) => { const [slot, k, j] = key.split('|'); const sx = slot[0], i = +slot.slice(1); return {key, name: model.roster[sx][i] || '(empty row)', col: colName(k, +j), v}; }).sort((a, b) => a.name.localeCompare(b.name));
+    return ents.length ? `<div class="list" style="max-height:260px;overflow:auto;padding:4px">${ents.map(n => `<div class="item" style="padding:7px 12px"><div class="grow"><div class="small"><b>${esc(n.name)}</b> · ${esc(n.col)}</div><div class="tiny">${esc(n.v)}</div></div><button class="icon-btn" data-delnote="${esc(n.key)}" title="Remove note">✕</button></div>`).join('')}</div>` : '<div class="empty small">No notes yet. Tap a score box, then type a note in the bar above the table.</div>'; };
   eb.innerHTML = `<div class="card"><div class="row"><h2 style="margin:0">Term ${t} <span class="tiny muted">sheet “${esc(T.sheet)}”</span></h2><span class="spacer"></span>
       ${st && st.n ? `<span class="chip">mean ${fmt(st.mean)}</span><span class="chip">${st.passed}/${st.n} reached 75</span>` : ''}
       <label class="row small" style="cursor:pointer;gap:6px"><input type="checkbox" id="edEmpty" ${ui.empty?'checked':''}> Show empty rows</label></div>
-    <div class="table-wrap ecr-grid-wrap"><table class="ecr-grid"><thead>${head1}${head2}</thead><tbody>${hpsRow}${body}</tbody></table></div></div>`;
-  $('#edEmpty', eb).onchange = e => { ui.empty = e.target.checked; termTab(eb, E, model, t, ui, mark); };
+    <div class="note-bar" id="noteBar"><span class="nb-ico">📝</span><div class="nb-what small muted">Tap any score box to add a note (absent, excused, no output…). ${M.newTag('ecr-notes')} Notes never change scores or grades.</div></div>
+    <div class="table-wrap ecr-grid-wrap"><table class="ecr-grid"><thead>${head1}${head2}</thead><tbody>${hpsRow}${body}</tbody></table></div></div>
+    <div class="card" style="margin-top:20px"><div class="row"><h2 style="margin:0">Notes · Term ${t}</h2><span class="spacer"></span><span class="chip">${Object.values(T.notes).filter(Boolean).length}</span></div><div id="notesList" style="margin-top:10px">${notesList()}</div></div>`;
+  const rerender = () => termTab(eb, E, model, t, ui, mark);
+  $('#edEmpty', eb).onchange = e => { ui.empty = e.target.checked; rerender(); };
+  $('#ttlBtn', eb).onclick = (e) => { e.stopPropagation(); titlesModal(E, model, t, null, rerender); };
+  $$('.ttl', eb).forEach(d => d.onclick = () => titlesModal(E, model, t, {k: d.dataset.tk, j: d.dataset.tj}, rerender));
+  const bindNotesList = () => $$('[data-delnote]', eb).forEach(b => b.onclick = () => { delete T.notes[b.dataset.delnote]; M.save(); rerender(); });
+  bindNotesList();
+  // note bar follows the focused score box
+  let cur = null;
+  const showBar = (x) => { const {sx, i, k, j} = x.dataset; cur = {sx, i:+i, k, j:+j, key: nk(sx, +i, k, +j), td: x.parentNode};
+    const name = model.roster[sx][+i] || '(empty row)'; const v = T.notes[cur.key] || '';
+    $('#noteBar', eb).innerHTML = `<span class="nb-ico">📝</span><div class="nb-what small"><b>${esc(name)}</b> · ${esc(colName(k, +j))}</div>
+      <input class="input nb-in" id="nbIn" value="${esc(v)}" placeholder="Note for this box (e.g. absent on the quiz date)">
+      <div class="chips nb-chips">${NOTE_CHIPS.map(c => `<button class="chip" data-nc="${esc(c)}">${esc(c)}</button>`).join('')}${v ? '<button class="chip red" data-nc="">Clear</button>' : ''}</div>`;
+    const inp = $('#nbIn', eb);
+    const setNote = (val) => { if(!cur) return; val = val.trim(); if(val) T.notes[cur.key] = val; else delete T.notes[cur.key]; cur.td.classList.toggle('noted', !!val); if(val) cur.td.title = val; else cur.td.removeAttribute('title'); clearTimeout(showBar.t); showBar.t = setTimeout(() => { M.save(); $('#notesList', eb).innerHTML = notesList(); bindNotesList(); }, 350); };
+    inp.oninput = () => setNote(inp.value);
+    inp.onkeydown = (e) => { if(e.key === 'Enter'){ e.preventDefault(); const back = cur.td.querySelector('input'); if(back) back.focus(); } };
+    $$('[data-nc]', eb).forEach(b => b.onmousedown = (e) => { e.preventDefault(); const val = b.dataset.nc; inp.value = val ? (inp.value && !inp.value.includes(val) ? inp.value + '; ' + val : val) : ''; setNote(inp.value); if(!val) showBar(cur.td.querySelector('input')); });
+  };
   const refresh = (sx, i) => { const tr = eb.querySelector(`tr[data-r="${sx}${i}"]`); if(!tr) return; const o = calc(model, T, T.scores[sx][i]);
     $$('[data-o]', tr).forEach(td => { const k = td.dataset.o; const v = o[k];
       if(k === 'desc') td.innerHTML = v ? `<span class="desc d-${v}">${v}</span>` : '';
       else if(k === 'tg'){ td.textContent = f0(v); td.classList.toggle('low', isNum(v) && v < 75); }
       else td.textContent = /Total$/.test(k) ? f0(v) : f2(v); }); };
   const val = (x) => { const s = x.value.trim(); if(s === '') return null; const n = +s; return isFinite(n) ? n : NaN; };
-  eb.addEventListener('input', e => { const x = e.target;
+  const grid = $('.ecr-grid', eb);
+  grid.oninput = e => { const x = e.target;
     if(x.classList.contains('sc')){ const v = val(x); if(Number.isNaN(v)){ x.classList.add('bad'); return; } x.classList.remove('bad');
       if(x.dataset.hk){ const k = x.dataset.hk; if(isNum(v) && v < 0){ x.classList.add('bad'); return; } T.hps[k][+x.dataset.j] = v; const ht = eb.querySelector(`[data-ht="${k}"]`); if(ht) ht.textContent = f0(cnt(T.hps[k])?sum(T.hps[k]):null);
         ['M','F'].forEach(sx => model.roster[sx].forEach((n, i) => refresh(sx, i))); }
       else { const {sx, i, k, j} = x.dataset; const h = T.hps[k][+j]; x.classList.toggle('over', isNum(v) && isNum(h) && v > h); T.scores[sx][+i][k][+j] = v; refresh(sx, +i); }
       commit(E); mark(); }
     else if(x.classList.contains('w-in')){ const v = val(x); if(!isNum(v) || v < 0 || v > 100){ x.classList.add('bad'); return; } x.classList.remove('bad'); T.w[x.dataset.w] = v/100; ['M','F'].forEach(sx => model.roster[sx].forEach((n, i) => refresh(sx, i))); commit(E); mark(); }
-  });
+  };
   // Excel-like keys: Enter = down, Shift+Enter = up, arrows up/down
-  eb.addEventListener('keydown', e => { const x = e.target; if(!x.classList.contains('sc')) return;
+  grid.onkeydown = e => { const x = e.target; if(!x.classList.contains('sc')) return;
     const dir = e.key === 'Enter' ? (e.shiftKey ? -1 : 1) : e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0; if(!dir) return; e.preventDefault();
     const k = x.dataset.k || x.dataset.hk, j = x.dataset.j;
-    const list = [...eb.querySelectorAll(`input.sc[data-k="${k}"][data-j="${j}"], input.sc[data-hk="${k}"][data-j="${j}"]`)];
-    const n = list[list.indexOf(x) + dir]; if(n){ n.focus(); n.select(); } });
-  eb.addEventListener('focusin', e => { if(e.target.classList.contains('sc')) e.target.select(); });
+    const list = [...grid.querySelectorAll(`input.sc[data-k="${k}"][data-j="${j}"], input.sc[data-hk="${k}"][data-j="${j}"]`)];
+    const n = list[list.indexOf(x) + dir]; if(n){ n.focus(); n.select(); } };
+  grid.addEventListener('focusin', e => { const x = e.target; if(!x.classList.contains('sc')) return; x.select(); if(x.dataset.sx) showBar(x); });
 }
 
 function finalTab(eb, E, model){

@@ -349,8 +349,8 @@ table.month th.dim{opacity:.45}
   box-sizing:border-box;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 /* page boxes = paper minus the @page margin, so nothing spills onto a second sheet */
 .sf9-page{align-items:center}
-.sf9-page.a4p{width:194mm;height:280mm}
-.sf9-page.a4l{width:281mm;height:193mm;justify-content:space-evenly}
+.sf9-page.a4p{width:184mm;height:271mm}
+.sf9-page.a4l{width:271mm;height:184mm;justify-content:space-evenly}
 .sf9-page.a5p{width:136mm;height:197mm}
 .sf9-page.a5l{width:198mm;height:135mm;justify-content:space-evenly}
 /* the panel is always laid out at full A4 size, then scaled down as one piece — lines and text shrink together */
@@ -358,10 +358,10 @@ table.month th.dim{opacity:.45}
 .sf9-page .pscale{position:absolute;left:0;top:0;transform-origin:top left}
 .sf9-panel{font-size:10.4pt}
 .sf9-panel .hdr{display:flex;align-items:center;justify-content:space-between;gap:.6em}
-.sf9-panel .hdr .seal{width:5.6em;height:5.6em;object-fit:contain;flex:none}
+.sf9-panel .hdr .seal{width:calc(5.6em * var(--ls,1));height:calc(5.6em * var(--ls,1));object-fit:contain;flex:none}
 .sf9-panel .hdr .mid{flex:1}
 .sf-headrow{display:flex;align-items:center;justify-content:center;gap:6mm;margin-bottom:1mm}
-.sf-headrow .seal{width:15mm;height:15mm;object-fit:contain;display:inline-block}
+.sf-headrow .seal{width:calc(15mm * var(--ls,1));height:calc(15mm * var(--ls,1));object-fit:contain;display:inline-block}
 .sf9-panel{width:50.2em;height:73.7em;border:1px solid #000;padding:1em 2.4em;box-sizing:border-box;line-height:1.25;flex:none}
 .sf9-panel .c{text-align:center}
 .sf9-panel .b{font-weight:bold}
@@ -446,27 +446,27 @@ table.month th.dim{opacity:.45}
 .qr-card .qs{font-size:7pt;color:#555;margin-top:1mm}
 
 /* ---------- print ---------- */
+/* ---------- print (rules apply to #printArea on screen too, so MASTRO can measure before printing) ---------- */
+.print-only{font-family:"Bookman Old Style",Bookman,Georgia,serif;font-size:11pt;color:#000;background:#fff}
+.print-only.measuring{display:block!important;position:fixed;left:-40000px;top:0;visibility:hidden}
+.print-only .p-head{text-align:center;line-height:1.3;margin-bottom:10px}
+.print-only .p-head .b{font-weight:bold}
+.print-only .p-title{text-align:center;font-weight:bold;font-size:13pt;margin:10px 0;color:#1f6b4a}
+.print-only > table, .print-only > .pzoom > table{width:100%;border-collapse:collapse;font-size:9.5pt}
+.print-only > table :where(th,td), .print-only > .pzoom > table :where(th,td){border:1px solid #444;padding:3px 5px;position:static;background:none;color:#000;text-transform:none;letter-spacing:0;white-space:normal}
+.print-only > table th, .print-only > .pzoom > table th{background:#e9f1ec!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.print-only .p-sign{display:flex;justify-content:space-between;margin-top:40px}
+.print-only .p-sign > div{text-align:center;width:45%}
+.print-only .p-sign .nm{font-weight:bold;text-decoration:underline;margin-top:28px}
+.print-only .sf9-page,.print-only .xv-page,.print-only .quad-page,.print-only .fitbox,.print-only .asm-page{break-after:page;page-break-after:always;box-shadow:none;margin:0}
+.print-only .sf9-page:last-child,.print-only .xv-page:last-child,.print-only .quad-page:last-child,.print-only .fitbox:last-child,.print-only .asm-page:last-child{break-after:auto;page-break-after:auto}
+.print-only .xv-t td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+/* filled Excel templates: print only the fitted sheet inside the 0.5 in page margins */
+.print-only .xv-page{width:auto!important;height:auto!important;padding:0!important;overflow:visible}
 @media print{
-  body{background:#fff;color:#000}
+  html,body{margin:0!important;padding:0!important;background:#fff;color:#000}
   .shell,.tabbar,.bg-orbs,.modal-wrap,.toast,.prog,#pdfStage{display:none!important}
-  .print-only{display:block!important;font-family:"Bookman Old Style",Bookman,Georgia,serif;font-size:11pt}
-  .p-head{text-align:center;line-height:1.3;margin-bottom:10px}
-  .p-head .b{font-weight:bold}
-  .p-title{text-align:center;font-weight:bold;font-size:13pt;margin:10px 0;color:#1f6b4a}
-  .print-only > table{width:100%;border-collapse:collapse;font-size:9.5pt}
-  .print-only > table :where(th,td){border:1px solid #444;padding:3px 5px;position:static;background:none;color:#000;text-transform:none;letter-spacing:0;white-space:normal}
-  .print-only > table th{background:#e9f1ec!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .print-only > .p-sign{display:flex;justify-content:space-between;margin-top:40px}
-  .print-only > .p-sign div{text-align:center;width:45%}
-  .print-only > .p-sign .nm{font-weight:bold;text-decoration:underline;margin-top:28px}
-  .print-only .sf9-page{break-after:page;page-break-after:always;box-shadow:none}
-  .print-only .sf9-page:last-child{break-after:auto;page-break-after:auto}
-  .print-only .xv-page{break-after:page;page-break-after:always;box-shadow:none;margin:0}
-  .print-only .xv-page:last-child{break-after:auto;page-break-after:auto}
-  .print-only .quad-page{break-after:page;page-break-after:always;margin:0}
-  .print-only .quad-page:last-child{break-after:auto;page-break-after:auto}
-  .print-only .fitbox{break-after:page}
-  .print-only .xv-t td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .print-only{display:block!important}
 }
 @media (max-width:860px){
   .seats{gap:5px}
@@ -505,7 +505,7 @@ table.month td.mc.fut{background:rgba(127,127,127,.05);cursor:default}
 .logo-prev{width:64px;height:64px;border-radius:14px;box-shadow:var(--neu-in);display:grid;place-items:center;overflow:hidden;flex:none}
 .logo-prev img{max-width:56px;max-height:56px}
 .p-headrow{display:flex;align-items:center;justify-content:center;gap:16px}
-.p-headrow .seal{width:22mm;height:22mm;object-fit:contain;flex:none;display:inline-block}
+.p-headrow .seal{width:calc(22mm * var(--ls,1));height:calc(22mm * var(--ls,1));object-fit:contain;flex:none;display:inline-block}
 @media (max-width:860px){ .seats .aisle::after{border-left-width:1.5px} }
 @media (max-width:860px){ .seats{--aisle:7px;gap:4px} }
 
@@ -587,12 +587,12 @@ tr.sel td{background:rgba(47,138,97,.10)}
 @media (max-height:820px){.nav{gap:3px}.nav a{padding:8px 14px}.brand{padding-bottom:14px}.dev-card{padding:9px 11px}}
 
 /* ---------- A4 pages with 4 (or 2) cells: answer sheets, grade slips ---------- */
-.quad-page{position:relative;width:210mm;height:297mm;overflow:hidden;background:#fff;color:#000;box-sizing:border-box}
+.quad-page{position:relative;width:184mm;height:271mm;overflow:hidden;background:#fff;color:#000;box-sizing:border-box}
 .quad-cell{position:absolute;overflow:hidden;box-sizing:border-box}
 .quad-cell > svg{display:block;width:100%;height:100%}
 .quad-page .cut{position:absolute;border:0 dashed #b5b5b5}
-.quad-page .cut.v{left:105mm;top:0;bottom:0;border-left-width:.2mm}
-.quad-page .cut.h{top:148.5mm;left:0;right:0;border-top-width:.2mm}
+.quad-page .cut.v{left:92mm;top:0;bottom:0;border-left-width:.2mm}
+.quad-page .cut.h{top:135.5mm;left:0;right:0;border-top-width:.2mm}
 /* ---------- Assessments ---------- */
 .sheet-prev{display:flex;justify-content:center;padding:10px;background:rgba(127,127,127,.08);border-radius:16px}
 .sheet-prev svg{width:min(100%,420px);height:auto;box-shadow:0 10px 30px rgba(0,0,0,.18);background:#fff}
@@ -646,3 +646,105 @@ tr.sel td{background:rgba(47,138,97,.10)}
 .gslip .gn{font-size:5.3pt;color:#666;text-align:center;margin-top:1.2mm;line-height:1.2}
 .slip-prev{display:flex;justify-content:center;padding:10px;background:rgba(127,127,127,.08);border-radius:16px;overflow:auto}
 .slip-prev .gslip{box-shadow:0 10px 30px rgba(0,0,0,.18);zoom:1.35}
+
+.ecr-grid td{position:relative}
+.ecr-grid td.noted::after{content:"";position:absolute;top:1px;right:1px;border-top:8px solid var(--gold);border-left:8px solid transparent;pointer-events:none}
+.ecr-grid th.ttl-h{vertical-align:top}
+.ecr-grid .ttl{font-size:9.5px;font-weight:600;max-width:58px;margin:2px auto 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--green);cursor:pointer;text-transform:none;letter-spacing:0;border-radius:6px;padding:1px 3px;background:rgba(47,138,97,.08)}
+.ecr-grid .ttl.empty{color:var(--ink-3);background:none;font-weight:500}
+.ecr-grid thead tr.h2 th{top:30px}
+.note-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0;padding:8px 12px;border-radius:14px;box-shadow:var(--neu-in);min-height:44px}
+.note-bar .nb-ico{font-size:16px}
+.note-bar .nb-in{flex:1 1 220px;padding:6px 10px;font-size:13px}
+.note-bar .nb-chips{gap:5px}.note-bar .nb-chips .chip{cursor:pointer;font-size:11px;padding:3px 9px;border:0}
+.ttl-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+
+/* NEW badge */
+.new-tag{display:inline-flex;align-items:center;font-size:9px;font-weight:900;letter-spacing:.08em;color:#fff;padding:2px 6px;border-radius:999px;margin-left:6px;vertical-align:middle;line-height:1.2;
+  background:linear-gradient(135deg,#ff6b6b,#f0a32b);box-shadow:0 2px 8px rgba(240,107,70,.45);animation:newPulse 2.2s ease-in-out infinite;text-transform:uppercase;flex:none}
+@keyframes newPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@media (prefers-reduced-motion:reduce){.new-tag{animation:none}}
+.nav a .new-tag{margin-left:auto}
+
+.logo-size{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px}
+.logo-size input[type=range]{flex:1;accent-color:var(--green)}
+
+.np-t .input{padding:5px 8px;font-size:13px;min-width:90px}
+.np-t tr.np-unsure td{background:rgba(224,122,122,.07)}
+
+.sf8-t .input{padding:5px 8px;font-size:13px;min-width:74px;max-width:110px}
+.sf8-t td{vertical-align:middle}
+.sf7-mini{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px}
+.sf7-mini th{font-size:10.5px;text-align:left;padding:4px}
+.sf7-mini td{padding:2px}
+.sf7-mini .input{padding:5px 7px;font-size:12.5px;min-width:0;width:100%}
+
+/* ---------- Assessments: AI test maker ---------- */
+.btn.big{padding:12px 20px;font-size:15px}
+.asm-hero{background:linear-gradient(135deg,rgba(47,138,97,.10),rgba(201,162,39,.10))}
+.wz-step{display:flex;gap:16px;align-items:flex-start}
+.wz-n{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--green),var(--gold));box-shadow:0 4px 12px rgba(31,107,74,.3)}
+.wz-step .grow{min-width:0}
+.bow-sec{margin-top:14px;padding:12px 14px;border-radius:16px;box-shadow:var(--neu-in)}
+.bow-dom{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
+.bow-foc{font-size:13px;font-weight:700;margin:2px 0 8px}
+.bow-comp{padding:8px 10px;border-radius:12px;margin-top:6px;border:1px solid transparent}
+.bow-comp.on{border-color:rgba(47,138,97,.35);background:rgba(47,138,97,.06)}
+.tp-comp{display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:13.5px;line-height:1.35}
+.tp-comp input,.tp-node input{margin-top:3px;flex:none;accent-color:var(--green)}
+.tp-tree{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.tp-node{display:flex;gap:7px;align-items:flex-start;cursor:pointer;font-size:12.5px;color:var(--ink-2);line-height:1.3}
+.wz-parts{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+.wz-parts th{text-align:left;font-size:11px;color:var(--ink-3);padding:4px 6px;text-transform:uppercase;letter-spacing:.06em}
+.wz-parts td{padding:4px 6px}
+.wz-how{margin:8px 0 12px;padding-left:20px;line-height:1.6}
+.wz-prompt{white-space:pre-wrap;max-height:300px;overflow:auto;font-size:11px;background:rgba(127,127,127,.08);padding:10px;border-radius:10px}
+.key-grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-bottom:12px}
+.key-grid2 label{display:flex;gap:6px;align-items:center}.key-grid2 label span{width:26px;text-align:right;font-weight:700;font-size:12px}
+.key-grid2 .input{padding:5px 8px;font-size:13px}
+/* the test paper itself (screen preview, printing and measuring) */
+.tp-sheet{background:#fff;color:#000;border-radius:6px;box-shadow:0 12px 34px rgba(0,0,0,.18);padding:12.7mm;max-width:210mm;margin:0 auto;box-sizing:border-box}
+.tp{font-family:Arial,Helvetica,sans-serif;font-size:11pt;line-height:1.35;color:#000}
+.tp-head{display:flex;align-items:center;justify-content:center;gap:4mm;margin-bottom:2mm}
+.tp-head .seal{width:calc(13mm * var(--ls,1));height:calc(13mm * var(--ls,1));object-fit:contain}
+.tp-hc{text-align:center;font-size:8.5pt;line-height:1.25}.tp-hc .b{font-weight:bold;font-size:10.5pt}
+.tp-title{text-align:center;font-weight:bold;font-size:13pt;margin-top:1mm}
+.tp-sub{text-align:center;font-size:9.5pt;color:#333;margin-bottom:2.5mm}
+.tp-name{display:grid;grid-template-columns:1.6fr 1.2fr .8fr .8fr;gap:2mm 4mm;font-size:10pt;margin-bottom:3mm}
+.tp-name span{display:flex;align-items:flex-end;gap:1.5mm;white-space:nowrap}
+.tp-name i{flex:1;border-bottom:.25mm solid #000;min-width:8mm;height:4mm}
+.tp-dir{margin:1.5mm 0 2mm;font-size:10.5pt}
+.tp-part{margin-top:3.5mm}
+.tp-pt{font-weight:bold;font-size:11pt;margin-bottom:1mm}
+.tp-pt .pts{font-weight:normal;font-size:9.5pt;color:#333}
+.tp-pass{border:.25mm solid #777;border-radius:2mm;padding:2.5mm 3.5mm;margin:2mm 0 3mm;font-size:10.5pt;text-align:justify}
+.tp-pass .pt{font-weight:bold;text-align:center;margin-bottom:1mm}
+.tp-pass p{margin:0 0 1.5mm}
+.tp-it{display:flex;gap:2mm;margin:1.2mm 0;break-inside:avoid;page-break-inside:avoid}
+.tp-it .n{flex:none;min-width:6mm;text-align:right;font-weight:bold}
+.tp-it .q{flex:1;min-width:0}
+.tp-it .ln{flex:none;width:14mm;border-bottom:.25mm solid #000;height:4.2mm}
+.tp-it .ln.wide{width:28mm}
+.tp-ch{display:grid;gap:.5mm 4mm;margin-top:.8mm}
+.tp-ch.two{grid-template-columns:1fr 1fr}.tp-ch.three{grid-template-columns:1fr 1fr 1fr}.tp-ch.four{grid-template-columns:repeat(4,1fr)}.tp-ch.one{grid-template-columns:1fr}
+.tp.compact{font-size:10pt;line-height:1.28}.tp.compact .tp-it{margin:.8mm 0}.tp.compact .tp-part{margin-top:2.5mm}.tp.compact .tp-head .seal{width:calc(10mm * var(--ls,1));height:calc(10mm * var(--ls,1))}
+.tp-match{display:grid;grid-template-columns:1.25fr 1fr;gap:5mm}
+.tp-match .mh{font-weight:bold;text-decoration:underline;margin-bottom:1mm}
+.tp-bank{display:flex;flex-wrap:wrap;gap:1.5mm 5mm;border:.25mm dashed #555;padding:1.5mm 3mm;margin:1mm 0 2mm;font-size:10pt}
+.tp-line{border-bottom:.25mm solid #000;height:6mm}
+.tp-rub{display:flex;flex-wrap:wrap;gap:1mm 5mm;font-size:9pt;color:#222;margin-top:1mm}
+.tp .blank{display:inline-block;border-bottom:.25mm solid #000;min-width:18mm}
+.tp .ei{display:inline-flex;flex-direction:column;align-items:center;line-height:1.05;vertical-align:top}.tp .ei sub{font-size:7.5pt}
+.tp-key .key-cols{columns:3;column-gap:8mm;font-size:10.5pt}
+.tp-key .key-it{break-inside:avoid;margin:.6mm 0}
+.tp .ed{outline:1px dashed transparent;border-radius:3px;transition:background .15s}
+.tp .ed:hover{outline-color:rgba(47,138,97,.45);background:rgba(47,138,97,.05)}
+.tp .ed:focus{outline:2px solid var(--green-2);background:rgba(47,138,97,.08)}
+.tp .ed.pre{white-space:pre-wrap;display:block}
+.asm-page{position:relative;overflow:hidden;background:#fff}
+.asm-cell{position:absolute;overflow:hidden;box-sizing:border-box}
+.asm-page .cut{position:absolute;border:0 dashed #b5b5b5}
+.asm-page .cut.v{top:0;bottom:0;border-left-width:.2mm}
+.asm-page .cut.h{left:0;right:0;border-top-width:.2mm}
+.print-only .asm-copy{break-after:page;page-break-after:always}
+.print-only .asm-copy:last-child{break-after:auto;page-break-after:auto}

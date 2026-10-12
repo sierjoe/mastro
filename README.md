@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.1 · October 7, 2026)
+# MASTRO — Adviser's Workspace (v6.2 · October 12, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -20,6 +20,15 @@ Offline forms, documents and class management for the class adviser
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
 
+### New in v6.2
+- **Assessments** is now an AI test maker: grade + term → competencies, topics and subtopics from the built-in Grade 7 / Grade 9 English Budget of Work → number of items and test types → copy the request to Claude, paste Claude's reply → test + answer key. Edit on screen, print on A4 or 8.5 × 13 (1, 2 or 4 copies per sheet, never overflowing) or download an editable Word file (.docx, no tables).
+- Every printout uses 0.5 in margins on all sides; grade slips fit 4 per A4 inside the margins.
+- Learner status **Transferred In** (counted; shown in SF2/SF4).
+- ECR: **titles** for each output and **notes** on any score box (never change grades).
+- SF7 and SF8 built in: type the inputs, MASTRO fills the templates (SF8 computes BMI and height-for-age with the WHO tables in the template).
+- SF9 logo size slider; **Name parts** check so SF10 never mixes up second first names and middle names.
+- **NEW** badges on new functions until you open them.
+
 ### New in v6.1
 - **Assessments** (sidebar, and on the phone's bottom bar): Create Assessment → pick the ECR section, term and column (WW 1–5, ST 1, ST 2, TE). Print answer sheets with each learner's name and a QR code (4 per A4, or 2 for long tests; or one learner's sheet). Scan with the phone camera or upload photos; scores go into that ECR column. Results and item analysis are kept per section.
 - **Grades → Grade slips**: 4 per A4 (all learners or one learner), temporary copy for parents.
@@ -37,7 +46,7 @@ Offline forms, documents and class management for the class adviser
 ## Update your GitHub copy (you already have v1 online)
 1. Unzip `MASTRO.zip`. Open the `mastro` folder.
 2. In your `mastro` repository on GitHub, click **Add file → Upload files**.
-3. Drag **everything inside the folder** (files and the folders `css`, `js`, `icons`, `vendor`, `templates`) into the page — v6.1 adds `js/assess.js`; v6 added `js/xlsxview.js`, `js/ecredit.js`, `js/tests.js`, `vendor/pdf.min.js` and `vendor/pdf.worker.min.js`;
+3. Drag **everything inside the folder** (files and the folders `css`, `js`, `icons`, `vendor`, `templates`) into the page — v6.2 adds `js/bowdata.js`, `js/sf78.js`, `templates/SF7_Template.xlsx` and `templates/SF8_Template.xlsx`; v6.1 added `js/assess.js`; v6 added `js/xlsxview.js`, `js/ecredit.js`, `js/tests.js`, `vendor/pdf.min.js` and `vendor/pdf.worker.min.js`;
    then **Commit changes**. Files with the same name are replaced.
 4. Optional clean-up: `js/app.js` and `vendor/exceljs.min.js` are no longer used — you can delete them on GitHub.
 5. Wait 1–2 minutes, then open your app link. On iPhone, open MASTRO once while online so it saves the new version.
@@ -60,4 +69,4 @@ is already loaded; to bring in newer SeatCheck records, go to **Attendance → M
 - Saved only on the device (browser storage). Use **Settings → Back up everything** often and keep the file in your Google Drive folder.
 - To move data to another device: **Settings → Restore backup** there.
 - Clearing Safari website data deletes MASTRO data — keep backups.
-- When you change files later, also edit `sw.js` and raise `mastro-v6.1.0` (e.g. to `mastro-v6.1.1`) so devices download the update.
+- When you change files later, also edit `sw.js` and raise `mastro-v6.2.0` (e.g. to `mastro-v6.2.1`) so devices download the update.

@@ -11,7 +11,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.1', date:'2026-10-07', label:'October 7, 2026'};
+M.VERSION = {n:'6.2', date:'2026-10-12', label:'October 12, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -96,7 +96,7 @@ M.NAV = [
   {id:'learners', label:'Learners', icon:'learners', eyebrow:'Roster & credentials checklist', title:'Learners'},
   {id:'grades', label:'Grades', icon:'grades', eyebrow:'Consolidated gradesheet', title:'Grades'},
   {id:'analysis', label:'Analysis', icon:'analysis', eyebrow:'Class analysis tools', title:'Analysis'},
-  {id:'assess', label:'Assessments', icon:'assess', eyebrow:'Answer sheets · scan · ECR', title:'Assessments'},
+  {id:'assess', label:'Assessments', icon:'assess', eyebrow:'AI test maker · Budget of Work', title:'Assessments'},
   {id:'items', label:'Item Analysis', icon:'items', eyebrow:'Summative tests & term examinations', title:'Item Analysis'},
   {id:'classes', label:'Classes', icon:'classes', eyebrow:'Electronic class records (ECR)', title:'Classes'},
   {id:'forms', label:'Forms', icon:'forms', eyebrow:'DepEd School Forms SF1–SF10', title:'Forms'},
@@ -138,7 +138,11 @@ M.shrinkImage = (file, max) => new Promise((res, rej) => {
   const fr = new FileReader(); fr.onerror = rej;
   fr.onload = () => { const im = new Image(); im.onerror = rej; im.onload = () => {
     const k = Math.min(1, max / Math.max(im.width, im.height)); const cv = document.createElement('canvas');
-    cv.width = Math.round(im.width*k); cv.height = Math.round(im.height*k); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+    cv.width = Math.round(im.width*k); cv.height = Math.round(im.height*k); const cx = cv.getContext('2d'); cx.drawImage(im, 0, 0, cv.width, cv.height);
+    // trim empty (white / transparent) borders so the seal fills its box
+    try { const d = cx.getImageData(0, 0, cv.width, cv.height).data; let x0 = cv.width, y0 = cv.height, x1 = -1, y1 = -1;
+      for(let y=0;y<cv.height;y++) for(let x=0;x<cv.width;x++){ const i = (y*cv.width + x)*4; if(d[i+3] > 20 && (d[i] < 240 || d[i+1] < 240 || d[i+2] < 240)){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } }
+      if(x1 > x0 && y1 > y0 && (x1-x0+1 < cv.width - 4 || y1-y0+1 < cv.height - 4)){ const t = document.createElement('canvas'); t.width = x1-x0+3; t.height = y1-y0+3; t.getContext('2d').drawImage(cv, x0-1, y0-1, t.width, t.height, 0, 0, t.width, t.height); return res(t.toDataURL('image/png')); } } catch(e){}
     res(cv.toDataURL('image/png')); }; im.src = fr.result; };
   fr.readAsDataURL(file);
 });
@@ -211,6 +215,9 @@ M.load = () => {
   const fresh = !S || !S.classes;
   if(fresh) S = defaultState();
   M.S = migrate(S);
+  // Assessments are now AI test papers: drop the old answer-sheet scanning records
+  M.S.asm = (M.S.asm || []).filter(a => a && a.v === 2);
+  if(M.ensureBuiltinBOW) M.ensureBuiltinBOW();
   M.autoLinkSections();
   if(fresh){ const sec = M.sectionFor(M.cls()); if(sec) M.S.att.current = sec.id; }
   M.save();
@@ -236,6 +243,17 @@ M.firstFridayJune = (sy) => { const d = new Date(M.syStart(sy), 5, 1); while(d.g
 /* ---------------- names ---------------- */
 M.splitName = (name) => { const [last, rest=''] = String(name).split(','); const g = rest.trim().split(/\s+/).filter(Boolean); return {last:last.trim(), given:g}; };
 // "LAST, FIRST MIDDLE" → "FIRST LAST" (drops the middle name when there are 2+ given names)
+// name parts for SF10 and other forms: confirmed parts (from SF1 or the user) win; otherwise a guess that is flagged
+const EXT_RE = /\s+(JR\.?|SR\.?|II|III|IV|V)$/i;
+M.nameParts = (l) => {
+  if(l && l.np && (l.np.first || l.np.last)) return {last: l.np.last || '', first: l.np.first || '', middle: l.np.middle || '', ext: l.np.ext || '', sure: !!l.np.verified, src: l.np.src || 'you'};
+  let {last, given} = M.splitName(l ? l.name : ''); let ext = '';
+  const lm = last.match(EXT_RE); if(lm){ ext = lm[1].toUpperCase(); last = last.replace(EXT_RE, ''); }
+  if(given.length && /^(JR\.?|SR\.?|II|III|IV|V)$/i.test(given[given.length-1])){ ext = given.pop().toUpperCase(); }
+  // 3+ given words → last word is the middle name; exactly 2 → could be two first names, so ask
+  const first = given.length > 1 ? given.slice(0, -1).join(' ') : given.join(' '); const middle = given.length > 1 ? given[given.length-1] : '';
+  return {last, first, middle, ext, sure: given.length <= 1, src: 'guess'};
+};
 M.shortName = (name) => { const {last, given} = M.splitName(name); if(!given.length) return last; const first = given.length > 1 ? given.slice(0,-1) : given; return first.join(' ') + ' ' + last; };
 M.firstName = (name) => { const {given} = M.splitName(name); return (given.length > 1 ? given.slice(0,-1) : given).join(' ') || name; };
 const _lev = (a,b) => { let p=[...Array(b.length+1).keys()]; for(let i=1;i<=a.length;i++){ const c=[i]; for(let j=1;j<=b.length;j++) c.push(Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]!==b[j-1]))); p=c; } return p[b.length]; };
@@ -278,21 +296,25 @@ M.sortedLearners = (c) => [...c.learners].sort((a,b) => (a.sex===b.sex?0:(a.sex=
 M.latestTerm = (c) => { const t = M.termsWithData(c); return t.length ? t[t.length-1] : '1'; };
 // grade status for checklist: 'done' (all 8 areas), 'part', or ''
 M.termStatus = (c, t, lid) => { const f = M.termRow(c, t, lid).filled; return f===8 ? 'done' : f>0 ? 'part' : ''; };
+M.isTransferee = (l) => !!l && l.status === 'TI';
 
 /* ---------------- learner status ---------------- */
 M.STATUS = {
   TO:{label:'Transferred Out', short:'T/O', cls:'red'},
   SARDO:{label:'SARDO (at risk of dropping out)', short:'SARDO', cls:'gold'},
   NLP:{label:'No Longer Participating', short:'NLP', cls:'red'},
-  DO:{label:'Dropped Out', short:'DO', cls:'red'}
+  DO:{label:'Dropped Out', short:'DO', cls:'red'},
+  TI:{label:'Transferred In', short:'T/I', cls:'green'}
 };
 // T/O, NLP and DO are left out of class statistics; SARDO stays in (still enrolled) but is flagged everywhere
 M.counted = (l) => !l || !['TO','NLP','DO'].includes(l.status);
 M.statusChip = (l, small) => { const st = l && M.STATUS[l.status]; return st ? `<span class="chip ${st.cls} st-chip" title="${M.esc(st.label)}${l.statusDate?' · '+M.esc(l.statusDate):''}${l.statusNote?' · '+M.esc(l.statusNote):''}" style="${small?'font-size:10px;padding:1px 7px':''}">${st.short}</span>` : ''; };
 M.statusSummary = (c) => { const out = {}; Object.keys(M.STATUS).forEach(k => out[k] = c.learners.filter(l => l.status===k)); return out; };
 M.excludedNote = (c) => { const x = c.learners.filter(l => !M.counted(l)); const sardo = c.learners.filter(l => l.status==='SARDO');
-  if(!x.length && !sardo.length) return '';
-  return `<div class="card status-note">${x.length?`<div class="flag"><span class="dot red"></span><div><b>${x.length} learner(s) left out of these statistics</b> — ${x.map(l=>`${M.esc(l.name)} ${M.statusChip(l,1)}`).join(', ')}</div></div>`:''}${sardo.length?`<div class="flag"><span class="dot"></span><div><b>SARDO (included, needs monitoring):</b> ${sardo.map(l=>M.esc(l.name)).join(', ')}</div></div>`:''}</div>`; };
+  if(!x.length && !sardo.length && !c.learners.some(l => l.status==='TI')) return '';
+  const ti = c.learners.filter(l => l.status==='TI');
+  if(!x.length && !sardo.length && ti.length) return `<div class="card status-note"><div class="flag"><span class="dot" style="background:var(--green-2)"></span><div><b>${ti.length} transferee(s)</b> (Transferred In, counted): ${ti.map(l=>M.esc(l.name)+(l.statusDate?' · '+M.esc(l.statusDate):'')).join(', ')}</div></div></div>`;
+  return `<div class="card status-note">${ti.length?`<div class="flag"><span class="dot" style="background:var(--green-2)"></span><div><b>${ti.length} transferee(s)</b> (Transferred In, counted): ${ti.map(l=>M.esc(l.name)).join(', ')}</div></div>`:''}${x.length?`<div class="flag"><span class="dot red"></span><div><b>${x.length} learner(s) left out of these statistics</b> — ${x.map(l=>`${M.esc(l.name)} ${M.statusChip(l,1)}`).join(', ')}</div></div>`:''}${sardo.length?`<div class="flag"><span class="dot"></span><div><b>SARDO (included, needs monitoring):</b> ${sardo.map(l=>M.esc(l.name)).join(', ')}</div></div>`:''}</div>`; };
 
 /* ---------------- statistics ---------------- */
 M.stats = (values) => {
@@ -394,34 +416,69 @@ M.modal = (title, html, onMount, wide) => {
 M.closeModal = () => { $('#modalWrap').hidden = true; $('#modalBody').innerHTML=''; if(M.onModalClose){ const f = M.onModalClose; M.onModalClose = null; f(); } };
 
 /* ---------------- print ---------------- */
-M.sealsHtml = () => { const lg = M.S.settings.logos||{}; return {l: lg.deped ? `<img class="seal" src="${lg.deped}" alt="DepEd seal">` : '<span class="seal"></span>', r: lg.school ? `<img class="seal" src="${lg.school}" alt="School seal">` : '<span class="seal"></span>'}; };
+// logo size (%) from Settings / SF9 Options scales the seals on every printout
+M.logoScale = (k) => Math.max(0.5, Math.min(2.2, ((M.S.settings.logoSize || {})[k] || 100) / 100));
+M.sealsHtml = () => { const lg = M.S.settings.logos||{}; const st = (k) => `style="--ls:${M.logoScale(k)}"`;
+  return {l: lg.deped ? `<img class="seal" ${st('deped')} src="${lg.deped}" alt="DepEd seal">` : '<span class="seal"></span>', r: lg.school ? `<img class="seal" ${st('school')} src="${lg.school}" alt="School seal">` : '<span class="seal"></span>'}; };
 M.printHeader = (title) => {
   const s = M.S.settings; const sl = M.sealsHtml();
   return `<div class="p-headrow">${sl.l}<div class="p-head"><div>Republic of the Philippines</div><div class="b">Department of Education</div><div>${M.esc(s.region)}</div><div class="b">${M.esc(s.school)}</div><div>${M.esc(s.address)}</div></div>${sl.r}</div><div class="p-title">${M.esc(title)}</div>`;
 };
 M.printSign = (c, left='Prepared by:', right='Noted by:') => { const s = M.S.settings; return `<div class="p-sign"><div>${left}<div class="nm">${M.esc(c.adviser)}</div><div>Class Adviser</div></div><div>${right}<div class="nm">${M.esc(c.head||s.head)}</div><div>${M.esc(s.headTitle||'School Head')}</div></div></div>`; };
-// pageCss lets a form choose its own paper (e.g. "@page{size:A4 landscape;margin:8mm}")
+/* ---------------- printing: every printout uses 0.5 in margins on all sides ---------------- */
+M.PRINT_MARGIN_MM = 12.7;
+M.PAPERS = {A4:[210, 297], A5:[148, 210], FOLIO:[215.9, 330.2], LEGAL:[215.9, 355.6], LETTER:[215.9, 279.4]};
+// "@page{size:A4 landscape;margin:7mm}" → paper size in mm + orientation (margins are always 0.5 in)
+const parsePage = (pageCss) => { const m = String(pageCss || '').match(/size:\s*([^;}]+)/i); const sz = m ? m[1].trim() : 'A4';
+  let w, h; const mm = sz.match(/([\d.]+)\s*(mm|in)\s+([\d.]+)\s*(mm|in)/i);
+  if(mm){ w = +mm[1] * (mm[2] === 'in' ? 25.4 : 1); h = +mm[3] * (mm[4] === 'in' ? 25.4 : 1); }
+  else { const key = (sz.match(/A4|A5|letter|legal|folio/i) || ['A4'])[0].toUpperCase(); [w, h] = M.PAPERS[key] || M.PAPERS.A4; if(/landscape/i.test(sz)) [w, h] = [h, w]; }
+  return {w, h}; };
+M.pageCss = (paper = 'A4', landscape = false) => { let [w, h] = M.PAPERS[paper] || M.PAPERS.A4; if(landscape) [w, h] = [h, w]; return `@page{size:${w}mm ${h}mm;margin:0.5in}`; };
+M.printableMm = (pageCss) => { const p = parsePage(pageCss); return [p.w - 2*M.PRINT_MARGIN_MM, p.h - 2*M.PRINT_MARGIN_MM]; };
+// measure html exactly as it will print (print styles also apply to the hidden #printArea)
+M.measurePrint = (html, widthMm) => { const a = $('#printArea'); const old = a.innerHTML; a.innerHTML = html; a.style.width = widthMm + 'mm'; a.classList.add('measuring');
+  const r = {w: a.scrollWidth, h: a.scrollHeight}; a.classList.remove('measuring'); a.style.width = ''; a.innerHTML = old; return r; };
 // print on one page: shrink the content to the printable area when it is too big
-M.doPrintFit = (html, size = 'A4 landscape', marginMm = 7) => {
-  const dims = /landscape/i.test(size) ? [297, 210] : [210, 297];
-  const W = dims[0] - 2*marginMm, H = dims[1] - 2*marginMm, px = 96 / 25.4;
-  const st = document.createElement('div');
-  st.style.cssText = `position:fixed;left:-20000px;top:0;width:${W}mm;visibility:hidden;font-family:"Bookman Old Style",Bookman,Georgia,serif;font-size:11pt;color:#000;background:#fff`;
-  st.innerHTML = html; document.body.appendChild(st);
-  const sw = Math.max(st.scrollWidth, W*px), sh = st.scrollHeight; st.remove();
-  const k = Math.min(1, (W*px) / sw, (H*px - 2) / sh);
-  M.doPrint(`<div class="fitbox" style="width:${W}mm;height:${H}mm;overflow:hidden"><div style="width:${sw}px;transform:scale(${k.toFixed(4)});transform-origin:0 0">${html}</div></div>`, `@page{size:${size};margin:${marginMm}mm}`);
+M.doPrintFit = (html, size = 'A4 landscape') => {
+  const css = `@page{size:${size}}`; const [W, H] = M.printableMm(css); const px = 96 / 25.4;
+  const m = M.measurePrint(html, W); const sw = Math.max(m.w, W*px);
+  const k = Math.min(1, (W*px) / sw, (H*px - 3) / m.h);
+  M.doPrint(`<div class="fitbox" style="width:${W}mm;height:${H - 0.5}mm;overflow:hidden"><div style="width:${sw}px;transform:scale(${k.toFixed(4)});transform-origin:0 0">${html}</div></div>`, css, {noFit:true});
 };
-M.doPrint = (html, pageCss) => {
+// A4 pages (inside the 0.5 in margins) holding 4 or 2 equal cells; each cell's content is designed at designW × designH mm and scaled to fit
+M.quadPages = function(cells, designW, designH, per = 4, paper = 'A4'){
+  const [PW, PH] = M.printableMm(M.pageCss(paper)); const pw = Math.floor(PW) - 0.5, ph = Math.floor(PH) - 0.5;
+  const cw = per === 4 ? pw / 2 : pw, ch = ph / 2; const k = Math.min(1, cw / designW, ch / designH);
+  const pos = per === 4 ? [[0,0],[cw,0],[0,ch],[cw,ch]] : [[0,0],[0,ch]];
+  const pages = [];
+  for(let i=0;i<cells.length;i+=per){ const chunk = cells.slice(i, i+per);
+    pages.push(`<div class="quad-page" style="width:${pw}mm;height:${ph}mm">${per === 4 ? `<i class="cut v" style="left:${cw}mm"></i>` : ''}<i class="cut h" style="top:${ch}mm"></i>${chunk.map((c, j) => `<div class="quad-cell" style="left:${pos[j][0]}mm;top:${pos[j][1]}mm;width:${cw}mm;height:${ch}mm"><div style="width:${designW}mm;height:${designH}mm;transform:scale(${k.toFixed(4)});transform-origin:${per === 4 ? (j % 2 ? 'right' : 'left') : 'center'} top;margin:${per === 4 ? (j % 2 ? '0 0 0 auto' : '0') : '0 auto'}">${c}</div></div>`).join('')}</div>`); }
+  return pages.join('');
+};
+M.doPrint = (html, pageCss, opts = {}) => {
+  const p = parsePage(pageCss); const css = `@page{size:${p.w.toFixed(1)}mm ${p.h.toFixed(1)}mm;margin:0.5in}`;
+  // anything wider than the printable width is zoomed down so it never runs off the paper
+  if(!opts.noFit){ const W = p.w - 2*M.PRINT_MARGIN_MM; const m = M.measurePrint(html, W); const k = (W * 96 / 25.4) / m.w; if(k < 0.995) html = `<div class="pzoom" style="zoom:${Math.max(0.3, k).toFixed(4)}">${html}</div>`; }
   $('#printArea').innerHTML = html;
-  $('#pageStyle').textContent = pageCss || '@page{size:A4;margin:14mm}';
+  $('#pageStyle').textContent = css;
   setTimeout(() => window.print(), 80);
 };
+
+/* ---------------- NEW tags: shown on new functions until you open / tap them ---------------- */
+M.newTag = (id) => ((M.S.settings.seenNew || {})[id]) ? '' : `<span class="new-tag" data-newid="${id}">NEW</span>`;
+M.markSeen = (ids) => { const s = M.S.settings; s.seenNew = s.seenNew || {}; let ch = false; ids.forEach(id => { if(!s.seenNew[id]){ s.seenNew[id] = M.today(); ch = true; } }); if(ch) M.save(); };
+document.addEventListener('click', e => {
+  const host = e.target.closest('a,button,label,summary,select,[data-new-host]'); if(!host) return;
+  const tags = [...host.querySelectorAll('.new-tag')]; if(host.classList && host.classList.contains('new-tag')) tags.push(host);
+  if(!tags.length) return; M.markSeen(tags.map(t => t.dataset.newid)); tags.forEach(t => t.remove());
+}, true);
+M.NAV_NEW = {assess:'nav-assess-ai'};
 
 /* ---------------- router ---------------- */
 M.applyTheme = () => { const t = M.S.settings.theme; if(t==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); };
 M.renderNav = (active) => {
-  $('#nav').innerHTML = M.NAV.map(v => `<a href="#${v.id}" class="${v.id===active?'active':''}">${M.ico(v.icon)}<span>${v.label}</span></a>`).join('');
+  $('#nav').innerHTML = M.NAV.map(v => `<a href="#${v.id}" class="${v.id===active?'active':''}">${M.ico(v.icon)}<span>${v.label}</span>${M.NAV_NEW[v.id] ? M.newTag(M.NAV_NEW[v.id]) : ''}</a>`).join('');
   const inMore = !M.TABBAR.includes(active);
   $('#tabbar').innerHTML = M.TABBAR.map(id => { const v = M.NAV.find(x=>x.id===id); return `<a href="#${v.id}" class="${v.id===active?'active':''}">${M.ico(v.icon)}<span>${v.label}</span></a>`; }).join('') +
     `<a href="#" id="moreBtn" class="${inMore?'active':''}">${M.ico('more')}<span>More</span></a>`;

@@ -89,6 +89,7 @@ M.xvRender = function(doc, sst, styles, area, opts = {}){
       const t = c.getAttribute('t'); const v = c.getElementsByTagNameNS(NS,'v')[0]; let val = '';
       if(t === 's') val = v ? (sst[+v.textContent] || '') : ''; else if(t === 'inlineStr') val = [...c.getElementsByTagNameNS(NS,'t')].map(x=>x.textContent).join(''); else if(t === 'str' || t === 'e') val = v ? v.textContent : ''; else if(t === 'b') val = v ? (v.textContent==='1'?'TRUE':'FALSE') : ''; else val = v && v.textContent !== '' ? +v.textContent : '';
       cells[`${p.c},${p.r}`] = {val, s: +(c.getAttribute('s')||0)}; }); });
+  if(opts.hideRows) opts.hideRows.forEach(n => rowHidden[n] = 1);
   let c1 = 1, r1 = 1, c2 = maxC, r2 = maxR;
   if(area){ const [a, b] = area.replace(/\$/g,'').split(':'); const A = parseRef(a), B = parseRef(b||a); if(A && B){ c1 = A.c; r1 = A.r; c2 = B.c; r2 = B.r; } }
   const merges = {}, covered = {};
@@ -147,7 +148,8 @@ M.xvRender = function(doc, sst, styles, area, opts = {}){
   let [pw, ph] = PAPER[+(ps?.getAttribute('paperSize')||9)] || PAPER[9];
   if((opts.orientation || ps?.getAttribute('orientation')) === 'landscape' && pw < ph) [pw, ph] = [ph, pw];
   if(opts.paper){ [pw, ph] = opts.paper; }
-  const mL = +(pm?.getAttribute('left') ?? 0.5), mR = +(pm?.getAttribute('right') ?? 0.5), mT = +(pm?.getAttribute('top') ?? 0.5), mB = +(pm?.getAttribute('bottom') ?? 0.5);
+  // MASTRO prints every page with 0.5 in margins on all sides
+  const mL = 0.5, mR = 0.5, mT = 0.5, mB = 0.5;
   const iw = (pw - mL - mR) * 96, ih = (ph - mT - mB) * 96;
   const fit = opts.fit || spr?.getAttribute('fitToPage') === '1' || spr?.getAttribute('fitToPage') === 'true';
   let k = fit ? Math.min(1, iw / W, ih / H) : Math.min(1, (+(ps?.getAttribute('scale')||100))/100, iw / W);
@@ -191,5 +193,5 @@ M.xvPrintArea = function(wbDoc, sheetIndex){
   const dn = [...wbDoc.getElementsByTagNameNS(NS,'definedName')].find(d => d.getAttribute('name')==='_xlnm.Print_Area' && +d.getAttribute('localSheetId')===sheetIndex);
   return dn ? dn.textContent.split(',')[0].split('!').pop() : null;
 };
-M.xvPageCss = (paper) => `@page{size:${paper[0]}in ${paper[1]}in;margin:0}`;
+M.xvPageCss = (paper) => `@page{size:${paper[0]}in ${paper[1]}in}`;
 })();
