@@ -151,7 +151,7 @@ function sf9Front(D){
     <div class="letter"><div>Dear Parents,</div>
       <div class="ind">This Performance Report presents your child's progress and achievement in the different learning areas.</div>
       <div class="ind">The school welcomes you to reach out should you wish to know more about your child's learning and performance.</div></div>
-    <div class="sigs"><div><div class="sn">${esc(c.head||s.head)}</div><div class="cap">School Head</div></div><div><div class="sn">${esc(c.adviser)}</div><div class="cap">Adviser</div></div></div>
+    <div class="sigs"><div><div class="sn">${esc(c.head||s.head)}</div><div class="cap">${esc(M.headTitle())}</div></div><div><div class="sn">${esc(c.adviser)}</div><div class="cap">Adviser</div></div></div>
     <div class="c b" style="margin-top:.5em">LEARNING PROGRESS AND ACHIEVEMENT</div>
     <table class="lp">
       <colgroup><col style="width:38%"><col style="width:9.4%"><col style="width:8.7%"><col style="width:9.4%"><col style="width:9%"><col></colgroup>
@@ -187,7 +187,7 @@ function sf9Back(D){
     <div class="hs"><div class="sn">${esc(head)}</div><div class="cap">School &nbsp;Head</div></div>
     <div class="c b" style="margin-top:.9em">CANCELLATION OF ELIGIBILITY TO TRANSFER</div>
     <div class="cancel"><span>Admitted in:</span><span class="ln"></span><span>Date:</span><span class="ln"></span></div>
-    <div class="hs" style="margin-top:2em"><div class="sn">${esc(head)}</div><div class="cap">School Head</div></div>
+    <div class="hs" style="margin-top:2em"><div class="sn">${esc(head)}</div><div class="cap">${esc(M.headTitle())}</div></div>
   </div>`;
 }
 // paper layouts: two panels side by side (landscape) or front/back on separate pages (portrait)
@@ -306,14 +306,14 @@ function attTab(body, c, L, sec, rerender){
   });
 }
 function comTab(body, c, L){
-  const bank = () => [...M.COMMENT_BANK, ...(M.S.settings.myComments||[])];
-  const opts = () => `<option value="">＋ Insert a comment…</option><optgroup label="Pre-built comments">${M.COMMENT_BANK.map((x,i)=>`<option value="b${i}">${esc(x.replace('{name}','[Name]'))}</option>`).join('')}</optgroup>${(M.S.settings.myComments||[]).length?`<optgroup label="My comments">${M.S.settings.myComments.map((x,i)=>`<option value="m${i}">${esc(x.replace('{name}','[Name]'))}</option>`).join('')}</optgroup>`:''}`;
-  const pick = (v) => v[0]==='b' ? M.COMMENT_BANK[+v.slice(1)] : M.S.settings.myComments[+v.slice(1)];
+  const bank = () => [...M.COMMENT_BANK, ...M.COMMENT_BANK_CEB, ...(M.S.settings.myComments||[])];
+  const opts = () => `<option value="">＋ Insert a comment…</option><optgroup label="Pre-built comments">${M.COMMENT_BANK.map((x,i)=>`<option value="b${i}">${esc(x.replace('{name}','[Name]'))}</option>`).join('')}</optgroup><optgroup label="Pre-built comments (Cebuano)">${M.COMMENT_BANK_CEB.map((x,i)=>`<option value="c${i}">${esc(x.replace('{name}','[Name]'))}</option>`).join('')}</optgroup>${(M.S.settings.myComments||[]).length?`<optgroup label="My comments">${M.S.settings.myComments.map((x,i)=>`<option value="m${i}">${esc(x.replace('{name}','[Name]'))}</option>`).join('')}</optgroup>`:''}`;
+  const pick = (v) => v[0]==='b' ? M.COMMENT_BANK[+v.slice(1)] : v[0]==='c' ? M.COMMENT_BANK_CEB[+v.slice(1)] : M.S.settings.myComments[+v.slice(1)];
   const fill = (tpl, l) => tpl.replace(/\{name\}/g, M.firstName(l.name).replace(/\b\w+/g, w => w[0].toUpperCase()+w.slice(1).toLowerCase()));
   body.innerHTML = `
   <div class="card"><div class="row"><h2 style="margin:0">Teacher’s comments / remarks</h2><span class="spacer"></span>
     <label class="field" style="flex-direction:row;align-items:center;gap:8px">Term<select class="input" id="bulkT" style="width:auto">${['1','2','3'].map(t=>`<option>${t}</option>`).join('')}</select></label>
-    <select class="input" id="bulkC" style="width:auto;max-width:330px">${opts()}</select>
+    <select class="input" id="bulkC" style="width:auto;max-width:330px">${opts()}</select>${M.newTag("ceb-comments")}<span class="tiny muted">+20 Cebuano</span>
     <button class="btn sm" id="bulkGo">Fill blanks for all learners</button></div>
     <p class="small muted">Printed in the Term 1–3 boxes on the back of the SF9. Pick from the comment bank (the learner’s first name is filled in for you) or type your own. Saved as you type.</p>
     <div class="row" style="margin-top:6px"><input class="input" id="myC" placeholder="Write a reusable comment — use {name} for the learner’s first name" style="flex:1;min-width:240px"><button class="btn sm primary" id="myAdd">${ico('plus')} Save to my comments</button></div>

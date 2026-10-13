@@ -277,12 +277,16 @@ function cleanTab(el, s, rerender){
       <span class="spacer"></span>
       <button class="btn sm primary" id="scanBtn">${ico('camera')} Scan QR card</button>
       <button class="btn sm" id="qrBtn">${ico('qr')} Print QR cards</button>
+      <select class="input" id="qrOne" style="width:auto;max-width:200px;padding:6px 10px;font-size:13px"><option value="">Print one QR card… ${''}</option>${active.map(sid => `<option value="${sid}">${esc(nick(s,sid))}</option>`).join('')}</select>${M.newTag('qr-one')}
       <button class="btn sm" id="taskBtn">${ico('broom')} Tasks</button>
     </div>
     <div class="row" style="margin-top:12px">
       <button class="btn sm" id="autoBtn">Auto-assign groups</button>
       <button class="btn sm" id="rotBtn">Rotate from last week</button>
       <button class="btn sm danger" id="clrBtn">Clear week</button>
+      <button class="btn sm" id="saveGrp">${ico('save')} Save grouping ${M.newTag('cg-save')}</button>
+      ${(s.clean.saved||[]).length ? `<select class="input" id="useGrp" style="width:auto;max-width:220px;padding:6px 10px;font-size:13px"><option value="">Use a saved grouping…</option>${s.clean.saved.map(x => `<option value="${x.id}">${esc(x.name)} (${esc(x.date)})</option>`).join('')}</select><button class="btn sm danger" id="delGrp" title="Delete a saved grouping">Delete saved…</button>` : ''}
+      <button class="btn sm" id="prtGrp">${ico('print')} Print groups ${M.newTag('cg-print')}</button>
       <span class="spacer"></span><span class="tiny muted">Tap a name to award points or move them.</span>
     </div>
   </div>
@@ -301,6 +305,18 @@ function cleanTab(el, s, rerender){
   $('#wNext').onclick = () => { u.week = M.addDays(wk,7); rerender(); };
   $('#taskBtn').onclick = () => tasksForm(s, rerender);
   $('#qrBtn').onclick = () => printQrCards(s);
+  $('#qrOne').onchange = e => { const v = e.target.value; e.target.value = ''; if(v) printQrCards(s, v); };
+  $('#prtGrp').onclick = () => { if(!Object.keys(g).length) return M.toast('No groups this week yet'); printGroups(s); };
+  $('#saveGrp').onclick = () => { if(!Object.keys(g).length) return M.toast('Make the groups first');
+    s.clean.saved = s.clean.saved || []; const name = prompt('Name for this grouping (to reuse it in other weeks):', `Groups ${M.parse(wk).toLocaleDateString(undefined,{month:'short',day:'numeric'})}`); if(!name) return;
+    const ex = s.clean.saved.find(x => x.name.toLowerCase() === name.trim().toLowerCase()); const rec = {id: ex ? ex.id : M.uid('cg'), name: name.trim(), date: M.today(), groups: JSON.parse(JSON.stringify(g))};
+    if(ex) Object.assign(ex, rec); else s.clean.saved.push(rec); M.save(); rerender(); M.toast('Grouping saved'); };
+  if($('#useGrp')) $('#useGrp').onchange = e => { const x = (s.clean.saved||[]).find(y => y.id === e.target.value); if(!x) return;
+    if(Object.keys(g).length && !confirm(`Replace this week's groups with “${x.name}”?`)){ e.target.value = ''; return; }
+    const ok = new Set(Object.keys(s.students)); const n = {}; Object.entries(x.groups).forEach(([tid, arr]) => n[tid] = arr.filter(sid => ok.has(sid))); s.clean.weeks[wk] = n;
+    M.save(); rerender(); M.toast('Saved grouping applied'); };
+  if($('#delGrp')) $('#delGrp').onclick = () => { const L = s.clean.saved||[]; const n = prompt('Delete which saved grouping? Type its number:\n' + L.map((x,i) => `${i+1}. ${x.name} (${x.date})`).join('\n')); const x = L[(+n||0)-1]; if(!x) return;
+    if(!confirm(`Delete saved grouping “${x.name}”?`)) return; s.clean.saved = L.filter(y => y !== x); M.save(); rerender(); M.toast('Saved grouping deleted'); };
   $('#scanBtn').onclick = () => scanner(s, rerender);
   $('#autoBtn').onclick = () => { if(Object.keys(g).length && !confirm('Replace this week’s groups?')) return; s.clean.weeks[wk] = autoGroups(s, active); M.save(); rerender(); };
   $('#rotBtn').onclick = () => { const prev = s.clean.weeks[M.addDays(wk,-7)]; if(!prev) return M.toast('No groups last week'); const T = s.clean.tasks; const n = {}; T.forEach((t,i)=>{ n[T[(i+1)%T.length].id] = (prev[t.id]||[]).slice(); }); s.clean.weeks[wk] = n; M.save(); rerender(); M.toast('Groups rotated to the next task'); };
@@ -328,12 +344,14 @@ function memberSheet(s, sid, rerender){
   const u = ui(); const wk = u.week; const t = taskOfStudent(s, wk, sid);
   M.modal(nick(s,sid), `
     <div class="small muted" style="margin-bottom:12px">${esc(M.attFullName(s,sid))} · ${t?'Task this week: <b>'+esc(t.name)+'</b>':'No task this week'}</div>
+    <div class="row" style="margin-bottom:10px"><button class="btn sm" id="msQr">${ico('qr')} Print this QR card</button></div>
     <h3>Award points for today${t?` (${t.pts} pts)`:''}</h3>
     <div class="row">${[1,.75,.5].map(p=>`<button class="btn ${p===1?'primary':''}" data-p="${p}">${p*100}%</button>`).join('')}</div>
     <h3 style="margin-top:18px">Move to</h3>
     <div class="row"><select class="input" id="mvT" style="width:auto"><option value="">— no group —</option>${s.clean.tasks.map(x=>`<option value="${x.id}" ${t&&x.id===t.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select><button class="btn" id="mvB">Move</button></div>`,
   b => {
     $$('[data-p]', b).forEach(x => x.onclick = () => { const pts = award(s, sid, t, +x.dataset.p); M.closeModal(); rerender(); M.toast(`+${pts} pts for ${nick(s,sid)}`); });
+    $('#msQr',b).onclick = () => { M.closeModal(); printQrCards(s, sid); };
     $('#mvB',b).onclick = () => { const g = s.clean.weeks[wk] = s.clean.weeks[wk] || {}; Object.keys(g).forEach(k => g[k] = g[k].filter(x=>x!==sid)); const to = $('#mvT',b).value; if(to){ g[to] = g[to]||[]; g[to].push(sid); } M.save(); M.closeModal(); rerender(); };
   });
 }
@@ -352,13 +370,27 @@ function tasksForm(s, rerender){
     };
   });
 }
-async function printQrCards(s){
+// QR cards: fixed 3 × 4 grid inside the A4 printable area (0.5 in margins); one learner prints the same card size
+async function printQrCards(s, only){
   await M.loadScript('vendor/qrcode.js');
-  const cards = ordered(s, false).map(sid => {
-    const q = qrcode(0, 'M'); q.addData(`MASTRO:${s.id}:${sid}`); q.make();
-    return `<div class="qr-card">${q.createSvgTag({cellSize:4, margin:0, scalable:true})}<div class="qn">${esc(nick(s,sid))}</div><div class="qf">${esc(M.attFullName(s,sid))}</div><div class="qs">${esc(s.name)} · Cleaning task card</div></div>`;
-  }).join('');
-  M.doPrint(`<div class="qr-grid">${cards}</div>`, '@page{size:A4}');
+  const sids = only ? [only] : ordered(s, false);
+  const [PW, PH] = M.printableMm(M.pageCss('A4')); const pw = Math.floor(PW) - 0.5, ph = Math.floor(PH) - 0.5;
+  const cols = 3, rows = 4, cw = pw / cols, ch = ph / rows;
+  const card = (sid) => { const q = qrcode(0, 'M'); q.addData(`MASTRO:${s.id}:${sid}`); q.make();
+    return `<div class="qr-card">${q.createSvgTag({cellSize:4, margin:0, scalable:true})}<div class="qn">${esc(nick(s,sid))}</div><div class="qf">${esc(M.attFullName(s,sid))}</div><div class="qs">${esc(s.name)} · Cleaning task card</div></div>`; };
+  const pages = [];
+  for(let i = 0; i < sids.length; i += cols * rows){ const chunk = sids.slice(i, i + cols * rows);
+    pages.push(`<div class="quad-page qr-page" style="width:${pw}mm;height:${ph}mm">${chunk.map((sid, k) => `<div class="quad-cell" style="left:${((k % cols) * cw).toFixed(2)}mm;top:${(Math.floor(k / cols) * ch).toFixed(2)}mm;width:${cw.toFixed(2)}mm;height:${ch.toFixed(2)}mm;padding:1.5mm">${card(sid)}</div>`).join('')}</div>`); }
+  M.doPrint(pages.join(''), M.pageCss('A4'), {noFit:true});
+}
+// print this week's cleaning groups
+function printGroups(s){
+  const u = ui(); const wk = u.week; const g = groupsOf(s, wk);
+  const range = `${M.parse(wk).toLocaleDateString(undefined,{month:'long',day:'numeric'})} – ${M.parse(M.addDays(wk,4)).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})}`;
+  const c = linkedClass(s) || M.cls();
+  const cards = s.clean.tasks.map(t => { const mem = (g[t.id]||[]).filter(sid => s.students[sid]);
+    return `<div class="cg-card"><div class="cg-h"><b>${esc(t.name)}</b><span>${t.pts} pts</span></div><ol>${mem.map(sid => `<li>${esc(M.attFullName(s, sid))}</li>`).join('') || '<li class="muted">—</li>'}</ol></div>`; }).join('');
+  M.doPrint(M.printHeader(`CLEANING GROUPS · ${s.name}`) + `<p style="text-align:center;margin-top:-4px">Week of ${esc(range)}</p><div class="cg-grid">${cards}</div>` + M.printSign(c, 'Prepared by:', 'Noted by:'), M.pageCss('A4'));
 }
 async function scanner(s, rerender){
   await M.loadScript('vendor/jsQR.js');
@@ -558,7 +590,7 @@ function sf4Html(secs, ym){
       <tr><th colspan="3">Daily Average</th><th colspan="3">Percentage for the Month</th>${['DROPPED','TOUT','TIN'].map(()=>'<th colspan="3">(A) Cumulative as of Previous Month</th><th colspan="3">(B) For the Month</th><th colspan="3">(A+B) Cumulative as of End of Month</th>').join('')}</tr>
       <tr>${Array(12).fill(0).map(()=>'<th>M</th><th>F</th><th>T</th>').join('')}</tr></thead>
       <tbody>${R.map(r => { const sm=r.D.sx.M, sf=r.D.sx.F; return `<tr><td>${esc(r.grade)}</td><td>${esc(r.s.name)}</td><td class="nm">${esc(r.adviser)}</td>${trio(sm.reg,sf.reg)}<td>${sm.ada.toFixed(2)}</td><td>${sf.ada.toFixed(2)}</td><td>${(sm.ada+sf.ada).toFixed(2)}</td><td>${pct(sm.ada,sm.reg)}</td><td>${pct(sf.ada,sf.reg)}</td><td>${pct(sm.ada+sf.ada,sm.reg+sf.reg)}</td>${mvCells(r.dropped)}${mvCells(r.tout)}${mvCells(r.tin)}</tr>`; }).join('')}</tbody></table>
-    <div class="p-sign" style="margin-top:22px"><div>Prepared and submitted by:<div class="nm">${esc(set.head)}</div><div>${esc(set.headTitle||'School Head')}</div></div><div></div></div></div>`;
+    <div class="p-sign" style="margin-top:22px"><div>Prepared and submitted by:<div class="nm">${esc(set.head)}</div><div>${esc(M.headTitle())}</div></div><div></div></div></div>`;
 }
 function sf4Xlsx(secs, ym){
   const R = sf4Rows(secs, ym), set = M.S.settings;
@@ -659,4 +691,18 @@ async function importSeatCheck(file){
 }
 M.importSeatCheck = importSeatCheck;
 M.sf2Html = sf2Html; M.sf2Xlsx = sf2Xlsx;
+/* v6.3: attendance / seat / cleaning facts about one learner (used by the Home search) */
+M.attLearnerInfo = function(c, lid){
+  const s = M.sectionFor(c); if(!s) return null;
+  const sid = Object.keys(s.students).find(k => s.students[k].lid === lid); if(!sid) return {s, sid:null};
+  let A = 0, E = 0, L = 0, P = 0; const absDates = [];
+  Object.entries(s.att || {}).forEach(([d, rec]) => { const v = rec[sid]; if(!v) return; if(v === 'A'){ A++; absDates.push(d); } else if(v === 'E'){ E++; absDates.push(d); } else if(v === 'L') L++; else P++; });
+  const seat = (s.seats || []).indexOf(sid);
+  const wk = M.mondayOf(M.today()); const g = groupsOf(s, wk); const tid = Object.keys(g).find(k => (g[k] || []).includes(sid));
+  const task = tid ? (s.clean.tasks || []).find(t => t.id === tid) : null;
+  const log = (s.clean && s.clean.log || []).filter(x => x.sid === sid);
+  const month = M.today().slice(0, 7);
+  return {s, sid, nick: (s.students[sid] || {}).nick || '', A, E, L, P, absDates: absDates.sort().slice(-8), seat: seat >= 0 ? seat + 1 : null,
+    task: task ? task.name : '', pts: log.reduce((a, x) => a + (x.pts || 0), 0), ptsMonth: log.filter(x => (x.date || '').startsWith(month)).reduce((a, x) => a + (x.pts || 0), 0)};
+};
 })();

@@ -42,7 +42,7 @@ M.sf8Status = (T, sex, age, w, h) => {
   return out;
 };
 const sf8Data = (c) => { c.sf8 = c.sf8 || {}; const d = c.sf8; d.rows = d.rows || {}; d.date = d.date || M.today(); d.by = d.by || {name: c.adviser || '', pos: 'Class Adviser'};
-  d.cert = d.cert || {name:'', pos:''}; d.rev = d.rev || {name: c.head || M.S.settings.head || '', pos: M.S.settings.headTitle || 'School Head'}; return d; };
+  d.cert = d.cert || {name:'', pos:''}; d.rev = d.rev || {name: c.head || M.S.settings.head || '', pos: M.headTitle()}; return d; };
 const hInM = (v) => { const n = num(v); if(n === null) return null; return n > 3 ? n / 100 : n; };   // 152 cm → 1.52 m
 
 FORMS.SF8 = {keepFormulas: true,

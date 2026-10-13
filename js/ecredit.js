@@ -215,7 +215,7 @@ M.ecrWriteBack = async function(E){
 /* ---------------- editor UI ---------------- */
 const f2 = (v) => isNum(v) ? (Math.round(v*100)/100).toFixed(2) : '';
 const f0 = (v) => isNum(v) ? String(v) : '';
-function commit(E){ E.terms = M.ecrTermsFromModel(E.model); E.model.dirty = true; E.model.edited = new Date().toISOString(); clearTimeout(commit.t); commit.t = setTimeout(M.save, 350); }
+function commit(E){ E.terms = M.ecrTermsFromModel(E.model); E.model.dirty = true; E.model.edited = new Date().toISOString(); const le = document.getElementById('eLast'); if(le) le.textContent = M.ecrLastEditText(E); clearTimeout(commit.t); commit.t = setTimeout(M.save, 350); }
 // used by Assessments: put a score / highest possible score into the ECR model
 M.ecrCompSlot = (T, comp) => { if(/^ww(\d)$/.test(comp)) return {k:'ww', j: +comp.slice(2) - 1};
   const want = {st1:/st\s*1|summative\s*test\s*1/i, st2:/st\s*2|summative\s*test\s*2/i, te:/^te$|term\s*exam|quarterly|exam/i}[comp];

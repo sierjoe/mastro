@@ -93,6 +93,7 @@ M.views.home = async function(el){
     <button class="btn primary" id="wRestore">${ico('upload')} Restore my data file</button><input type="file" id="wFile" accept=".json" hidden></div></div>` : (M.backupDue() ? `
   <div class="card backup-nudge" style="margin-bottom:20px"><div class="row">${ico('save','width:26px;height:26px;color:var(--gold)')}<div class="grow"><b>${s.lastBackup ? 'Your last full backup was ' + Math.floor((Date.now() - new Date(s.lastBackup).getTime())/864e5) + ' days ago' : 'You have no full backup yet'}</b><div class="small muted">One file keeps everything: grades, attendance, seat plans, cleaning points, ECRs, tests, templates and documents. Save it to your private Drive folder.</div></div>
     <button class="btn gold" id="hBk">${ico('download')} Back up everything</button></div></div>` : '')) + `
+  ${c.learners.length ? `<div class="card hsearch" style="margin-bottom:20px"><div class="row" style="gap:10px">${ico('learners','width:22px;height:22px;color:var(--green)')}<div class="grow" style="position:relative"><input class="input" id="hsQ" style="width:100%" placeholder="Search a learner — type a name or LRN to see everything about them" autocomplete="off"><div class="hs-sug" id="hsSug" hidden></div></div>${M.newTag('home-search')}</div><div id="hsOut"></div></div>` : ''}
   <div class="grid g-hero">
     <div class="card hero">
       <div class="muted small">${esc(s.school)} · SY ${esc(c.sy)}</div>
@@ -137,6 +138,7 @@ M.views.home = async function(el){
       <div class="card"><h2>Quick links</h2><div class="list">${(s.links||[]).map(l=>`<a class="item" href="${esc(l.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><div class="file-ico link">${ico('link')}</div><div class="grow"><div class="title">${esc(l.label)}</div><div class="tiny muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.url)}</div></div></a>`).join('') || '<div class="empty">Add links in Settings.</div>'}</div></div>
     </div>
   </div>`;
+  if($('#hsQ')) homeSearch(c);
   if($('#hBk')) $('#hBk').onclick = () => M.backupAll();
   if($('#wRestore')){ $('#wRestore').onclick = () => $('#wFile').click(); $('#wFile').onchange = e => { const f = e.target.files[0]; e.target.value=''; if(f) M.restoreFile(f); }; }
   const docs = (await M.docsAll().catch(()=>[])).sort((a,b)=>b.added.localeCompare(a.added)).slice(0,4);
@@ -215,7 +217,7 @@ function slipHtml(c, l, term, inc){
   const cell = (v, show) => !show ? '' : isNum(v) ? `<span class="${Math.round(v) < PASS ? 'low' : ''}">${Math.round(v*100)/100 === Math.round(v) ? Math.round(v) : fmt(v, 0)}</span>` : '';
   const fin = tN === 3;
   const body = D.subj.map(x => `<tr><td class="l ${x.sub ? 'sub' : ''}">${esc(x.label)}</td>${x.t.map((v, i) => `<td>${cell(v, i < tN)}</td>`).join('')}<td>${fin && isNum(x.fin) ? cell(x.fin, true) : ''}</td><td>${fin && !x.sub ? esc(x.rem || '') : ''}</td></tr>`).join('');
-  const gaT = rowsT.map((r, i) => i < tN && isNum(r.GA) ? fmt(r.GA, 2) : '');
+  const gaT = rowsT.map((r, i) => i < tN && isNum(r.GA) ? String(Math.round(r.GA)) : '');
   const gaDesc = isNum(rowsT[tN-1].GA) ? M.descriptor(rowsT[tN-1].GA) : '';
   const name = l.name.replace(/\s*,\s*/, ', ');
   const cm = inc.comment ? ((c.sf9.comments || {})[l.id] || {})[term] : '';
@@ -412,6 +414,73 @@ function printChecklist(c){
     return pre+`<tr><td>${++i}</td><td>${esc(l.lrn)}</td><td>${esc(l.name)}</td>${['1','2','3'].map(t=>`<td style="text-align:center">${M.termStatus(c,t,l.id)==='done'?'✓':M.termStatus(c,t,l.id)==='part'?'½':''}</td>`).join('')}${items.map(it=>`<td style="text-align:center">${mark(cl[it.id])}</td>`).join('')}</tr>`; }).join('');
   M.doPrint(M.printHeader('LEARNERS’ CREDENTIALS CHECKLIST') + `<p>Grade &amp; Section: <b>${esc(M.className(c))}</b> &nbsp; School Year: <b>${esc(c.sy)}</b></p>
     <table><thead><tr><th>#</th><th>LRN</th><th>Name</th><th>T1</th><th>T2</th><th>T3</th>${items.map(it=>`<th>${esc(it.label)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>` + M.printSign(c));
+}
+/* v6.3 Home search: one learner, everything MASTRO knows */
+function homeSearch(c){
+  const q = $('#hsQ'), sug = $('#hsSug'), out = $('#hsOut'); let hits = [], sel = 0;
+  const show = (l) => { sug.hidden = true; q.value = l.name; out.innerHTML = learnerDossier(c, l); M.S.ui.hsLid = l.id;
+    $$('[data-hs]', out).forEach(b => b.onclick = () => { const k = b.dataset.hs; if(k === 'x'){ out.innerHTML = ''; q.value = ''; M.S.ui.hsLid = null; q.focus(); } else if(k === 'p') learnerProfile(c, l); });
+  };
+  const find = () => { const v = q.value.trim(); const n = M.normName(v);
+    if(!n && !/\d/.test(v)){ sug.hidden = true; return; }
+    hits = c.learners.map(l => { const nm = M.normName(l.name), parts = M.normName(l.name.split(',').reverse().join(' '));
+      let sc = /\d{3,}/.test(v) && String(l.lrn || '').includes(v.replace(/\D/g, '')) ? 3 : nm.includes(n) || parts.includes(n) ? 2 : 0;
+      if(!sc && n.length > 2){ const words = v.toLowerCase().split(/[\s,]+/).filter(Boolean).map(M.normName); if(words.every(w => nm.includes(w))) sc = 1.5; }
+      return {l, sc}; }).filter(x => x.sc).sort((a,b) => b.sc - a.sc || a.l.name.localeCompare(b.l.name)).slice(0, 8);
+    sel = 0; sug.hidden = !hits.length;
+    sug.innerHTML = hits.map((x, i) => `<button class="hs-it ${i===0?'on':''}" data-i="${i}"><b>${esc(x.l.name)}</b> <span class="tiny muted">${esc(x.l.lrn || '')} · ${x.l.sex || ''}</span></button>`).join('');
+    $$('.hs-it', sug).forEach(b => b.onmousedown = e => { e.preventDefault(); show(hits[+b.dataset.i].l); });
+  };
+  q.oninput = find;
+  q.onkeydown = e => { if(sug.hidden) return; const its = $$('.hs-it', sug);
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){ e.preventDefault(); sel = (sel + (e.key === 'ArrowDown' ? 1 : -1) + its.length) % its.length; its.forEach((b, i) => b.classList.toggle('on', i === sel)); }
+    else if(e.key === 'Enter' && hits[sel]){ e.preventDefault(); show(hits[sel].l); } else if(e.key === 'Escape') sug.hidden = true; };
+  q.onblur = () => setTimeout(() => sug.hidden = true, 150);
+  const keep = M.S.ui.hsLid && c.learners.find(l => l.id === M.S.ui.hsLid); if(keep) show(keep);
+}
+function learnerDossier(c, l){
+  const terms = ['1','2','3'], rows = terms.map(t => M.termRow(c, t, l.id)), f = M.finalRow(c, l.id);
+  const cl = c.checklist[l.id] || {}, st = l.status && M.STATUS[l.status];
+  const bd = l.birthday ? new Date(l.birthday) : null; let age = '';
+  if(bd && !isNaN(bd)){ const n = new Date(); let y = n.getFullYear() - bd.getFullYear(); if(n < new Date(n.getFullYear(), bd.getMonth(), bd.getDate())) y--; age = y + ' yrs'; }
+  const box = (lab, val) => `<div class="hs-kv"><div class="tiny muted">${lab}</div><div><b>${val}</b></div></div>`;
+  const gcell = (v, k) => isNum(v) ? `<span class="${Math.round(v) < PASS ? 'low' : ''}">${k === 'GA' ? Math.round(v) : fmt(v, k === 'MAPEH' ? 2 : 0)}</span>` : '<span class="muted">—</span>';
+  // attendance / cleaning
+  const A = M.attLearnerInfo ? M.attLearnerInfo(c, l.id) : null;
+  const attH = !A ? '<div class="small muted">No SeatCheck section linked to this class.</div>' : !A.sid ? '<div class="small muted">Not matched to a learner in the attendance section.</div>' :
+    `<div class="hs-grid">${box('Absent', `<span style="color:var(--red)">${A.A + A.E}</span>${A.E ? ` <span class="tiny muted">(${A.E} excused)</span>` : ''}`)}${box('Late', `<span style="color:var(--amber)">${A.L}</span>`)}${box('Seat', A.seat ? '#' + A.seat : '—')}${box('Cleaning task (this week)', esc(A.task || '—'))}${box('Cleaning points', `${A.pts} <span class="tiny muted">· ${A.ptsMonth} this month</span>`)}</div>
+    ${A.absDates.length ? `<div class="tiny muted" style="margin-top:6px">Recent absences: ${A.absDates.map(d => M.parse(d).toLocaleDateString(undefined, {month:'short', day:'numeric'})).join(', ')}</div>` : ''}`;
+  // ECR subject grades
+  const ecr = [];
+  (M.S.ecr || []).forEach(E => { let any = null; const tg = {};
+    Object.keys(E.terms || {}).sort().forEach(t => { const Ls = E.terms[t].learners || []; let best = null, bs = 0;
+      Ls.forEach(x => { const sc = M.normName(x.name) === M.normName(l.name) ? 1 : M.sim(x.name, l.name); if(sc > bs){ bs = sc; best = x; } });
+      if(best && bs >= 0.85){ any = best; tg[t] = isNum(best.tg) ? best.tg : best.ig; } });
+    if(any) ecr.push({E, tg}); });
+  const ecrH = ecr.length ? `<div class="table-wrap" style="max-height:none"><table><thead><tr><th>Class record</th><th>Subject</th>${terms.map(t => `<th class="num">T${t}</th>`).join('')}<th>Last edited</th></tr></thead><tbody>${ecr.map(({E, tg}) => `<tr><td><a href="#classes/${E.id}">${esc(E.title)}</a></td><td>${esc(E.subject || '')}</td>${terms.map(t => `<td class="num">${gcell(tg[t])}</td>`).join('')}<td class="tiny muted">${M.ecrLastEditText ? M.ecrLastEditText(E) : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="small muted">Not found in any uploaded ECR.</div>';
+  // SF8
+  const s8 = c.sf8 && c.sf8.rows && c.sf8.rows[l.id]; let s8H = '';
+  if(s8 && (s8.w || s8.h)){ const w = parseFloat(s8.w), h0 = parseFloat(s8.h), h = h0 > 3 ? h0 / 100 : h0; const bmi = w && h ? w / (h * h) : null;
+    s8H = `<div class="hs-grid">${box('Weight', s8.w ? esc(s8.w) + ' kg' : '—')}${box('Height', s8.h ? esc(s8.h) + (h0 > 3 ? ' cm' : ' m') : '—')}${box('BMI', bmi ? bmi.toFixed(1) : '—')}${s8.rem ? box('SF8 remarks', esc(s8.rem)) : ''}</div>`; }
+  // SF9 comments
+  const cm = ((c.sf9 && c.sf9.comments) || {})[l.id] || {};
+  const cmH = terms.filter(t => cm[t]).map(t => `<p class="small" style="margin:4px 0"><b>T${t}:</b> ${esc(cm[t])}</p>`).join('');
+  return `<div class="hs-out">
+    <div class="row" style="margin-top:16px;align-items:flex-start"><div class="avatar ${l.sex}">${esc(M.initials(l.name))}</div><div class="grow"><h2 style="margin:0">${esc(l.name)}</h2>
+      <div class="chips" style="margin-top:6px">${st ? `<span class="chip ${st.cls}">${esc(st.label)}${l.statusDate ? ' · ' + esc(l.statusDate) : ''}</span>` : '<span class="chip green">Active</span>'}<span class="chip">LRN ${esc(l.lrn || '—')}</span><span class="chip">${l.sex === 'M' ? 'Male' : l.sex === 'F' ? 'Female' : 'Sex not set'}</span><span class="chip">${l.birthday ? 'Born ' + esc(l.birthday) + (age ? ' · ' + age : '') : 'No birthdate'}</span>${A && A.sid ? '' : ''}</div></div>
+      <button class="btn sm" data-hs="p">Edit / full profile</button><a class="btn sm" href="#forms/SF9/${l.id}">${ico('forms')} SF9</a><button class="icon-btn" data-hs="x" title="Clear">✕</button></div>
+    <div class="grid g-2" style="margin-top:14px;gap:16px">
+      <div><h3>Grades</h3><div class="table-wrap" style="max-height:none"><table><thead><tr><th>Learning area</th>${terms.map(t => `<th class="num">T${t}</th>`).join('')}<th class="num">Final</th></tr></thead>
+        <tbody>${[...M.AREAS, 'GA'].map(k => `<tr ${k === 'GA' ? 'style="font-weight:700"' : ''}><td>${k === 'GA' ? 'General Average' : esc(k)}</td>${rows.map(r => `<td class="num">${gcell(r[k], k)}</td>`).join('')}<td class="num">${gcell(f[k], k)}</td></tr>`).join('')}</tbody></table></div>
+        ${rows.some(r => r.desc) ? `<div class="tiny muted" style="margin-top:4px">Descriptor: ${rows.map((r, i) => r.desc ? `T${i+1} ${r.desc}` : '').filter(Boolean).join(' · ')}</div>` : ''}</div>
+      <div><h3>Attendance & cleaning</h3>${attH}
+        <h3 style="margin-top:14px">Credentials</h3><div class="chips">${M.checkItems().map(it => `<span class="chip ${cl[it.id] ? 'green' : 'red'}">${cl[it.id] ? '✓' : '✕'} ${esc(it.label)}</span>`).join('')}</div>
+        ${s8H ? `<h3 style="margin-top:14px">Health (SF8)</h3>${s8H}` : ''}
+        ${cmH ? `<h3 style="margin-top:14px">Report card comments</h3>${cmH}` : ''}
+        ${l.remarks ? `<p class="small" style="margin-top:10px"><b>Remarks:</b> ${esc(l.remarks)}</p>` : ''}</div>
+    </div>
+    <h3 style="margin-top:14px">Subject class records (ECR)</h3>${ecrH}
+  </div>`;
 }
 function learnerProfile(c, l){
   const terms = ['1','2','3'];
@@ -630,7 +699,7 @@ M.views.settings = function(el){
         <div class="grid g-2" style="gap:12px">${f('school','School')}${f('schoolId','School ID')}</div>
         ${f('address','Address')}
         ${f('region','Region / Division line (printed reports)')}
-        <div class="grid g-2" style="gap:12px">${f('head','School Head')}${f('headTitle','Title')}</div>
+        <div class="grid g-2" style="gap:12px">${f('head','School Principal')}${f('headTitle','Title')}</div>
         ${f('driveUrl','Google Drive folder')}
         <label class="field">Appearance<select class="input" data-s="theme"><option value="auto" ${s.theme==='auto'?'selected':''}>Match device</option><option value="light" ${s.theme==='light'?'selected':''}>Light</option><option value="dark" ${s.theme==='dark'?'selected':''}>Dark</option></select></label>
       </div>
@@ -832,7 +901,7 @@ function exportClassXlsx(c){
       ['Adviser:',null,null,null,c.adviser],[], head];
     L.forEach(l => { const g = (c.grades[t]||{})[l.id]||{}; aoa.push([l.lrn||null,l.birthday||null,M.ageOn(l.birthday)||l.age||null,l.sex||null,l.name, ...['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education'].map(k=>isNum(g[k])?g[k]:null), null, isNum(g['Music & Arts'])?g['Music & Arts']:null, isNum(g['PE & Health'])?g['PE & Health']:null, null, null]); });
     const end = aoa.length;
-    aoa.push([],[],['Prepared by:',null,null,null,null,null,null,null,null,null,null,'Noted by:'],[],[c.adviser,null,null,null,null,null,null,null,null,null,null,c.head||s.head],['Class Adviser',null,null,null,null,null,null,null,null,null,null,s.headTitle||'School Head']);
+    aoa.push([],[],['Prepared by:',null,null,null,null,null,null,null,null,null,null,'Noted by:'],[],[c.adviser,null,null,null,null,null,null,null,null,null,null,c.head||s.head],['Class Adviser',null,null,null,null,null,null,null,null,null,null,M.headTitle()]);
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     for(let r = 13; r <= end; r++){
       ws['M'+r] = {t:'n', f:`IF(COUNT(N${r}:O${r})=0,"",AVERAGE(N${r}:O${r}))`};

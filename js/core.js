@@ -11,7 +11,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.2', date:'2026-10-12', label:'October 12, 2026'};
+M.VERSION = {n:'6.3', date:'2026-10-13', label:'October 13, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -40,6 +40,28 @@ M.CAL_DEFAULT = {start:'2026-06-08', end:'2027-04-08', off:{
   '2026-12-28':'Year-end break','2026-12-29':'Year-end break','2026-12-30':'Rizal Day','2026-12-31':'Last day of the year','2027-01-01':'New Year’s Day',
   '2027-03-25':'Maundy Thursday','2027-03-26':'Good Friday',
   '2027-04-01':'Learner wellness break','2027-04-02':'Learner wellness break','2027-04-05':'Learner wellness break'}};
+M.COMMENT_BANK_CEB = [
+  "Maayo kaayo ang pagtuon ni {name}; padayona ang imong kakugi.",
+  "Si {name} aktibo kaayo sa klase ug kanunay nga mosalmot sa mga kalihokan.",
+  "Nindot ang pamatasan ni {name} sulod sa klasehanan; usa siya ka maayong ehemplo sa iyang mga klasmeyt.",
+  "Nakita ang dakong kalambuan ni {name} niining termino. Ipadayon!",
+  "Kinahanglan pa ni {name} nga magpraktis sa pagbasa aron mas molambo ang iyang pagsabot.",
+  "Gidasig si {name} nga mopasa sa iyang mga buluhaton sa saktong oras.",
+  "Hinaot nga mas motutok pa si {name} sa iyang pagtuon ug malikayan ang pagka-late sa klase.",
+  "Si {name} matinahuron ug matinabangon sa iyang mga kauban.",
+  "Maayo ang pagsulat ni {name}; ipadayon ang pagbasa aron mas modaghan ang iyang bokabularyo.",
+  "Kinahanglan ni {name} ang dugang tabang sa balay sa paghimo sa mga assignment.",
+  "Gihangyo ang ginikanan nga tabangan si {name} sa pagdumala sa iyang oras sa pagtuon.",
+  "Si {name} malipayon ug masinabtanon sa klase; padayon sa imong positibong panglantaw.",
+  "Kinahanglan pa ni {name} nga mapauswag ang iyang pagtambong sa klase.",
+  "Maayo kaayo ang partisipasyon ni {name} sa mga group activity.",
+  "Si {name} adunay talento sa pagpahayag; gidasig siya nga mosalmot sa mga kompetisyon.",
+  "Hinaot nga mangutana si {name} kon dunay dili masabtan sa leksiyon.",
+  "Nagpakita si {name} og kaisog ug kakugi bisan sa lisod nga mga buluhaton.",
+  "Kinahanglan pa ni {name} nga mahimong mas organisado sa iyang mga notebook ug proyekto.",
+  "Daghang salamat sa suporta sa ginikanan; makita kini sa kalambuan ni {name}.",
+  "Padayon sa pagkat-on, {name}! Ang imong paningkamot dili mausik."
+  ];
 M.COMMENT_BANK = [
   '{name} participates actively in class discussions and shows genuine interest in learning.',
   '{name} is respectful, cooperative, and works well with classmates.',
@@ -112,7 +134,7 @@ M.esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;'
 M.uid = (p='id') => p + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 M.isNum = (v) => typeof v === 'number' && isFinite(v);
 M.r2 = (n) => Math.round(n * 100) / 100;
-M.fmt = (n, d = 2) => M.isNum(n) ? n.toFixed(d) : '—';
+M.fmt = (n, d = 2) => M.isNum(n) ? (Number.isInteger(n) ? String(n) : n.toFixed(d)) : '—';
 M.gradeTxt = (n) => M.isNum(n) ? String(M.r2(n)) : '';
 M.normName = (s) => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z]/g,'');
 M.initials = (name) => { const [l,f] = String(name).split(','); return f!==undefined ? ((f||'').trim()[0]||'') + ((l||'').trim()[0]||'') : String(name).trim().slice(0,2); };
@@ -162,7 +184,7 @@ function defaultState(){
       region:'Region X – Northern Mindanao · Schools Division of Bukidnon',
       regionName:'REGION X – NORTHERN MINDANAO', division:'SCHOOLS DIVISION OF BUKIDNON',
       district:'District of Impasugong I', municipality:'Impasugong, Bukidnon',
-      adviser:seed.adviser, head:seed.head, headTitle:'School Head',
+      adviser:seed.adviser, head:seed.head, headTitle:'School Principal II',
       driveUrl:M.DRIVE_DEFAULT, theme:'auto',
       links:[{label:'MASTRO Drive folder', url:M.DRIVE_DEFAULT}],
       checkItems: JSON.parse(JSON.stringify(M.CHECK_DEFAULT)),
@@ -217,6 +239,7 @@ M.load = () => {
   M.S = migrate(S);
   // Assessments are now AI test papers: drop the old answer-sheet scanning records
   M.S.asm = (M.S.asm || []).filter(a => a && a.v === 2);
+  if(M.S.settings && (!M.S.settings.headTitle || /^school head$/i.test(M.S.settings.headTitle.trim()))) M.S.settings.headTitle = 'School Principal II';
   if(M.ensureBuiltinBOW) M.ensureBuiltinBOW();
   M.autoLinkSections();
   if(fresh){ const sec = M.sectionFor(M.cls()); if(sec) M.S.att.current = sec.id; }
@@ -275,7 +298,7 @@ M.termRow = (c, term, lid) => {
   M.RAW.forEach(k => row[k] = M.isNum(g[k]) ? g[k] : null);
   row.MAPEH = M.mapeh(g);
   const areas = M.AREAS.map(k => row[k]);
-  row.GA = areas.every(M.isNum) ? M.r2(areas.reduce((a,b)=>a+b,0)/8) : null;
+  row.GA = areas.every(M.isNum) ? Math.round(areas.reduce((a,b)=>a+b,0)/8) : null;
   row.desc = M.descriptor(row.GA);
   row.filled = areas.filter(M.isNum).length;
   return row;
@@ -286,7 +309,7 @@ M.finalRow = (c, lid) => {
   const row = {};
   [...M.RAW,'MAPEH'].forEach(k => { const v = rows.map(r=>r[k]).filter(M.isNum); row[k] = v.length ? M.r2(v.reduce((a,b)=>a+b,0)/v.length) : null; });
   const areas = M.AREAS.map(k=>row[k]);
-  row.GA = areas.every(M.isNum) ? M.r2(areas.reduce((a,b)=>a+b,0)/8) : null;
+  row.GA = areas.every(M.isNum) ? Math.round(areas.reduce((a,b)=>a+b,0)/8) : null;
   row.desc = M.descriptor(row.GA);
   row.filled = areas.filter(M.isNum).length;
   return row;
@@ -424,7 +447,8 @@ M.printHeader = (title) => {
   const s = M.S.settings; const sl = M.sealsHtml();
   return `<div class="p-headrow">${sl.l}<div class="p-head"><div>Republic of the Philippines</div><div class="b">Department of Education</div><div>${M.esc(s.region)}</div><div class="b">${M.esc(s.school)}</div><div>${M.esc(s.address)}</div></div>${sl.r}</div><div class="p-title">${M.esc(title)}</div>`;
 };
-M.printSign = (c, left='Prepared by:', right='Noted by:') => { const s = M.S.settings; return `<div class="p-sign"><div>${left}<div class="nm">${M.esc(c.adviser)}</div><div>Class Adviser</div></div><div>${right}<div class="nm">${M.esc(c.head||s.head)}</div><div>${M.esc(s.headTitle||'School Head')}</div></div></div>`; };
+M.headTitle = () => { const t = (M.S.settings.headTitle||'').trim(); return !t || /^school head$/i.test(t) ? 'School Principal II' : t; };
+M.printSign = (c, left='Prepared by:', right='Noted by:') => { const s = M.S.settings; return `<div class="p-sign"><div>${left}<div class="nm">${M.esc(c.adviser)}</div><div>Class Adviser</div></div><div>${right}<div class="nm">${M.esc(c.head||s.head)}</div><div>${M.esc(M.headTitle())}</div></div></div>`; };
 /* ---------------- printing: every printout uses 0.5 in margins on all sides ---------------- */
 M.PRINT_MARGIN_MM = 12.7;
 M.PAPERS = {A4:[210, 297], A5:[148, 210], FOLIO:[215.9, 330.2], LEGAL:[215.9, 355.6], LETTER:[215.9, 279.4]};

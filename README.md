@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.2 · October 12, 2026)
+# MASTRO — Adviser's Workspace (v6.3 · October 13, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -19,6 +19,15 @@ Offline forms, documents and class management for the class adviser
 - **Learner status**: tag T/O, SARDO, NLP or Dropped Out; statistics and reports reflect it.
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
+
+### New in v6.3
+- **Home search** — type a learner's name or LRN to see everything: grades and GA, attendance (absences, lates, seat), cleaning task and points, credentials, SF8 weight/height/BMI, report-card comments, and their grades in every ECR.
+- **General Average in whole numbers** everywhere (grades table, slips, profile, analysis ranking, exports).
+- **School Principal II** is now the default signatory title (old "School Head" titles are switched automatically; you can still edit it in Settings).
+- **20 Cebuano pre-built comments** in SF9 → Comments.
+- **Classes**: your ECRs are listed first (most recently edited first) with a "Last edited" date and time; Add a class and the drop zone are below.
+- **QR task cards** fit A4 with 0.5 in margins (12 per page). Print one learner's card from the "Print one QR card" list or from the learner's pop-up — same size as the full set.
+- **Cleaning groups**: save a grouping, reuse it in another week, and print the current groups.
 
 ### New in v6.2
 - **Assessments** is now an AI test maker: grade + term → competencies, topics and subtopics from the built-in Grade 7 / Grade 9 English Budget of Work → number of items and test types → copy the request to Claude, paste Claude's reply → test + answer key. Edit on screen, print on A4 or 8.5 × 13 (1, 2 or 4 copies per sheet, never overflowing) or download an editable Word file (.docx, no tables).
@@ -69,4 +78,4 @@ is already loaded; to bring in newer SeatCheck records, go to **Attendance → M
 - Saved only on the device (browser storage). Use **Settings → Back up everything** often and keep the file in your Google Drive folder.
 - To move data to another device: **Settings → Restore backup** there.
 - Clearing Safari website data deletes MASTRO data — keep backups.
-- When you change files later, also edit `sw.js` and raise `mastro-v6.2.0` (e.g. to `mastro-v6.2.1`) so devices download the update.
+- When you change files later, also edit `sw.js` and raise `mastro-v6.3.0` (e.g. to `mastro-v6.3.1`) so devices download the update.

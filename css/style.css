@@ -748,3 +748,16 @@ tr.sel td{background:rgba(47,138,97,.10)}
 .asm-page .cut.h{left:0;right:0;border-top-width:.2mm}
 .print-only .asm-copy{break-after:page;page-break-after:always}
 .print-only .asm-copy:last-child{break-after:auto;page-break-after:auto}
+.qr-page .qr-card{height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+.qr-page .qr-card svg{width:40mm;height:40mm}
+.cg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-top:3mm}
+.cg-card{border:1px solid #333;border-radius:2mm;padding:2.5mm 3mm;break-inside:avoid;page-break-inside:avoid;font-size:9.5pt}
+.cg-card .cg-h{display:flex;justify-content:space-between;font-weight:bold;border-bottom:1px solid #999;padding-bottom:1mm;margin-bottom:1mm}
+.cg-card ol{margin:0;padding-left:5mm}
+/* v6.3 home search */
+.hs-sug{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;background:var(--bg,#fff);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:6px;max-height:320px;overflow:auto}
+.hs-it{display:block;width:100%;text-align:left;border:0;background:transparent;padding:9px 12px;border-radius:10px;cursor:pointer;color:inherit;font:inherit}
+.hs-it.on,.hs-it:hover{background:rgba(31,94,59,.10)}
+.hs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.hs-kv{padding:8px 10px;border-radius:12px;background:rgba(31,94,59,.06)}
+@media (max-width:640px){.hs-grid{grid-template-columns:repeat(2,1fr)}}

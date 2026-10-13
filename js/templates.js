@@ -293,7 +293,7 @@ const FORMS = {
   }},
   SF6: {fill(sh, X){ return FORMS.SF5.fill(sh, Object.assign({}, X, {learners: X.learners})); }},
   SF7: {fill(sh, X){ fillLabels(sh, X.head, LABELS); fillSignatures(sh, X.head); const tbl = findTable(sh); if(!tbl) return 'Headers filled (no personnel table found).';
-    const ppl = [{name:X.head.schoolHead, sex:'', pos:X.s.headTitle||'School Head'}, {name:X.head.adviser, sex:'', pos:'Teacher / Class Adviser'}];
+    const ppl = [{name:X.head.schoolHead, sex:'', pos:M.headTitle()}, {name:X.head.adviser, sex:'', pos:'Teacher / Class Adviser'}];
     let r = tbl.start; ppl.forEach(p => { while(!sh.isEmpty(tbl.nameCol, r) && r < tbl.start + 50) r++; sh.set(tbl.nameCol, r, p.name, 'Personnel'); if(tbl.map.position) sh.set(tbl.map.position, r, p.pos); r++; }); return '2 personnel rows (school head, adviser)'; }},
   SF8: {fill(sh, X){ fillLabels(sh, X.head, LABELS); fillSignatures(sh, X.head); const tbl = findTable(sh); if(!tbl) return 'No learner table found.'; return fillLearners(sh, tbl, X.learners).length + ' learner(s) (height/weight left for you)'; }},
   SF10: {perLearner:true, paper:'8.5 × 13 in', fill(sh, X, p){

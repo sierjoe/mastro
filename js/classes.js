@@ -227,20 +227,23 @@ function addClass(){
 }
 
 /* ---------------- views ---------------- */
+M.ecrLastEdit = (E) => [E.model && E.model.edited, E.updated, E.added].filter(Boolean).sort().pop() || '';
+M.ecrLastEditText = (E) => { const t = M.ecrLastEdit(E); if(!t) return '—'; const d = new Date(t); return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) + ' · ' + d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); };
 M.views.classes = function view(el, args){
   if(args[0]) return detail(el, args[0], args[1], args[2]);
   const L = M.S.ecr;
   el.innerHTML = `
-  <div class="card"><div class="row"><div><h2 style="margin:0">Electronic class records</h2><div class="small muted">Upload the ECR of each section you teach (Excel). MASTRO reads Written Works, Performance Tasks, Quarterly/Term Assessment and the term grades for every term sheet.</div></div><span class="spacer"></span><button class="btn primary" id="eAdd">${ico('plus')} Add a class</button></div>
-    <div class="drop" id="eDrop" style="margin-top:14px">${ico('upload','width:30px;height:30px;color:var(--green)')}<div><b>Drop ECR files here or tap to upload</b></div><div class="small muted">.xlsx / .xls — one file per section; you can drop several at once</div></div>
-    <input type="file" id="eFile" accept=".xlsx,.xls,.xlsm" multiple hidden></div>
-  ${L.length ? `<div class="grid g-3" style="margin-top:20px">${L.map(E => { const terms = Object.keys(E.terms).sort(); const last = terms[terms.length-1]; const A = last ? M.ecrAnalyze(E, last) : null; return `
+  ${L.length ? `<div class="row" style="margin-bottom:12px"><h2 style="margin:0">Your class records (${L.length})</h2><span class="spacer"></span><span class="tiny muted">Most recently edited first</span></div><div class="grid g-3">${[...L].sort((a,b) => (M.ecrLastEdit(b)||"").localeCompare(M.ecrLastEdit(a)||"")).map(E => { const terms = Object.keys(E.terms).sort(); const last = terms[terms.length-1]; const A = last ? M.ecrAnalyze(E, last) : null; return `
     <div class="card ecr-card">
       <div class="row"><span class="chip green">${esc(E.subject||'Subject')}</span><span class="spacer"></span><span class="tiny muted">${terms.map(t=>'T'+t).join(' · ')||'no terms'}</span></div>
       <div class="title" style="margin-top:10px;font-size:17px"><b>${esc(E.title)}</b></div>
       <div class="small muted">${A?A.L.length:(E.roster||[]).length} learners${!terms.length?' · no scores uploaded yet':''}${A&&A.st.n?` · Term ${last} mean <b>${fmt(A.st.mean)}</b> · ${A.risk.length} below 75`:''}</div>
-      <div class="row" style="margin-top:14px"><a class="btn sm" href="#classes/${E.id}">Open</a>${E.docId?`<a class="btn sm" href="#classes/${E.id}/edit">${ico('edit')} Work on ECR</a>`:''}${E.model&&E.model.dirty?'<span class="chip gold" title="Edited in MASTRO — download the updated ECR">edited</span>':''}<span class="spacer"></span><a class="btn sparkle" href="#classes/${E.id}/analyze/${last||'1'}">${ico('sparkle')} Analyze</a></div>
-    </div>`; }).join('')}</div>` : `<div class="card" style="margin-top:20px"><div class="empty">No class records yet. Upload your ECRs to start.</div></div>`}`;
+      <div class="tiny muted" style="margin-top:6px">🕒 Last edited: <b>${M.ecrLastEditText(E)}</b> ${M.newTag('ecr-lastedit')}</div>
+      <div class="row" style="margin-top:12px"><a class="btn sm" href="#classes/${E.id}">Open</a>${E.docId?`<a class="btn sm" href="#classes/${E.id}/edit">${ico('edit')} Work on ECR</a>`:''}${E.model&&E.model.dirty?'<span class="chip gold" title="Edited in MASTRO — download the updated ECR">edited</span>':''}<span class="spacer"></span><a class="btn sparkle" href="#classes/${E.id}/analyze/${last||'1'}">${ico('sparkle')} Analyze</a></div>
+    </div>`; }).join('')}</div>` : `<div class="card"><div class="empty">No class records yet. Upload your ECRs below to start.</div></div>`}
+  <div class="card" style="margin-top:20px"><div class="row"><div><h2 style="margin:0">Add or update class records</h2><div class="small muted">Upload the ECR of each section you teach (Excel). MASTRO reads Written Works, Performance Tasks, Quarterly/Term Assessment and the term grades for every term sheet.</div></div><span class="spacer"></span><button class="btn primary" id="eAdd">${ico('plus')} Add a class</button></div>
+    <div class="drop" id="eDrop" style="margin-top:14px">${ico('upload','width:30px;height:30px;color:var(--green)')}<div><b>Drop ECR files here or tap to upload</b></div><div class="small muted">.xlsx / .xls — one file per section; you can drop several at once</div></div>
+    <input type="file" id="eFile" accept=".xlsx,.xls,.xlsm" multiple hidden></div>`;
   M.dropZone($('#eDrop'), $('#eFile'), async files => { for(const f of files) await importECR(f); });
   $('#eAdd').onclick = addClass;
 };
@@ -292,7 +295,7 @@ function detail(el, id, mode, termArg){
   el.innerHTML = `
   <div class="card"><div class="row">
     <a class="btn sm" href="#classes">${ico('left','width:16px;height:16px')} Classes</a>
-    <div><div class="title"><b>${esc(E.title)}</b> · ${esc(E.subject)}</div><div class="small muted">SY ${esc(E.sy||'')} · ${terms.length} term(s) loaded</div></div>
+    <div><div class="title"><b>${esc(E.title)}</b> · ${esc(E.subject)}</div><div class="small muted">SY ${esc(E.sy||'')} · ${terms.length} term(s) loaded · Last edited <b id="eLast">${M.ecrLastEditText(E)}</b></div></div>
     <span class="spacer"></span>
     ${mode==='edit' ? '' : `<div class="seg" id="eT">${terms.map(t=>`<button data-t="${t}" class="${t===term?'on':''}">Term ${t}</button>`).join('')}</div>`}
     ${E.docId ? `<a class="btn ${mode==='edit'?'primary':''}" href="#classes/${E.id}/edit">${ico('edit')} Work on ECR</a>` : ''}
