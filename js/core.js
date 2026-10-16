@@ -11,7 +11,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.4', date:'2026-10-16', label:'October 16, 2026'};
+M.VERSION = {n:'6.5', date:'2026-10-16', label:'October 16, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -120,7 +120,7 @@ M.NAV = [
   {id:'grades', label:'Grades', icon:'grades', eyebrow:'Consolidated gradesheet', title:'Grades'},
   {id:'analysis', label:'Analysis', icon:'analysis', eyebrow:'Class analysis tools', title:'Analysis'},
   {id:'assess', label:'Assessments', icon:'assess', eyebrow:'AI test maker · Budget of Work', title:'Assessments'},
-  {id:'reading', label:'Reading', icon:'book', eyebrow:'BULIG reading monitoring · levels & assessment periods', title:'Reading'},
+  {id:'reading', label:'Reading', icon:'book', img:'icons/bulig-mark.png', eyebrow:'BULIG reading monitoring · levels & assessment periods', title:'Reading'},
   {id:'items', label:'Item Analysis', icon:'items', eyebrow:'Summative tests & term examinations', title:'Item Analysis'},
   {id:'classes', label:'Classes', icon:'classes', eyebrow:'Electronic class records (ECR)', title:'Classes'},
   {id:'forms', label:'Forms', icon:'forms', eyebrow:'DepEd School Forms SF1–SF10', title:'Forms'},
@@ -504,12 +504,13 @@ M.NAV_NEW = {assess:'nav-assess-ai', reading:'nav-reading'};
 /* ---------------- router ---------------- */
 M.applyTheme = () => { const t = M.S.settings.theme; if(t==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); };
 M.renderNav = (active) => {
-  $('#nav').innerHTML = M.NAV.map(v => `<a href="#${v.id}" class="${v.id===active?'active':''}">${M.ico(v.icon)}<span>${v.label}</span>${M.NAV_NEW[v.id] ? M.newTag(M.NAV_NEW[v.id]) : ''}</a>`).join('');
+  const navIco = (v, st) => v.img ? `<img class="nav-img" src="${v.img}" alt="">` : M.ico(v.icon, st);
+  $('#nav').innerHTML = M.NAV.map(v => `<a href="#${v.id}" class="${v.id===active?'active':''} ${v.img?'has-img':''}">${navIco(v)}<span>${v.label}</span>${M.NAV_NEW[v.id] ? M.newTag(M.NAV_NEW[v.id]) : ''}</a>`).join('');
   const inMore = !M.TABBAR.includes(active);
   $('#tabbar').innerHTML = M.TABBAR.map(id => { const v = M.NAV.find(x=>x.id===id); return `<a href="#${v.id}" class="${v.id===active?'active':''}">${M.ico(v.icon)}<span>${v.label}</span></a>`; }).join('') +
     `<a href="#" id="moreBtn" class="${inMore?'active':''}">${M.ico('more')}<span>More</span></a>`;
   $('#moreBtn').onclick = (e) => { e.preventDefault();
-    M.modal('More', `<div class="list">${M.NAV.filter(v=>!M.TABBAR.includes(v.id)).map(v=>`<a class="item" href="#${v.id}" style="text-decoration:none;color:inherit">${M.ico(v.icon,'width:22px;height:22px;color:var(--green)')}<div class="grow"><div class="title">${v.label}</div><div class="tiny muted">${v.eyebrow}</div></div></a>`).join('')}</div>`,
+    M.modal('More', `<div class="list">${M.NAV.filter(v=>!M.TABBAR.includes(v.id)).map(v=>`<a class="item" href="#${v.id}" style="text-decoration:none;color:inherit">${v.img ? `<img src="${v.img}" alt="" style="height:22px">` : M.ico(v.icon,'width:22px;height:22px;color:var(--green)')}<div class="grow"><div class="title">${v.label}</div><div class="tiny muted">${v.eyebrow}</div></div></a>`).join('')}</div>`,
       b => M.$$('a', b).forEach(a => a.addEventListener('click', () => M.closeModal()))); };
 };
 M.renderClassSelect = () => {
