@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.5 · October 16, 2026)
+# MASTRO — Adviser's Workspace (v6.6 · October 16, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -19,6 +19,11 @@ Offline forms, documents and class management for the class adviser
 - **Learner status**: tag T/O, SARDO, NLP or Dropped Out; statistics and reports reflect it.
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
+
+### New in v6.6
+- Sidebar header: centered MASTRO logo with "Developed and owned by: Jhon Joemar La Victoria"; the Reading menu shows only the BULIG logo.
+- Home: the learner search now sits below the class overview.
+- Learners: delete a learner from the roster (trash button on each row, or Remove learner in the profile) and a **Duplicates** finder for same-name / same-LRN copies after an SF1 upload.
 
 ### New in v6.5
 - Reading (BULIG): English and Filipino reading kept separately; terms (1st–3rd) instead of quarters; date and assessor for the pre-test and every AP (plus an assessor per level group); learners marked T/O, NLP or DO are left out; BULIG logo in the sidebar and on reports; cleaner PASSED / NOT READY tagging.
@@ -89,4 +94,4 @@ is already loaded; to bring in newer SeatCheck records, go to **Attendance → M
 - Saved only on the device (browser storage). Use **Settings → Back up everything** often and keep the file in your Google Drive folder.
 - To move data to another device: **Settings → Restore backup** there.
 - Clearing Safari website data deletes MASTRO data — keep backups.
-- When you change files later, also edit `sw.js` and raise `mastro-v6.5.0` (e.g. to `mastro-v6.5.1`) so devices download the update.
+- When you change files later, also edit `sw.js` and raise `mastro-v6.6.0` (e.g. to `mastro-v6.6.1`) so devices download the update.

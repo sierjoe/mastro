@@ -93,7 +93,6 @@ M.views.home = async function(el){
     <button class="btn primary" id="wRestore">${ico('upload')} Restore my data file</button><input type="file" id="wFile" accept=".json" hidden></div></div>` : (M.backupDue() ? `
   <div class="card backup-nudge" style="margin-bottom:20px"><div class="row">${ico('save','width:26px;height:26px;color:var(--gold)')}<div class="grow"><b>${s.lastBackup ? 'Your last full backup was ' + Math.floor((Date.now() - new Date(s.lastBackup).getTime())/864e5) + ' days ago' : 'You have no full backup yet'}</b><div class="small muted">One file keeps everything: grades, attendance, seat plans, cleaning points, ECRs, tests, templates and documents. Save it to your private Drive folder.</div></div>
     <button class="btn gold" id="hBk">${ico('download')} Back up everything</button></div></div>` : '')) + `
-  ${c.learners.length ? `<div class="card hsearch" style="margin-bottom:20px"><div class="row" style="gap:10px">${ico('learners','width:22px;height:22px;color:var(--green)')}<div class="grow" style="position:relative"><input class="input" id="hsQ" style="width:100%" placeholder="Search a learner — type a name or LRN to see everything about them" autocomplete="off"><div class="hs-sug" id="hsSug" hidden></div></div>${M.newTag('home-search')}</div><div id="hsOut"></div></div>` : ''}
   <div class="grid g-hero">
     <div class="card hero">
       <div class="muted small">${esc(s.school)} · SY ${esc(c.sy)}</div>
@@ -109,6 +108,7 @@ M.views.home = async function(el){
     </div>
   </div>
 
+  ${c.learners.length ? `<div class="card hsearch" style="margin-top:20px"><div class="row" style="gap:10px">${ico('learners','width:22px;height:22px;color:var(--green)')}<div class="grow" style="position:relative;flex:1 1 auto;min-width:0"><input class="input" id="hsQ" style="width:100%" placeholder="Search a learner — type a name or LRN to see everything about them" autocomplete="off"><div class="hs-sug" id="hsSug" hidden></div></div>${M.newTag('home-search')}</div><div id="hsOut"></div></div>` : ''}
   <div class="grid g-2" style="margin-top:20px">
     <div class="card">
       <div class="row"><h2 style="margin:0">Credentials & requirements</h2><span class="spacer"></span><a class="btn sm" href="#learners">${ico('learners')} Open checklist</a></div>
@@ -364,7 +364,7 @@ M.views.learners = function viewLearners(el){
       <td class="sticky-col"><a href="#" class="lname" data-open="${l.id}"><b>${esc(l.name)}</b></a> ${M.statusChip(l,1)}<div class="tiny muted">LRN: ${l.lrn?esc(l.lrn):'<span class="low">missing</span>'}${dup[l.lrn]>1?' · <span class="low">duplicate</span>':''} · ${l.sf1?`<span style="color:var(--green);font-weight:700" title="Matched on SF1 ${esc(l.sf1.date)}">SF1 ✓</span>`:'<span title="Not yet found on an uploaded SF1">not in SF1</span>'}</div></td>
       ${['1','2','3'].map(t=>`<td class="c">${gradeCell(M.termStatus(c,t,l.id))}</td>`).join('')}
       ${items.map(it=>`<td class="c"><button class="ck btn-ck ${cl[it.id]?'on':'off'}" data-item="${esc(it.id)}" title="${cl[it.id]?'Submitted '+esc(cl[it.id]):'Not yet submitted — tap to mark'}" aria-label="${esc(it.label)} for ${esc(l.name)}">${cl[it.id]?ico('check'):''}</button></td>`).join('')}
-      <td><div class="row" style="gap:8px;flex-wrap:nowrap"><div class="bar-track" style="width:70px;height:8px"><div class="bar-fill ${sc<totalItems?'low':''}" style="width:${sc/totalItems*100}%"></div></div><span class="tiny ${sc<totalItems?'':'muted'}">${sc}/${totalItems}</span></div></td><td><button class="btn sm st-btn" data-st="${l.id}">${l.status?M.STATUS[l.status].short:'Active'}</button></td></tr>`;
+      <td><div class="row" style="gap:8px;flex-wrap:nowrap"><div class="bar-track" style="width:70px;height:8px"><div class="bar-fill ${sc<totalItems?'low':''}" style="width:${sc/totalItems*100}%"></div></div><span class="tiny ${sc<totalItems?'':'muted'}">${sc}/${totalItems}</span></div></td><td><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn sm st-btn" data-st="${l.id}">${l.status?M.STATUS[l.status].short:'Active'}</button><button class="icon-btn del-l" data-del="${l.id}" title="Delete ${esc(l.name)} from the roster">${ico('trash','width:16px;height:16px')}</button></div></td></tr>`;
   });
   el.innerHTML = `
   <div class="card" style="padding:16px 18px">
@@ -378,6 +378,7 @@ M.views.learners = function viewLearners(el){
       <span class="spacer"></span>
       <button class="btn sm gold" id="lSf1">${ico('upload')} Upload SF1</button>
       <button class="btn sm" id="lNp">${ico('edit')} Name parts ${M.newTag('name-parts')}</button>
+      <button class="btn sm" id="lDup">Duplicates${dupCount(c) ? ` <span class="chip red" style="padding:1px 7px;font-size:11px">${dupCount(c)}</span>` : ''} ${M.newTag('dup-learners')}</button>
       <button class="btn sm" id="lPrint">${ico('print')} Print checklist</button>
       <button class="btn sm primary" id="addL">${ico('plus')} Add learner</button>
     </div>
@@ -392,8 +393,10 @@ M.views.learners = function viewLearners(el){
   $('#addL').onclick = () => learnerForm(c, null);
   $('#lPrint').onclick = () => printChecklist(c);
   $('#lNp').onclick = () => M.nameCheck(c, () => viewLearners(el));
+  $('#lDup').onclick = () => dupFinder(c, () => viewLearners(el));
   $('#lSf1').onclick = () => M.pickSF1();
   el.querySelector('table.checklist').addEventListener('click', e => {
+    const del = e.target.closest('[data-del]'); if(del){ const l = c.learners.find(x => x.id === del.dataset.del); if(l && confirm(`Delete ${l.name} from the roster?\n\nTheir grades, checklist, comments and reading records in MASTRO are removed too.`)){ M.removeLearners(c, [l.id]); viewLearners(el); M.toast('Learner deleted'); } return; }
     const open = e.target.closest('[data-open]'); if(open){ e.preventDefault(); learnerProfile(c, c.learners.find(l=>l.id===open.dataset.open)); return; }
     const sb = e.target.closest('[data-st]'); if(sb){ M.setStatus(c, c.learners.find(l=>l.id===sb.dataset.st)); return; }
     const b = e.target.closest('.btn-ck');
@@ -483,6 +486,38 @@ function learnerDossier(c, l){
     <h3 style="margin-top:14px">Subject class records (ECR)</h3>${ecrH}
   </div>`;
 }
+/* v6.6: remove learners everywhere MASTRO keeps per-learner data */
+M.removeLearners = function(c, ids){ const set = new Set(ids);
+  c.learners = c.learners.filter(x => !set.has(x.id));
+  Object.values(c.grades || {}).forEach(g => ids.forEach(id => delete g[id]));
+  ids.forEach(id => { if(c.checklist) delete c.checklist[id]; if(c.sf9 && c.sf9.comments) delete c.sf9.comments[id]; if(c.sf8 && c.sf8.rows) delete c.sf8.rows[id];
+    if(c.bulig && c.bulig.langs) Object.values(c.bulig.langs).forEach(d => { if(d.L) delete d.L[id]; (d.aps || []).forEach(a => a.marks && delete a.marks[id]); }); });
+  ((M.S.att && M.S.att.sections) || []).forEach(sec => Object.values(sec.students || {}).forEach(st => { if(set.has(st.lid)) delete st.lid; }));
+  M.save(); };
+const dupKey = (l) => M.normName(l.name);
+const dupGroups = (c) => { const by = {}; c.learners.forEach(l => { const k1 = 'n:' + dupKey(l); (by[k1] = by[k1] || []).push(l); if(l.lrn){ const k2 = 'l:' + String(l.lrn).trim(); (by[k2] = by[k2] || []).push(l); } });
+  const seen = new Set(); return Object.values(by).filter(g => g.length > 1).filter(g => { const k = g.map(l => l.id).sort().join(); if(seen.has(k)) return false; seen.add(k); return true; }); };
+const dupCount = (c) => dupGroups(c).reduce((a, g) => a + g.length - 1, 0);
+const dataScore = (c, l) => ['1','2','3'].reduce((a, t) => a + Object.values((c.grades[t] || {})[l.id] || {}).filter(v => v !== '' && v != null).length, 0) + Object.keys((c.checklist || {})[l.id] || {}).length + (l.sf1 ? 5 : 0) + (l.lrn ? 2 : 0) + (l.birthday ? 1 : 0);
+function dupFinder(c, done){
+  const G = dupGroups(c);
+  const info = (l) => { const g = ['1','2','3'].map(t => M.termStatus(c, t, l.id) === 'done' ? 'T' + t : M.termStatus(c, t, l.id) === 'part' ? 'T' + t + '½' : '').filter(Boolean).join(' ');
+    return `LRN ${esc(l.lrn || '—')} · ${l.sex || '?'} · ${esc(l.birthday || 'no birthdate')}${l.sf1 ? ' · from SF1' : ''}${g ? ' · grades ' + g : ' · no grades'}${l.status ? ' · ' + esc(M.STATUS[l.status].short) : ''}`; };
+  M.modal('Duplicate learners', G.length ? `<p class="small muted" style="margin-top:0">Same name or same LRN appears more than once. MASTRO ticked the copy with <b>less data</b> in each group — check, then delete.</p>
+    <div class="list" style="max-height:52vh;overflow:auto;padding:4px">${G.map((g, gi) => { const keep = [...g].sort((a, b) => dataScore(c, b) - dataScore(c, a))[0];
+      const same = g.every(l => dupKey(l) === dupKey(g[0]));
+      return `<div class="card" style="padding:10px 12px;margin-bottom:10px"><div class="tiny muted" style="margin-bottom:6px">Group ${gi + 1} · ${same ? 'same name' : '<b class="low">same LRN but different names — probably a wrong LRN, not a duplicate; nothing ticked</b>'}</div>${g.map(l => `<label class="item" style="padding:8px 10px;cursor:pointer;gap:10px"><input type="checkbox" data-d="${l.id}" ${same && l !== keep ? 'checked' : ''}><div class="grow"><div class="title small">${esc(l.name)} ${same && l === keep ? '<span class="chip green" style="font-size:10px;padding:1px 7px">keep</span>' : ''}</div><div class="tiny muted">${info(l)}</div></div></label>`).join('')}</div>`; }).join('')}</div>
+    <div class="row" style="margin-top:12px"><span class="small muted" id="dN"></span><span class="spacer"></span><button class="btn" id="dX">Cancel</button><button class="btn danger" id="dGo">Delete ticked</button></div>`
+    : `<div class="empty">No duplicate names or LRNs in ${esc(M.className(c))}. 🎉</div><div class="row"><span class="spacer"></span><button class="btn" id="dX">Close</button></div>`, b => {
+    $('#dX', b).onclick = M.closeModal; if(!G.length) return;
+    const upd = () => $('#dN', b).textContent = `${$$('[data-d]:checked', b).length} ticked`; $$('[data-d]', b).forEach(x => x.onchange = upd); upd();
+    $('#dGo', b).onclick = () => { const ids = $$('[data-d]:checked', b).map(x => x.dataset.d); if(!ids.length) return M.toast('Nothing ticked');
+      const left = new Set(c.learners.map(l => l.id)); ids.forEach(i => left.delete(i));
+      if(G.some(g => g.every(l => !left.has(l.id))) && !confirm('Every copy in at least one group is ticked — that learner will be gone completely. Continue?')) return;
+      if(!confirm(`Delete ${ids.length} learner(s) from the roster? Their grades, checklist and comments in MASTRO go with them.`)) return;
+      M.removeLearners(c, ids); M.closeModal(); done && done(); M.toast(`${ids.length} learner(s) deleted`); };
+  }, true);
+}
 function learnerProfile(c, l){
   const terms = ['1','2','3'];
   const rows = terms.map(t => M.termRow(c, t, l.id));
@@ -501,7 +536,7 @@ function learnerProfile(c, l){
     $('#pStat', b).onclick = () => M.setStatus(c, l);
     $('a[href^="#forms"]', b).onclick = () => M.closeModal();
     $('#pDel', b).onclick = () => { if(!confirm(`Remove ${l.name} and all their grades?`)) return;
-      c.learners = c.learners.filter(x=>x.id!==l.id); ['1','2','3'].forEach(t=>{ if(c.grades[t]) delete c.grades[t][l.id]; }); delete c.checklist[l.id]; M.save(); M.closeModal(); M.route(); M.toast('Learner removed'); };
+      M.removeLearners(c, [l.id]); M.closeModal(); M.route(); M.toast('Learner removed'); };
   });
 }
 M.learnerProfile = learnerProfile;

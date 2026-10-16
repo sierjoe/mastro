@@ -1,6 +1,6 @@
 /* MASTRO service worker — caches the app so it opens without internet.
    When you update files on GitHub, change VERSION so devices pick up the new copy. */
-const VERSION = 'mastro-v6.5.0';
+const VERSION = 'mastro-v6.6.0';
 const FILES = ['./','./index.html','./css/style.css','./js/seed.js','./js/core.js','./js/views-main.js','./js/attendance.js','./js/forms.js','./js/sf1.js','./js/items.js','./js/xlsxview.js','./js/templates.js','./js/sf78.js','./js/classes.js','./js/ecredit.js','./js/reading.js','./icons/bulig.png','./icons/bulig-mark.png','./js/bowdata.js','./js/tests.js','./js/assess.js',
   './vendor/xlsx.full.min.js','./vendor/html2canvas.min.js','./vendor/jspdf.umd.min.js','./vendor/jszip.min.js','./vendor/qrcode.js','./vendor/jsQR.js','./vendor/pdf.min.js','./vendor/pdf.worker.min.js',
   './templates/SF9_Report_Card_Template.xlsx','./templates/ECR_Template.xlsx','./templates/SF7_Template.xlsx','./templates/SF8_Template.xlsx','./manifest.webmanifest','./icons/icon-180.png','./icons/icon-192.png','./icons/icon-512.png','./icons/brand.png','./icons/favicon.png'];

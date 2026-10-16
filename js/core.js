@@ -11,7 +11,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.5', date:'2026-10-16', label:'October 16, 2026'};
+M.VERSION = {n:'6.6', date:'2026-10-16', label:'October 16, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -108,6 +108,7 @@ const I = {
   assess:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10.5h.01M11 10.5h5M8.5 14.5h.01M11 14.5h5M8 18l1.2 1.2L11.5 17"/>',
   eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   save:'<path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v6h8V3M7 21v-7h10v7"/>',
+  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14M10 11v6M14 11v6"/>',
   book:'<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>',
   pdf:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 16v-4h1.5a1.5 1.5 0 0 1 0 3H8M13 12v4h1a2 2 0 0 0 0-4z"/>'
 };
@@ -505,7 +506,7 @@ M.NAV_NEW = {assess:'nav-assess-ai', reading:'nav-reading'};
 M.applyTheme = () => { const t = M.S.settings.theme; if(t==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); };
 M.renderNav = (active) => {
   const navIco = (v, st) => v.img ? `<img class="nav-img" src="${v.img}" alt="">` : M.ico(v.icon, st);
-  $('#nav').innerHTML = M.NAV.map(v => `<a href="#${v.id}" class="${v.id===active?'active':''} ${v.img?'has-img':''}">${navIco(v)}<span>${v.label}</span>${M.NAV_NEW[v.id] ? M.newTag(M.NAV_NEW[v.id]) : ''}</a>`).join('');
+  $('#nav').innerHTML = M.NAV.map(v => `<a href="#${v.id}" class="${v.id===active?'active':''} ${v.img?'has-img':''}" ${v.img?`title="${v.label}" aria-label="${v.label}"`:''}>${navIco(v)}${v.img?'':`<span>${v.label}</span>`}${M.NAV_NEW[v.id] ? M.newTag(M.NAV_NEW[v.id]) : ''}</a>`).join('');
   const inMore = !M.TABBAR.includes(active);
   $('#tabbar').innerHTML = M.TABBAR.map(id => { const v = M.NAV.find(x=>x.id===id); return `<a href="#${v.id}" class="${v.id===active?'active':''}">${M.ico(v.icon)}<span>${v.label}</span></a>`; }).join('') +
     `<a href="#" id="moreBtn" class="${inMore?'active':''}">${M.ico('more')}<span>More</span></a>`;
