@@ -475,6 +475,7 @@ function learnerDossier(c, l){
         ${rows.some(r => r.desc) ? `<div class="tiny muted" style="margin-top:4px">Descriptor: ${rows.map((r, i) => r.desc ? `T${i+1} ${r.desc}` : '').filter(Boolean).join(' · ')}</div>` : ''}</div>
       <div><h3>Attendance & cleaning</h3>${attH}
         <h3 style="margin-top:14px">Credentials</h3><div class="chips">${M.checkItems().map(it => `<span class="chip ${cl[it.id] ? 'green' : 'red'}">${cl[it.id] ? '✓' : '✕'} ${esc(it.label)}</span>`).join('')}</div>
+        ${(() => { const R = M.buligLevel && M.buligLevel(c, l.id); return R ? `<h3 style="margin-top:14px">Reading (BULIG)</h3><div class="hs-grid">${box('Current level', `<span class="lvchip lv-${R.level.k}">${R.level.t}</span>`)}${box('Pre-assessment', R.pre ? R.pre.t : '—')}${box('Profile', esc(R.profile || '—'))}</div><div class="tiny muted" style="margin-top:4px">${esc(R.level.comp)} · after ${R.aps} assessment period(s) · <a href="#reading">open</a></div>` : ''; })()}
         ${s8H ? `<h3 style="margin-top:14px">Health (SF8)</h3>${s8H}` : ''}
         ${cmH ? `<h3 style="margin-top:14px">Report card comments</h3>${cmH}` : ''}
         ${l.remarks ? `<p class="small" style="margin-top:10px"><b>Remarks:</b> ${esc(l.remarks)}</p>` : ''}</div>

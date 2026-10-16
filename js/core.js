@@ -11,7 +11,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.3', date:'2026-10-13', label:'October 13, 2026'};
+M.VERSION = {n:'6.4', date:'2026-10-16', label:'October 16, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -108,6 +108,7 @@ const I = {
   assess:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10.5h.01M11 10.5h5M8.5 14.5h.01M11 14.5h5M8 18l1.2 1.2L11.5 17"/>',
   eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   save:'<path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v6h8V3M7 21v-7h10v7"/>',
+  book:'<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>',
   pdf:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 16v-4h1.5a1.5 1.5 0 0 1 0 3H8M13 12v4h1a2 2 0 0 0 0-4z"/>'
 };
 M.ico = (n, style='') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${style?`style="${style}"`:''}>${I[n]||''}</svg>`;
@@ -119,6 +120,7 @@ M.NAV = [
   {id:'grades', label:'Grades', icon:'grades', eyebrow:'Consolidated gradesheet', title:'Grades'},
   {id:'analysis', label:'Analysis', icon:'analysis', eyebrow:'Class analysis tools', title:'Analysis'},
   {id:'assess', label:'Assessments', icon:'assess', eyebrow:'AI test maker · Budget of Work', title:'Assessments'},
+  {id:'reading', label:'Reading', icon:'book', eyebrow:'BULIG reading monitoring · levels & assessment periods', title:'Reading'},
   {id:'items', label:'Item Analysis', icon:'items', eyebrow:'Summative tests & term examinations', title:'Item Analysis'},
   {id:'classes', label:'Classes', icon:'classes', eyebrow:'Electronic class records (ECR)', title:'Classes'},
   {id:'forms', label:'Forms', icon:'forms', eyebrow:'DepEd School Forms SF1–SF10', title:'Forms'},
@@ -497,7 +499,7 @@ document.addEventListener('click', e => {
   const tags = [...host.querySelectorAll('.new-tag')]; if(host.classList && host.classList.contains('new-tag')) tags.push(host);
   if(!tags.length) return; M.markSeen(tags.map(t => t.dataset.newid)); tags.forEach(t => t.remove());
 }, true);
-M.NAV_NEW = {assess:'nav-assess-ai'};
+M.NAV_NEW = {assess:'nav-assess-ai', reading:'nav-reading'};
 
 /* ---------------- router ---------------- */
 M.applyTheme = () => { const t = M.S.settings.theme; if(t==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); };

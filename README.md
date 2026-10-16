@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.3 · October 13, 2026)
+# MASTRO — Adviser's Workspace (v6.4 · October 16, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -19,6 +19,14 @@ Offline forms, documents and class management for the class adviser
 - **Learner status**: tag T/O, SARDO, NLP or Dropped Out; statistics and reports reflect it.
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
+
+### New in v6.4
+- **Reading (BULIG)** — reading monitoring for your advisory class (Key Stage 3 · Phil-IRI by default):
+  - **Profiling:** pre-assessment level (Level 1 → 2A → 2B → 3A → 3B → 4 → 5 → 6 → 7) and BOSY / MOSY / EOSY profile (Frustration / Instructional / Independent).
+  - **Assessment periods (AP1–AP15):** tag PASSED / NOT READY per learner, grouped by level; PASSED moves the learner one level up.
+  - **Groupings:** intervention groups per level after any AP, with the BULIG classification.
+  - **Reports (view, then print on A4, 0.5 in margins, no overflow):** CRM Report (pre-test and per AP), List of Pupils (pre-test and per AP), Classroom Monitoring Tool (A4 landscape), Intervention groupings.
+  - Home search shows each learner's current reading level.
 
 ### New in v6.3
 - **Home search** — type a learner's name or LRN to see everything: grades and GA, attendance (absences, lates, seat), cleaning task and points, credentials, SF8 weight/height/BMI, report-card comments, and their grades in every ECR.
@@ -55,7 +63,7 @@ Offline forms, documents and class management for the class adviser
 ## Update your GitHub copy (you already have v1 online)
 1. Unzip `MASTRO.zip`. Open the `mastro` folder.
 2. In your `mastro` repository on GitHub, click **Add file → Upload files**.
-3. Drag **everything inside the folder** (files and the folders `css`, `js`, `icons`, `vendor`, `templates`) into the page — v6.2 adds `js/bowdata.js`, `js/sf78.js`, `templates/SF7_Template.xlsx` and `templates/SF8_Template.xlsx`; v6.1 added `js/assess.js`; v6 added `js/xlsxview.js`, `js/ecredit.js`, `js/tests.js`, `vendor/pdf.min.js` and `vendor/pdf.worker.min.js`;
+3. Drag **everything inside the folder** (files and the folders `css`, `js`, `icons`, `vendor`, `templates`) into the page — v6.4 adds `js/reading.js`; v6.2 added `js/bowdata.js`, `js/sf78.js`, `templates/SF7_Template.xlsx` and `templates/SF8_Template.xlsx`; v6.1 added `js/assess.js`; v6 added `js/xlsxview.js`, `js/ecredit.js`, `js/tests.js`, `vendor/pdf.min.js` and `vendor/pdf.worker.min.js`;
    then **Commit changes**. Files with the same name are replaced.
 4. Optional clean-up: `js/app.js` and `vendor/exceljs.min.js` are no longer used — you can delete them on GitHub.
 5. Wait 1–2 minutes, then open your app link. On iPhone, open MASTRO once while online so it saves the new version.
@@ -78,4 +86,4 @@ is already loaded; to bring in newer SeatCheck records, go to **Attendance → M
 - Saved only on the device (browser storage). Use **Settings → Back up everything** often and keep the file in your Google Drive folder.
 - To move data to another device: **Settings → Restore backup** there.
 - Clearing Safari website data deletes MASTRO data — keep backups.
-- When you change files later, also edit `sw.js` and raise `mastro-v6.3.0` (e.g. to `mastro-v6.3.1`) so devices download the update.
+- When you change files later, also edit `sw.js` and raise `mastro-v6.4.0` (e.g. to `mastro-v6.4.1`) so devices download the update.
