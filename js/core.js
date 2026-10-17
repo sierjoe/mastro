@@ -11,7 +11,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.6', date:'2026-10-16', label:'October 16, 2026'};
+M.VERSION = {n:'6.7', date:'2026-10-17', label:'October 17, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -22,7 +22,8 @@ M.DESC_COLOR = {Advancing:'#1f6b4a',Benchmarking:'#4fa77c',Connecting:'#d9b23a',
 M.DESC_RANGE = {Advancing:'90–100',Benchmarking:'80–89',Connecting:'75–79',Developing:'65–74',Emerging:'below 65'};
 M.PASS = 75;
 M.CATS = ['School Forms','Grades & Reports','Letters & Memos','Lesson Materials','Guidance','Others'];
-M.DRIVE_DEFAULT = 'https://drive.google.com/drive/folders/1glAdRLV1JGkii-7etoWTu2DKlHWcWFJq?usp=sharing';
+M.DRIVE_DEFAULT = 'https://drive.google.com/drive/folders/1ZGHUaf601QPFXWlwcDxqDgFMfC4p6F8r?usp=sharing';
+M.DRIVE_OLD = ['1glAdRLV1JGkii-7etoWTu2DKlHWcWFJq'];
 M.CHECK_DEFAULT = [
   {id:'bc', label:'Birth Certificate', short:'Birth Cert.'},
   {id:'f137', label:'Old Form 137', short:'Old 137'},
@@ -119,10 +120,10 @@ M.NAV = [
   {id:'attendance', label:'Attendance', icon:'attendance', eyebrow:'SeatCheck · seats, SF2, SF4, cleaning', title:'Attendance'},
   {id:'learners', label:'Learners', icon:'learners', eyebrow:'Roster & credentials checklist', title:'Learners'},
   {id:'grades', label:'Grades', icon:'grades', eyebrow:'Consolidated gradesheet', title:'Grades'},
-  {id:'analysis', label:'Analysis', icon:'analysis', eyebrow:'Class analysis tools', title:'Analysis'},
-  {id:'assess', label:'Assessments', icon:'assess', eyebrow:'AI test maker · Budget of Work', title:'Assessments'},
-  {id:'reading', label:'Reading', icon:'book', img:'icons/bulig-mark.png', eyebrow:'BULIG reading monitoring · levels & assessment periods', title:'Reading'},
-  {id:'items', label:'Item Analysis', icon:'items', eyebrow:'Summative tests & term examinations', title:'Item Analysis'},
+  {id:'analysis', group:'analytics', label:'Analysis', icon:'analysis', eyebrow:'Class analysis tools', title:'Analysis'},
+  {id:'assess', group:'analytics', label:'Assessments', icon:'assess', eyebrow:'AI test maker · Budget of Work', title:'Assessments'},
+  {id:'items', group:'analytics', label:'Item Analysis', icon:'items', eyebrow:'Summative tests & term examinations', title:'Item Analysis'},
+  {id:'reading', label:'Reading', icon:'book', eyebrow:'BULIG reading monitoring · levels & assessment periods', title:'Reading'},
   {id:'classes', label:'Classes', icon:'classes', eyebrow:'Electronic class records (ECR)', title:'Classes'},
   {id:'forms', label:'Forms', icon:'forms', eyebrow:'DepEd School Forms SF1–SF10', title:'Forms'},
   {id:'repo', label:'Repository', icon:'repo', eyebrow:'Documents & files', title:'Repository'},
@@ -243,6 +244,8 @@ M.load = () => {
   // Assessments are now AI test papers: drop the old answer-sheet scanning records
   M.S.asm = (M.S.asm || []).filter(a => a && a.v === 2);
   if(M.S.settings && (!M.S.settings.headTitle || /^school head$/i.test(M.S.settings.headTitle.trim()))) M.S.settings.headTitle = 'School Principal II';
+  { const st = M.S.settings; const old = (u) => !u || M.DRIVE_OLD.some(id => String(u).includes(id));
+    if(old(st.driveUrl)) st.driveUrl = M.DRIVE_DEFAULT; (st.links || []).forEach(l => { if(M.DRIVE_OLD.some(id => String(l.url).includes(id))) l.url = M.DRIVE_DEFAULT; }); }
   if(M.ensureBuiltinBOW) M.ensureBuiltinBOW();
   M.autoLinkSections();
   if(fresh){ const sec = M.sectionFor(M.cls()); if(sec) M.S.att.current = sec.id; }
@@ -484,9 +487,10 @@ M.quadPages = function(cells, designW, designH, per = 4, paper = 'A4'){
   return pages.join('');
 };
 M.doPrint = (html, pageCss, opts = {}) => {
-  const p = parsePage(pageCss); const css = `@page{size:${p.w.toFixed(1)}mm ${p.h.toFixed(1)}mm;margin:0.5in}`;
+  const mg = opts.margin != null ? opts.margin : 0.5;   // inches (0.5 in everywhere; SF4/SF5 use 0.3 in)
+  const p = parsePage(pageCss); const css = `@page{size:${p.w.toFixed(1)}mm ${p.h.toFixed(1)}mm;margin:${mg}in}`;
   // anything wider than the printable width is zoomed down so it never runs off the paper
-  if(!opts.noFit){ const W = p.w - 2*M.PRINT_MARGIN_MM; const m = M.measurePrint(html, W); const k = (W * 96 / 25.4) / m.w; if(k < 0.995) html = `<div class="pzoom" style="zoom:${Math.max(0.3, k).toFixed(4)}">${html}</div>`; }
+  if(!opts.noFit){ const W = p.w - 2*mg*25.4; const m = M.measurePrint(html, W); const k = (W * 96 / 25.4) / m.w; if(k < 0.995) html = `<div class="pzoom" style="zoom:${Math.max(0.3, k).toFixed(4)}">${html}</div>`; }
   $('#printArea').innerHTML = html;
   $('#pageStyle').textContent = css;
   setTimeout(() => window.print(), 80);
@@ -501,17 +505,26 @@ document.addEventListener('click', e => {
   if(!tags.length) return; M.markSeen(tags.map(t => t.dataset.newid)); tags.forEach(t => t.remove());
 }, true);
 M.NAV_NEW = {assess:'nav-assess-ai', reading:'nav-reading'};
+M.NAV_GROUPS = {analytics:{label:'Analytics', icon:'analysis', newId:'nav-analytics'}};
 
 /* ---------------- router ---------------- */
-M.applyTheme = () => { const t = M.S.settings.theme; if(t==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); };
+M.applyTheme = () => { const t = M.S.settings.theme; if(t==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
+  document.body.classList.toggle('xmas', M.S.settings.xmas !== false); };
 M.renderNav = (active) => {
-  const navIco = (v, st) => v.img ? `<img class="nav-img" src="${v.img}" alt="">` : M.ico(v.icon, st);
-  $('#nav').innerHTML = M.NAV.map(v => `<a href="#${v.id}" class="${v.id===active?'active':''} ${v.img?'has-img':''}" ${v.img?`title="${v.label}" aria-label="${v.label}"`:''}>${navIco(v)}${v.img?'':`<span>${v.label}</span>`}${M.NAV_NEW[v.id] ? M.newTag(M.NAV_NEW[v.id]) : ''}</a>`).join('');
+  const link = (v, sub) => `<a href="#${v.id}" class="${v.id===active?'active':''} ${sub?'sub':''}">${M.ico(v.icon)}<span>${v.label}</span>${M.NAV_NEW[v.id] ? M.newTag(M.NAV_NEW[v.id]) : ''}</a>`;
+  const ui = M.S.ui || {}; const done = new Set(); let html = '';
+  M.NAV.forEach(v => { if(!v.group){ html += link(v); return; } if(done.has(v.group)) return; done.add(v.group);
+    const G = M.NAV_GROUPS[v.group]; const kids = M.NAV.filter(x => x.group === v.group); const hasActive = kids.some(x => x.id === active);
+    const open = hasActive || (ui.navOpen || {})[v.group];
+    html += `<div class="nav-group ${open?'open':''} ${hasActive?'has-active':''}"><button type="button" class="nav-parent" data-group="${v.group}" aria-expanded="${open?'true':'false'}">${M.ico(G.icon)}<span>${G.label}</span>${M.newTag(G.newId)}<i class="chev">›</i></button><div class="nav-kids">${kids.map(x => link(x, true)).join('')}</div></div>`; });
+  $('#nav').innerHTML = html;
+  M.$$('#nav .nav-parent').forEach(b => b.onclick = () => { const g = b.dataset.group; const box = b.parentElement; const o = !box.classList.contains('open');
+    box.classList.toggle('open', o); b.setAttribute('aria-expanded', o); M.S.ui.navOpen = Object.assign({}, M.S.ui.navOpen, {[g]: o}); M.save(); });
   const inMore = !M.TABBAR.includes(active);
   $('#tabbar').innerHTML = M.TABBAR.map(id => { const v = M.NAV.find(x=>x.id===id); return `<a href="#${v.id}" class="${v.id===active?'active':''}">${M.ico(v.icon)}<span>${v.label}</span></a>`; }).join('') +
     `<a href="#" id="moreBtn" class="${inMore?'active':''}">${M.ico('more')}<span>More</span></a>`;
   $('#moreBtn').onclick = (e) => { e.preventDefault();
-    M.modal('More', `<div class="list">${M.NAV.filter(v=>!M.TABBAR.includes(v.id)).map(v=>`<a class="item" href="#${v.id}" style="text-decoration:none;color:inherit">${v.img ? `<img src="${v.img}" alt="" style="height:22px">` : M.ico(v.icon,'width:22px;height:22px;color:var(--green)')}<div class="grow"><div class="title">${v.label}</div><div class="tiny muted">${v.eyebrow}</div></div></a>`).join('')}</div>`,
+    M.modal('More', `<div class="list">${M.NAV.filter(v=>!M.TABBAR.includes(v.id)).map(v=>`<a class="item" href="#${v.id}" style="text-decoration:none;color:inherit">${M.ico(v.icon,'width:22px;height:22px;color:var(--green)')}<div class="grow"><div class="title">${v.group ? M.NAV_GROUPS[v.group].label + ' · ' : ''}${v.label}</div><div class="tiny muted">${v.eyebrow}</div></div></a>`).join('')}</div>`,
       b => M.$$('a', b).forEach(a => a.addEventListener('click', () => M.closeModal()))); };
 };
 M.renderClassSelect = () => {
@@ -528,6 +541,34 @@ M.route = () => {
   (M.views[v.id] || M.views.home)(el, parts.slice(1));
   window.scrollTo(0,0);
 };
+/* ---------------- Friday 3:00 PM "Back up everything" reminder ---------------- */
+// the latest Friday 15:00 that has already passed
+M.lastFriday3pm = (now = new Date()) => { const d = new Date(now); d.setHours(15, 0, 0, 0); const back = (d.getDay() - 5 + 7) % 7; d.setDate(d.getDate() - back); if(d > now) d.setDate(d.getDate() - 7); return d; };
+M.backupReminder = () => {
+  const check = () => { const st = M.S.settings; if(st.fridayReminder === false) return;
+    const due = M.lastFriday3pm(); const last = st.lastBackup ? new Date(st.lastBackup) : null;
+    if(last && last >= due) return;                                        // already backed up since Friday 3 PM
+    if(st.reminderSnooze && new Date(st.reminderSnooze) > new Date()) return;
+    if(st.reminderSkip === due.toISOString()) return;
+    if(!$('#modalWrap').hidden) return;                                    // do not interrupt an open window
+    if(document.hidden && 'Notification' in window && Notification.permission === 'granted' && st.reminderNotified !== due.toISOString()){
+      try { new Notification('MASTRO · Friday backup', {body:'It is past 3:00 PM on Friday — back up everything to your private Drive folder.', icon:'icons/brand.png'}); } catch(e){}
+      st.reminderNotified = due.toISOString(); M.save(); return; }
+    if(document.hidden) return;
+    M.modal('🗓️ Friday backup time', `<div class="row" style="gap:14px;align-items:flex-start">${M.ico('save','width:40px;height:40px;color:var(--gold)')}<div class="grow">
+      <p style="margin-top:0">It's past <b>3:00 PM on Friday</b>. Back up everything — grades, attendance, ECRs, reading records, templates and documents — and save the file in your <b>private</b> Drive folder.</p>
+      <p class="small muted">${last ? 'Last full backup: ' + last.toLocaleString() : 'You have no full backup yet.'}</p></div></div>
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px">${'Notification' in window && Notification.permission === 'default' ? '<button class="btn sm" id="rmN">🔔 Also notify me</button>' : ''}<span class="spacer"></span>
+      <button class="btn sm" id="rmL">Remind me in 1 hour</button><button class="btn sm" id="rmS">Skip this week</button><button class="btn primary" id="rmB">${M.ico('download')} Back up everything</button></div>`, b => {
+      $('#rmL', b).onclick = () => { st.reminderSnooze = new Date(Date.now() + 36e5).toISOString(); M.save(); M.closeModal(); };
+      $('#rmS', b).onclick = () => { st.reminderSkip = due.toISOString(); M.save(); M.closeModal(); };
+      $('#rmB', b).onclick = () => { M.closeModal(); if(M.backupAll) M.backupAll(); };
+      if($('#rmN', b)) $('#rmN', b).onclick = () => Notification.requestPermission().then(p => M.toast(p === 'granted' ? 'Notifications on for the Friday reminder' : 'Notifications not allowed'));
+    });
+  };
+  setTimeout(check, 2500); setInterval(check, 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if(!document.hidden) setTimeout(check, 800); });
+};
 M.boot = () => {
   M.load(); M.applyTheme();
   $('#classSelect').onchange = e => { M.S.activeClassId = e.target.value; M.save(); M.route(); };
@@ -540,6 +581,7 @@ M.boot = () => {
   const net = () => { const p = $('#netPill'); p.textContent = navigator.onLine ? 'Online · works offline too' : 'Offline mode'; p.classList.toggle('off', !navigator.onLine); };
   window.addEventListener('online', net); window.addEventListener('offline', net); net();
   M.route();
+  M.backupReminder();
   if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
 };
 })();

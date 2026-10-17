@@ -148,8 +148,8 @@ M.xvRender = function(doc, sst, styles, area, opts = {}){
   let [pw, ph] = PAPER[+(ps?.getAttribute('paperSize')||9)] || PAPER[9];
   if((opts.orientation || ps?.getAttribute('orientation')) === 'landscape' && pw < ph) [pw, ph] = [ph, pw];
   if(opts.paper){ [pw, ph] = opts.paper; }
-  // MASTRO prints every page with 0.5 in margins on all sides
-  const mL = 0.5, mR = 0.5, mT = 0.5, mB = 0.5;
+  // MASTRO prints every page with 0.5 in margins on all sides (a form may ask for less, e.g. SF4/SF5 at 0.3 in)
+  const mg = opts.margin != null ? opts.margin : 0.5; const mL = mg, mR = mg, mT = mg, mB = mg;
   const iw = (pw - mL - mR) * 96, ih = (ph - mT - mB) * 96;
   const fit = opts.fit || spr?.getAttribute('fitToPage') === '1' || spr?.getAttribute('fitToPage') === 'true';
   let k = fit ? Math.min(1, iw / W, ih / H) : Math.min(1, (+(ps?.getAttribute('scale')||100))/100, iw / W);
@@ -184,7 +184,7 @@ M.xvDrawings = async function(zip, sheetPath, sheetDoc){
     else { const ext = a.getElementsByTagNameNS(DNS,'ext')[0]; d.cx = +(ext?.getAttribute('cx')||0); d.cy = +(ext?.getAttribute('cy')||0); }
     const pic = a.getElementsByTagNameNS(DNS,'pic')[0];
     if(pic){ const blip = pic.getElementsByTagNameNS(ANS,'blip')[0]; const id = blip && blip.getAttributeNS(RNS,'embed'); const r = drels.find(x => x.id === id);
-      if(r && zip.file(r.target)){ if(!cache[r.target]){ const ext = r.target.split('.').pop().toLowerCase(); const b64 = await zip.file(r.target).async('base64'); cache[r.target] = `data:image/${ext==='jpg'?'jpeg':ext==='svg'?'svg+xml':ext};base64,${b64}`; } d.src = cache[r.target]; out.push(d); } }
+      if(r && zip.file(r.target) && !/\.(wmf|emf)$/i.test(r.target)){ if(!cache[r.target]){ const ext = r.target.split('.').pop().toLowerCase(); const b64 = await zip.file(r.target).async('base64'); cache[r.target] = `data:image/${ext==='jpg'?'jpeg':ext==='svg'?'svg+xml':ext};base64,${b64}`; } d.src = cache[r.target]; out.push(d); } }
     else { const nv = a.getElementsByTagNameNS(DNS,'cNvPr')[0]; if(nv && /check\s*box/i.test(nv.getAttribute('name')||'')){ d.box = true; out.push(d); } }
   }
   return out;

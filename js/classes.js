@@ -243,9 +243,12 @@ M.views.classes = function view(el, args){
     </div>`; }).join('')}</div>` : `<div class="card"><div class="empty">No class records yet. Upload your ECRs below to start.</div></div>`}
   <div class="card" style="margin-top:20px"><div class="row"><div><h2 style="margin:0">Add or update class records</h2><div class="small muted">Upload the ECR of each section you teach (Excel). MASTRO reads Written Works, Performance Tasks, Quarterly/Term Assessment and the term grades for every term sheet.</div></div><span class="spacer"></span><button class="btn primary" id="eAdd">${ico('plus')} Add a class</button></div>
     <div class="drop" id="eDrop" style="margin-top:14px">${ico('upload','width:30px;height:30px;color:var(--green)')}<div><b>Drop ECR files here or tap to upload</b></div><div class="small muted">.xlsx / .xls — one file per section; you can drop several at once</div></div>
-    <input type="file" id="eFile" accept=".xlsx,.xls,.xlsm" multiple hidden></div>`;
+    <input type="file" id="eFile" accept=".xlsx,.xls,.xlsm" multiple hidden></div>
+  ${L.length ? `<div class="card" style="margin-top:20px"><div class="row" style="gap:12px;flex-wrap:wrap">${ico('drive','width:26px;height:26px;color:var(--gold)')}<div class="grow"><b>ECR safety net · Google Drive</b> ${M.newTag('ecr-drive')}<div class="small muted">Packs every ECR (the updated copy if you edited it here) in its own class folder, ready to drop into your MASTRO Drive folder.${M.S.settings.ecrDriveSaved ? ` Last packed: <b>${esc(new Date(M.S.settings.ecrDriveSaved).toLocaleString())}</b>.` : ''}</div></div>
+    <button class="btn gold" id="eDrive">${ico('download')} Pack ECRs for Drive</button><a class="btn sm" href="${esc(M.S.settings.driveUrl)}" target="_blank" rel="noopener">${ico('drive')} Open Drive folder</a></div></div>` : ''}`;
   M.dropZone($('#eDrop'), $('#eFile'), async files => { for(const f of files) await importECR(f); });
   $('#eAdd').onclick = addClass;
+  if($('#eDrive')) $('#eDrive').onclick = () => M.ecrDriveExport();
 };
 async function importECR(file){
   let wb; try { wb = XLSX.read(await file.arrayBuffer(), {type:'array'}); } catch(e){ return alert(`Could not read ${file.name}: ${e.message}`); }
@@ -302,9 +305,12 @@ function detail(el, id, mode, termArg){
     ${mode==='edit' ? `<a class="btn" href="#classes/${E.id}/view/${term||''}">${ico('grades')} Summary</a>` : ''}
     <a class="btn sparkle" href="#classes/${E.id}/analyze/${term||'1'}">${ico('sparkle')} Analyze</a>
   </div>
+  <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn sm gold" id="ePs">${ico('print')} Progress slips ${M.newTag('progress-slips')}</button><button class="btn sm" id="eTt">🎲 Teacher tools ${M.newTag('teacher-tools')}</button></div>
   <div class="row" style="margin-top:12px"><button class="btn sm" id="eUp">${ico('upload')} Update from new ECR file</button><input type="file" id="eUpF" accept=".xlsx,.xls,.xlsm" hidden><button class="btn sm" id="eEd">${ico('edit')} Rename</button>${E.docId?`<button class="btn sm" id="eDl">${ico('download')} Download ECR file</button>`:''}<span class="spacer"></span><button class="btn sm danger" id="eDel">Delete</button></div></div>
   <div id="eBody" style="margin-top:20px"></div>`;
   if($('#eT')) $('#eT').onclick = e => { const b = e.target.closest('button'); if(b) location.hash = `#classes/${E.id}/${mode==='analyze'?'analyze':'view'}/${b.dataset.t}`; };
+  $('#ePs').onclick = () => M.progressSlips(E);
+  $('#eTt').onclick = () => M.teacherTools(E);
   $('#eUp').onclick = () => $('#eUpF').click();
   $('#eUpF').onchange = e => { const f = e.target.files[0]; e.target.value=''; if(f) importECR(f); };
   if($('#eDl')) $('#eDl').onclick = async () => { const d = await M.docGet(E.docId); if(d && d.blob) M.downloadBlob(d.blob, d.name); else M.toast('File not found on this device'); };

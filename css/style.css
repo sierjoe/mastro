@@ -849,3 +849,81 @@ tr.sel td{background:rgba(47,138,97,.10)}
 .brand.brand-c{padding:2px 8px 12px}.brand.brand-c .brand-logo{width:66px;height:66px}.brand.brand-c .brand-name{font-size:18px}
 .dev-card .deco3d{display:none}.dev-card{padding:8px 12px}
 .nav{-webkit-mask-image:linear-gradient(#000 calc(100% - 18px),transparent);mask-image:linear-gradient(#000 calc(100% - 18px),transparent);padding-bottom:10px}
+/* v6.7 Analytics group in the sidebar */
+.nav-group{display:flex;flex-direction:column;gap:4px}
+.nav-parent{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:14px;color:var(--ink-2);background:none;border:0;font:inherit;font-weight:600;font-size:14.5px;cursor:pointer;text-align:left;width:100%}
+.nav-parent svg{width:20px;height:20px;flex:none}.nav-parent:hover{color:var(--ink)}
+.nav-parent .chev{margin-left:auto;font-style:normal;transition:transform .2s;font-size:18px;line-height:1;opacity:.6}
+.nav-group.open .nav-parent .chev{transform:rotate(90deg)}
+.nav-group.has-active .nav-parent{color:var(--green)}
+.nav-kids{display:none;flex-direction:column;gap:4px;margin-left:16px;padding-left:10px;border-left:2px solid rgba(31,107,74,.18)}
+.nav-group.open .nav-kids{display:flex}
+.nav .nav-kids a{padding:8px 12px;font-size:14px}
+/* ---------- v6.7 progress slips (print + preview) ---------- */
+.ps-half{position:relative;overflow:hidden}
+.ps-cut{display:block;border-top:1px dashed #888;height:0;position:relative}
+.ps-cut::after{content:"✂";position:absolute;left:-1mm;top:-2.6mm;font-size:9pt;color:#666;font-style:normal}
+.pslip-wrap{font-family:"Bookman Old Style",Bookman,Georgia,serif;color:#000;font-size:9pt}
+.pslip{border:1.2px solid #1f6b4a;border-radius:3mm;padding:3mm 4mm}
+.ps-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid #1f6b4a;padding-bottom:1.5mm;gap:4mm}
+.ps-head>div:first-child{display:flex;flex-direction:column}.ps-head>div:first-child span{font-size:8pt}
+.ps-title{text-align:right;font-weight:bold;color:#1f6b4a;font-size:11pt}.ps-title span{display:block;font-size:8pt;color:#000;font-weight:normal}
+.ps-name{display:flex;justify-content:space-between;margin:2mm 0;font-size:9.5pt}
+.ps-t{width:100%;border-collapse:collapse}
+.ps-t th,.ps-t td{border:1px solid #555;padding:1.2mm 1.5mm;vertical-align:middle}
+.ps-t th{background:#e9f1ec;font-size:8pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ps-c{width:24mm}.ps-c b{display:block;font-size:8.5pt}.ps-c span{font-size:7.5pt;color:#444}
+.ps-g{line-height:1}
+.ps-i{display:inline-flex;flex-direction:column;align-items:center;min-width:9.5mm;margin:0.6mm;border:1px solid #bbb;border-radius:1.2mm;padding:0.6mm 0.8mm}
+.ps-i i{font-style:normal;font-size:6pt;color:#555}.ps-i b{font-size:9pt}.ps-i u{text-decoration:none;font-size:6pt;color:#555}
+.ps-i.miss b{color:#999}
+.ps-n{text-align:center;width:13mm;font-weight:bold}.ps-n small{font-weight:normal;font-size:6.5pt;color:#555}
+.ps-sum{display:flex;gap:6mm;align-items:center;margin-top:2mm;font-size:9pt;flex-wrap:wrap}.ps-sum b{font-size:10.5pt;color:#1f6b4a;margin-left:1mm}.ps-note{margin-left:auto;font-size:7pt;color:#555}
+.ps-sign{display:flex;justify-content:space-between;margin-top:5mm;font-size:8pt;text-align:center}.ps-sign>div{width:45%}.ps-sign .ln{border-bottom:1px solid #000;height:5mm;margin-bottom:1mm}
+.ps-list{display:flex;flex-direction:column;max-height:46vh;overflow:auto;padding:4px 6px;border-radius:12px;background:rgba(0,0,0,.03);margin-top:10px}
+.ps-pick{display:flex;gap:8px;align-items:center;padding:5px 4px;font-size:13.5px;cursor:pointer}
+/* ---------- v6.7 teacher tools ---------- */
+.tt-groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-top:6px}
+.tt-g{border-radius:16px;overflow:hidden;background:var(--bg);box-shadow:0 3px 12px rgba(0,0,0,.08);border-top:5px solid var(--gc)}
+.tt-g.pop{animation:ttPop .45s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes ttPop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+.tt-gh{display:flex;justify-content:space-between;padding:8px 12px;font-weight:800;color:var(--gc)}.tt-gh span{font-size:12px;opacity:.8}
+.tt-g ol{margin:0;padding:0 12px 10px 30px;font-size:13px;line-height:1.6}
+.tt-wheel{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:18px;align-items:center}
+.tt-wbox{position:relative;max-width:440px;width:100%;margin:0 auto}.tt-wbox canvas{width:100%;height:auto;display:block;filter:drop-shadow(0 6px 14px rgba(0,0,0,.18))}
+.tt-ptr{position:absolute;top:-6px;left:50%;transform:translateX(-50%);font-size:30px;color:#c0392b;text-shadow:0 2px 4px rgba(0,0,0,.3)}
+.tt-side{display:flex;flex-direction:column;align-items:stretch}
+.tt-result{font-size:18px;text-align:center;min-height:34px}
+.tt-win{display:inline-block;font-size:26px;font-weight:900;color:var(--green);animation:ttPop .5s cubic-bezier(.2,1.4,.4,1) both}
+.tt-big{font-size:18px;padding:14px 22px}
+.tt-hist{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.tt-hist span{font-size:12px;padding:3px 9px;border-radius:999px;background:rgba(31,107,74,.1)}
+.tt-race{margin-top:12px;display:flex;flex-direction:column;gap:4px;max-height:52vh;overflow:auto}
+.tt-lane{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px;align-items:center}
+.tt-lname{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt-track{position:relative;height:30px;border-radius:999px;background:linear-gradient(90deg,rgba(46,134,171,.18),rgba(46,134,171,.08));border-left:4px solid var(--lc)}
+.tt-duck{position:absolute;left:2px;top:1px;font-size:24px;transition:transform .08s linear;display:inline-block;transform-origin:center;transform:scaleX(-1)}
+.tt-duck.won{animation:ttPop .5s both}
+.tt-flag{position:absolute;right:6px;top:3px;font-size:20px}
+.tt-slot{padding:18px 0}
+.tt-reel{margin:0 auto;max-width:520px;height:96px;border-radius:22px;display:grid;place-items:center;font-size:28px;font-weight:800;background:linear-gradient(180deg,rgba(201,162,39,.18),rgba(31,107,74,.12));box-shadow:inset 0 2px 10px rgba(0,0,0,.12);text-align:center;padding:0 16px}
+.tt-reel.flip{color:var(--ink-2)}
+.tt-confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.tt-confetti i{position:absolute;top:-10px;width:8px;height:14px;border-radius:2px;animation:ttFall 1.8s ease-in forwards}
+@keyframes ttFall{to{top:105%;transform:rotate(540deg)}}
+@media (max-width:760px){.tt-wheel{grid-template-columns:1fr}.tt-lane{grid-template-columns:80px minmax(0,1fr)}}
+/* ---------- v6.7 Christmas look on the active tab (Settings can turn it off) ---------- */
+.xmas .nav a.active,.xmas .tabbar a.active,.xmas .seg button.on{position:relative;isolation:isolate}
+.xmas .nav a.active::before,.xmas .tabbar a.active::before,.xmas .seg button.on::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:2px;pointer-events:none;
+  background:linear-gradient(120deg,#e9c440,#2f9e5c,#f2d76b,#1f6b4a,#e9c440);background-size:300% 300%;animation:xmasGlow 6s ease infinite;
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+@keyframes xmasGlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+/* holly sprig with berries on the sidebar / tab-bar tab */
+.xmas .nav a.active::after,.xmas .tabbar a.active::after{content:"";position:absolute;top:-8px;right:2px;width:26px;height:22px;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 44'%3E%3Cpath d='M26 22 C18 8 6 10 2 6 C6 14 2 20 6 24 C10 22 16 26 26 22Z' fill='%232f8f4e'/%3E%3Cpath d='M26 22 C34 8 46 10 50 6 C46 14 50 20 46 24 C42 22 36 26 26 22Z' fill='%23267a42'/%3E%3Cpath d='M26 22 C18 8 6 10 2 6 M26 22 C34 8 46 10 50 6' stroke='%23175c32' stroke-width='1.2' fill='none'/%3E%3Ccircle cx='22' cy='26' r='5' fill='%23d62828'/%3E%3Ccircle cx='31' cy='27' r='5' fill='%23c1121f'/%3E%3Ccircle cx='26.5' cy='33' r='5' fill='%23e63946'/%3E%3Ccircle cx='20.5' cy='24.5' r='1.5' fill='%23fff' opacity='.7'/%3E%3Ccircle cx='29.5' cy='25.5' r='1.5' fill='%23fff' opacity='.7'/%3E%3C/svg%3E") no-repeat center/contain;
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));animation:xmasSway 3.5s ease-in-out infinite;transform-origin:50% 80%}
+@keyframes xmasSway{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+.xmas .seg{overflow:visible}
+.xmas .seg button.on::after{content:"✦";position:absolute;top:-7px;right:-3px;font-size:11px;color:#e9c440;text-shadow:0 0 4px rgba(233,196,64,.8);pointer-events:none;animation:xmasTw 2.2s ease-in-out infinite}
+@keyframes xmasTw{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+@media (prefers-reduced-motion:reduce){.xmas .nav a.active::before,.xmas .nav a.active::after,.xmas .seg button.on::after{animation:none}}
+.xmas .nav{padding-top:10px}

@@ -738,6 +738,8 @@ M.views.settings = function(el){
         <div class="grid g-2" style="gap:12px">${f('head','School Principal')}${f('headTitle','Title')}</div>
         ${f('driveUrl','Google Drive folder')}
         <label class="field">Appearance<select class="input" data-s="theme"><option value="auto" ${s.theme==='auto'?'selected':''}>Match device</option><option value="light" ${s.theme==='light'?'selected':''}>Light</option><option value="dark" ${s.theme==='dark'?'selected':''}>Dark</option></select></label>
+        <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" data-sb="xmas" ${s.xmas!==false?'checked':''}> 🎄 Christmas look on the tab I'm using ${M.newTag('xmas')}</label>
+        <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:4px"><input type="checkbox" data-sb="fridayReminder" ${s.fridayReminder!==false?'checked':''}> 🗓️ Remind me to back up every Friday at 3:00 PM ${M.newTag('friday-backup')}</label>
       </div>
       <h2 style="margin-top:22px">Printout logos</h2>
       <p class="small muted" style="margin-top:0">Shown on the SF9, SF2/SF4 and every printed report — DepEd seal on the upper left, school seal on the upper right.</p>
@@ -769,6 +771,7 @@ M.views.settings = function(el){
     <div class="row" style="margin-top:14px"><button class="btn primary" id="bkAll">${ico('download')} Back up everything</button><button class="btn" id="rs">${ico('upload')} Restore backup</button><input type="file" id="rsFile" accept=".json" hidden><span class="spacer"></span><button class="btn sm" id="bk" title="Smaller file without uploaded documents">Records only</button><button class="btn sm danger" id="reset">Reset to sample data</button></div>
   </div>
   <div class="card about-card" style="margin-top:20px"><div class="row"><img src="icons/brand.png" alt="" style="width:46px;height:46px;object-fit:contain"><div class="grow"><b>MASTRO</b> <span class="ver-chip">v${M.VERSION.n}</span> <span class="small muted">${M.VERSION.label}</span><div class="small muted">Developed by <b>${esc(M.DEV.name)}</b> · ${esc(M.DEV.org)}</div></div></div></div>`;
+  $$('[data-sb]', el).forEach(i => i.onchange = () => { s[i.dataset.sb] = i.checked; M.save(); M.applyTheme(); M.toast('Saved'); });
   $$('[data-s]', el).forEach(i => i.onchange = () => { s[i.dataset.s] = i.value.trim(); M.save(); if(i.dataset.s==='theme') M.applyTheme(); M.toast('Saved'); });
   $$('[data-c]', el).forEach(i => i.onchange = () => { c[i.dataset.c] = i.dataset.c==='grade' ? (Number(i.value)||i.value) : i.value.trim(); M.save(); M.renderClassSelect(); M.toast('Saved'); });
   let logoKey = null;

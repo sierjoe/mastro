@@ -185,7 +185,8 @@ function findTable(sh){
   if(map.last && map.first) delete map.name;
   const nameCol = map.name || map.last; if(!nameCol) return null;
   // first data row = first row under the header where the name column is empty
-  let start = hr + 1; while(start <= hr + 4){ const t = sh.mtext(nameCol, start); const m = sh.master(nameCol, start); if((!t || /^(male|boys?)$/i.test(t)) && m.r === start) break; start++; }
+  const spacer = (r) => { const el = sh.rows.get(r); return el && el.getAttribute('customHeight') && +el.getAttribute('ht') < 8; };   // thin divider rows are not learner rows
+  let start = hr + 1; while(start <= hr + 4){ const t = sh.mtext(nameCol, start); const m = sh.master(nameCol, start); if((!t || /^(male|boys?)$/i.test(t)) && m.r === start && !spacer(start)) break; start++; }
   return {hr, start, map, nameCol};
 }
 function fillLearners(sh, tbl, people, write){
@@ -214,6 +215,8 @@ function writeRow(sh, tbl, p, r, write){
 }
 
 /* ---------------- per-form fillers ---------------- */
+// "Region X – Northern Mindanao" → "X" for forms whose Region box is small
+const shortRegion = (r) => { const m = String(r || '').match(/region\s*([IVX]+(?:-[AB])?|\d+[AB]?|NCR|CAR|BARMM)\b/i) || String(r || '').match(/^(NCR|CAR|BARMM)\b/i); return m ? m[1].toUpperCase() : r; };
 const FORMS = {
   SF2: {needs:['month'], fill(sh, X){
     fillLabels(sh, X.head, LABELS); fillSignatures(sh, X.head);
@@ -251,33 +254,52 @@ const FORMS = {
   }},
   SF3: {fill(sh, X){ fillLabels(sh, X.head, LABELS); fillSignatures(sh, X.head); const tbl = findTable(sh); if(!tbl) return 'No learner table found.'; return fillLearners(sh, tbl, X.learners).length + ' learner(s)'; }},
   SF4: {needs:['month'], fill(sh, X){
-    fillLabels(sh, X.head, LABELS); fillSignatures(sh, X.head);
-    let gc = 0, gr = 0; sh.each((c, r, t) => { if(!gc && /grade\s*\/?\s*(year)?\s*level/i.test(t) && t.length < 30){ gc = c; gr = sh.master(c, r).m ? sh.master(c, r).m.r2 : r; } });
-    if(!gc) return 'No GRADE/YEAR LEVEL column found.';
-    let r = gr + 1; while(r < gr + 6 && !sh.isEmpty(gc, r)) r++;
-    const secs = X.sections || (X.sec ? [X.sec] : []); if(!secs.length) return 'No attendance section to report.';
-    const [y,m] = X.month.split('-').map(Number); const prevEnd = M.iso(new Date(y, m-1, 0));
-    secs.forEach(sec => {
+    const head = Object.assign({}, X.head, {region: shortRegion(X.head.region)});
+    fillLabels(sh, head, LABELS); fillSignatures(sh, head);
+    const find = (re, max = 40) => { let hit = null; sh.each((c, r, t) => { if(t.length > max || !re.test(t)) return; if(!hit || r < hit.r || (r === hit.r && c < hit.c)) hit = {c, r}; }); return hit; };
+    const hAdv = find(/^name\s*of\s*(class\s*)?adviser/i), hGr = find(/^grade\s*\/?\s*(year)?\s*(level)?\s*$/i), hSec = find(/^section\s*$/i), hReg = find(/registered\s*learner/i, 80);
+    if(!hReg) return 'No REGISTERED LEARNER header found.';
+    // the M / F / T header row under the column groups: registered, attendance (ADA, %), dropped out, transferred out, transferred in
+    let mftRow = 0, cols = [];
+    for(let r = hReg.r; r <= hReg.r + 5 && !cols.length; r++){ const cs = []; sh.each((c, rr, t) => { if(rr === r && /^[MFT]$/i.test(t.trim()) && c >= hReg.c) cs.push(c); }); if(cs.length >= 12){ mftRow = r; cols = cs.sort((x, y) => x - y); } }
+    if(!cols.length) return 'No M / F / T header row found.';
+    const secs = X.sections || (X.sec ? [X.sec] : []); if(!secs.length) return 'Link this class to an attendance section first.';
+    const [y, m] = X.month.split('-').map(Number); const prevEnd = M.iso(new Date(y, m - 1, 0));
+    const pc = (a, b) => b ? +(a / b * 100).toFixed(2) : '';
+    const rows = secs.map(sec => {
       const D = M.sf2Data(sec, X.month); const cl = M.S.classes.find(x => x.id === sec.classId); const st = Object.values(sec.students);
-      const cum = (k, v, f, upto, sx) => st.filter(x => x.sex===sx && x[k]===v && x[f] && x[f] <= upto).length;
-      const mv = (k, v, f) => { const a = ['M','F'].map(sx => cum(k,v,f,prevEnd,sx)), ab = ['M','F'].map(sx => cum(k,v,f,D.mEnd,sx)); const b = [ab[0]-a[0], ab[1]-a[1]]; return [a[0],a[1],a[0]+a[1], b[0],b[1],b[0]+b[1], ab[0],ab[1],ab[0]+ab[1]]; };
-      const sm = D.sx.M, sf = D.sx.F; const pc = (a,b) => b ? +(a/b*100).toFixed(2) : '';
-      const vals = [(sec.sf2&&sec.sf2.grade)||(cl?String(cl.grade):''), sec.name, (sec.sf2&&sec.sf2.adviser)||(cl?cl.adviser:''), sm.reg, sf.reg, sm.reg+sf.reg,
-        +sm.ada.toFixed(2), +sf.ada.toFixed(2), +(sm.ada+sf.ada).toFixed(2), pc(sm.ada,sm.reg), pc(sf.ada,sf.reg), pc(sm.ada+sf.ada, sm.reg+sf.reg),
-        ...mv('outType','dropped','outDate'), ...mv('outType','transferred','outDate'), ...mv('inType','transferred','inDate')];
-      let c = gc; vals.forEach((v, i) => { const mm = sh.master(c, r); sh.set(mm.c, r, v, i===0 ? 'Section row: '+sec.name : ''); c = (mm.m ? mm.m.c2 : c) + 1; });
-      r++;
+      const cum = (k, v, f, upto, sx) => st.filter(x => x.sex === sx && x[k] === v && x[f] && x[f] <= upto).length;
+      const mv = (k, v, f) => { const a = ['M','F'].map(sx => cum(k, v, f, prevEnd, sx)), ab = ['M','F'].map(sx => cum(k, v, f, D.mEnd, sx)); return [a[0], a[1], ab[0] - a[0], ab[1] - a[1], ab[0], ab[1]]; };
+      const sm = D.sx.M, sf = D.sx.F;
+      return {grade: (sec.sf2 && sec.sf2.grade) || (cl ? String(cl.grade) : ''), section: sec.name, adviser: (sec.sf2 && sec.sf2.adviser) || (cl ? cl.adviser : ''),
+        reg: [sm.reg, sf.reg], ada: [sm.ada, sf.ada], dO: mv('outType','dropped','outDate'), tO: mv('outType','transferred','outDate'), tI: mv('inType','transferred','inDate')};
     });
-    return `${secs.length} section row(s)`;
+    const vals = (x) => { const t3 = (a, b) => [a, b, a + b]; const r2 = (v) => +(+v).toFixed(2);
+      return [...t3(x.reg[0], x.reg[1]), ...t3(r2(x.ada[0]), r2(x.ada[1])).map(r2), pc(x.ada[0], x.reg[0]), pc(x.ada[1], x.reg[1]), pc(x.ada[0] + x.ada[1], x.reg[0] + x.reg[1]),
+        ...[x.dO, x.tO, x.tI].flatMap(v => [...t3(v[0], v[1]), ...t3(v[2], v[3]), ...t3(v[4], v[5])])]; };
+    const put = (r, x, label) => vals(x).forEach((v, i) => { if(cols[i] != null) sh.set(sh.master(cols[i], r).c, r, v, i === 0 ? label : ''); });
+    let r = mftRow + 1;
+    rows.forEach(x => { if(hAdv) sh.set(sh.master(hAdv.c, r).c, r, x.adviser, 'Adviser'); if(hGr) sh.set(sh.master(hGr.c, r).c, r, x.grade, 'Grade'); if(hSec) sh.set(sh.master(hSec.c, r).c, r, x.section, 'Section'); put(r, x, 'Section row: ' + x.section); r++; });
+    // summary block per grade level ("GRADE 1/GRADE 7" …) and TOTAL
+    const sum = (arr) => arr.reduce((a, x) => ({reg: [a.reg[0] + x.reg[0], a.reg[1] + x.reg[1]], ada: [a.ada[0] + x.ada[0], a.ada[1] + x.ada[1]], dO: a.dO.map((v, i) => v + x.dO[i]), tO: a.tO.map((v, i) => v + x.tO[i]), tI: a.tI.map((v, i) => v + x.tI[i])}),
+      {reg:[0,0], ada:[0,0], dO:[0,0,0,0,0,0], tO:[0,0,0,0,0,0], tI:[0,0,0,0,0,0]});
+    let sumRows = 0;
+    sh.each((c, rr, t) => { if(rr <= r || t.length > 40) return;
+      const g = [...new Set(rows.map(x => x.grade))].find(gr => gr && new RegExp('grade\\s*' + gr + '(?!\\d)', 'i').test(t));
+      if(g){ put(rr, sum(rows.filter(x => x.grade === g)), 'Grade ' + g + ' summary'); sumRows++; }
+      else if(/^total\s*$/i.test(t.trim())){ put(rr, sum(rows), 'Total'); sumRows++; } });
+    return `${rows.length} section row(s)${sumRows ? ', grade-level summary and total' : ''}`;
   }},
   SF5: {fill(sh, X){
-    fillLabels(sh, X.head, LABELS); fillSignatures(sh, X.head);
+    X = Object.assign({}, X, {learners: X.learners.filter(p => !p.l || M.counted(p.l))});   // not T/O, NLP or DO
+    const head = Object.assign({}, X.head, {region: shortRegion(X.head.region)});
+    fillLabels(sh, head, LABELS); fillSignatures(sh, head);
     const tbl = findTable(sh); let n = 0;
     if(tbl) n = fillLearners(sh, tbl, X.learners, (set, p) => { set('ga', isNum(p.ga) ? p.ga : ''); set('action', p.action); set('remarks', p.remarks); }).length;
     const cnt = (fn) => { const M_ = X.learners.filter(p => p.sex==='M' && fn(p)).length, F_ = X.learners.filter(p => p.sex!=='M' && fn(p)).length; return [M_, F_, M_+F_]; };
     const ga = (p) => isNum(p.ga) ? p.ga : null;
     const band = (lo, hi) => (p) => ga(p)!==null && ga(p) >= lo && ga(p) <= hi;
-    const rules = [[/^promoted/i, p => p.action==='PROMOTED'], [/^(conditional|irregular)/i, p => p.action==='CONDITIONAL'], [/^retained/i, p => p.action==='RETAINED'],
+    const rules = [[/^promoted/i, p => p.action==='PROMOTED'], [/^\*?\s*(conditional|irregular)/i, p => p.action==="CONDITIONAL" || p.action==="IRREGULAR"], [/^retained/i, p => p.action==='RETAINED'],
       [/^advanc(ing|ed)\b/i, band(90,100)], [/^benchmarking/i, band(80,89.99)], [/^connecting/i, band(75,79.99)], [/^developing/i, band(65,74.99)], [/^emerging/i, band(0,64.99)],
       [/^proficient/i, band(85,89.99)], [/^approaching/i, band(80,84.99)], [/^beginning/i, band(0,74.99)]];
     sh.each((c, r, t) => {
@@ -382,7 +404,9 @@ M.tplCurrent = async (code, list) => {
   if(id === 'builtin') return null;
   return list.find(d => d.id === id) || list[0] || null;
 };
-M.TPL_BUILTIN = {SF7:{file:'templates/SF7_Template.xlsx', name:'Built-in DepEd SF7 (the template you sent)'}, SF8:{file:'templates/SF8_Template.xlsx', name:'Built-in DepEd SF8 with WHO growth tables (the template you sent)'}};
+// SF5: print only the used part of the sheet (the template is wider than its content)
+FORMS.SF5.areas = (sh) => { let mc = 1, mr = 1; sh.each((c, r, t) => { if(t && t.trim()){ const m = sh.master(c, r); const c2 = m.m ? m.m.c2 : c, r2 = m.m ? m.m.r2 : r; if(c2 > mc) mc = c2; if(r2 > mr) mr = r2; } }); return [{area: `A1:${colLet(mc)}${mr}`}]; };
+M.TPL_BUILTIN = {SF4:{file:'templates/SF4_Template.xlsx', name:'Built-in DepEd SF4 (the template you sent)'}, SF5:{file:'templates/SF5_Template.xlsx', name:'Built-in DepEd SF5 (the template you sent)'}, SF7:{file:'templates/SF7_Template.xlsx', name:'Built-in DepEd SF7 (the template you sent)'}, SF8:{file:'templates/SF8_Template.xlsx', name:'Built-in DepEd SF8 with WHO growth tables (the template you sent)'}};
 // blob + name of the template in use (uploaded, or the built-in copy)
 M.tplInUse = async (code, list) => { const t = await M.tplCurrent(code, list); if(t) return {blob: t.blob, name: t.name, doc: t};
   const b = M.TPL_BUILTIN[code]; if(!b) return null; try { const r = await fetch(b.file); if(!r.ok) return null; return {blob: await r.blob(), name: b.name, builtin: true}; } catch(e){ return null; } };
@@ -430,7 +454,7 @@ M.templatePages = async function(code, blob, opts, onStep){
     const show = B.F.perLearner ? filledHere : (filledHere.filter(x => x.sh.filled.length).length ? filledHere.filter(x => x.sh.filled.length) : filledHere.slice(0,1));
     for(const x of show){
       if(!x.src.drawings) x.src.drawings = await M.xvDrawings(B.T.zip, x.src.sht.path, x.doc);
-      const base = Object.assign({drawings: x.src.drawings}, /^SF[24]$/.test(code) ? {orientation:'landscape', fit:true} : {});
+      const base = Object.assign({drawings: x.src.drawings}, /^SF2$/.test(code) ? {orientation:'landscape', fit:true} : /^SF[45]$/.test(code) ? {paper:[11.69, 8.27], margin:0.3, fit:true} : {});
       // some forms print on more than one page (row ranges); unused learner rows can be hidden on screen/print
       const areas = (B.F.areas && B.F.areas(x.sh, p)) || [{area: x.src.area}];
       for(const ar of areas){
@@ -516,7 +540,7 @@ function progress(text){
 M.xvProgress = progress;
 const paperName = (pp) => { const k = pp.map(x => +x.toFixed(2)).join('×'); return ({'8.5×13':'8.5 × 13 in (folio)','8.5×14':'8.5 × 14 in (legal)','8.5×11':'8.5 × 11 in (letter)','8.27×11.69':'A4','11.69×8.27':'A4 landscape','13×8.5':'13 × 8.5 in (folio, landscape)','14×8.5':'8.5 × 14 in landscape'})[k] || `${pp[0]} × ${pp[1]} in`; };
 M.xvPaperName = paperName;
-M.xvPrintPages = (pages) => M.doPrint(pages.map(p => p.html).join(''), M.xvPageCss(pages[0].paper));
+M.xvPrintPages = (pages) => M.doPrint(pages.map(p => p.html).join(''), M.xvPageCss(pages[0].paper), {margin: pages[0].margins ? pages[0].margins[0] : 0.5});
 M.xvPdf = async function(pages, filename){
   const pr = progress('Preparing PDF…');
   try {
