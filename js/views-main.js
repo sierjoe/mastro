@@ -247,11 +247,11 @@ function gradeSlips(c, t0){
       <button class="btn" id="gsOne">${ico('print')} Print this learner's slip</button><span class="spacer"></span>
       <button class="btn primary" id="gsAll">${ico('print')} Print all (${L.length}) · 4 per A4</button></div>
     <div class="slip-prev" id="gsPrev" style="margin-top:14px"></div>
-    <p class="tiny muted">A4 portrait, 4 slips per page (cut along the dashed lines). Print at 100% / actual size.</p>`, b => {
+    <p class="tiny muted">A4 portrait, 4 slips per page (cut along the dashed lines). One learner's slip prints at the same quarter-page size. Print at 100% / actual size.</p>`, b => {
     const inc = () => ({att: $('#gsA', b).checked, comment: $('#gsC', b).checked});
     const prev = () => { ui.term = $('#gsT', b).value; ui.lid = $('#gsL', b).value; Object.assign(ui, inc()); const l = L.find(x => x.id === ui.lid) || L[0]; $('#gsPrev', b).innerHTML = slipHtml(c, l, ui.term, inc()); };
     ['#gsT','#gsA','#gsC','#gsL'].forEach(x => $(x, b).onchange = prev); prev();
-    const print = (list) => M.doPrint(M.quadPages(list.map(l => slipHtml(c, l, ui.term, inc())), 99, 142.5, 4), M.pageCss('A4'), {noFit:true});
+    const print = (list) => M.doPrint(M.quadPages(list.map(l => slipHtml(c, l, ui.term, inc())), 99, 142.5, 4, 'A4', {measure:true}), M.pageCss('A4'), {noFit:true});
     $('#gsOne', b).onclick = () => print([L.find(x => x.id === $('#gsL', b).value) || L[0]]);
     $('#gsAll', b).onclick = () => print(L);
   }, true);

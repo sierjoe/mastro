@@ -454,7 +454,9 @@ M.templatePages = async function(code, blob, opts, onStep){
     const show = B.F.perLearner ? filledHere : (filledHere.filter(x => x.sh.filled.length).length ? filledHere.filter(x => x.sh.filled.length) : filledHere.slice(0,1));
     for(const x of show){
       if(!x.src.drawings) x.src.drawings = await M.xvDrawings(B.T.zip, x.src.sht.path, x.doc);
-      const base = Object.assign({drawings: x.src.drawings}, /^SF2$/.test(code) ? {orientation:'landscape', fit:true} : /^SF[45]$/.test(code) ? {paper:[11.69, 8.27], margin:0.3, fit:true} : {});
+      const pp = (M.S.settings.tplPaper || {})[code];
+      const base = Object.assign({drawings: x.src.drawings}, /^SF2$/.test(code) ? {orientation:'landscape', fit:true} : /^SF[45]$/.test(code) ? {paper:[11.69, 8.27], margin:0.3, fit:true} : {},
+        pp === 'A4' ? {paper:[8.27, 11.69], fit:true} : pp === 'FOLIO' ? {paper:[8.5, 13], fit:true} : {});
       // some forms print on more than one page (row ranges); unused learner rows can be hidden on screen/print
       const areas = (B.F.areas && B.F.areas(x.sh, p)) || [{area: x.src.area}];
       for(const ar of areas){
@@ -624,11 +626,13 @@ M.templateCard = async function(el, f){
           <button class="icon-btn" id="vNx" ${i<L.length-1?'':'disabled'}>${ico('right','width:18px;height:18px')}</button>
           <span class="small muted">${i+1} of ${L.length}</span><span class="spacer"></span>
           <button class="btn sm" id="vP1">${ico('print')} Print</button><button class="btn sm" id="vD1">${ico('pdf')} PDF</button><button class="btn sm" id="vX1">${ico('download')} Excel</button>
+          ${f.code === 'SF10' ? `<select class="input" id="vPaper" style="width:auto;padding:6px 10px;font-size:13px" title="Paper you print on">${[['','Paper: as in template'],['FOLIO','Paper: 8.5 × 13 in (long)'],['A4','Paper: A4']].map(([v, t]) => `<option value="${v}" ${((M.S.settings.tplPaper||{})[f.code]||'') === v ? 'selected' : ''}>${t}</option>`).join('')}</select>` : ''}
           <button class="btn sm primary" id="vPA">${ico('print')} Print all (${L.length})</button><button class="btn sm primary" id="vDA">${ico('pdf')} Bulk PDF</button><button class="btn sm" id="vClose">✕</button></div>
         <div class="chips" id="vInfo" style="margin:10px 0"></div><div id="vPages"><div class="empty">Filling…</div></div>`;
       const go = (id) => { ui.lid = id; viewer(); };
       $('#vPv', V).onclick = () => go(L[i-1].id); $('#vNx', V).onclick = () => go(L[i+1].id); $('#vSel', V).onchange = e => go(e.target.value);
       $('#vClose', V).onclick = () => { ui.view = false; V.innerHTML = ''; };
+      if($('#vPaper', V)) $('#vPaper', V).onchange = (e) => { M.S.settings.tplPaper = Object.assign({}, M.S.settings.tplPaper, {[f.code]: e.target.value}); M.save(); viewer(); };
       const one = await M.templatePages(f.code, tpl.blob, opts({only:l.id}));
       if(!one.pages.length){ $('#vPages', V).innerHTML = '<div class="empty">Nothing to show.</div>'; return; }
       $('#vInfo', V).innerHTML = `<span class="chip green">Template: ${esc(tpl.name)}</span><span class="chip">Paper: ${esc(paperName(one.pages[0].paper))}</span><span class="chip">${one.pages.length} page(s) per learner</span>${one.report[0]&&one.report[0].note?`<span class="chip">${esc(one.report[0].note)}</span>`:''}`;

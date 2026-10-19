@@ -211,6 +211,53 @@ function confetti(host){ if(!host) return; host.style.position = host.style.posi
   host.appendChild(box); setTimeout(() => box.remove(), 2200); }
 
 /* =====================================================================
+   4 · PRINT THE ECR — class record (raw scores) and summary, A4 with 0.5 in margins
+   ===================================================================== */
+function ecrRawPage(E, term, sxLabel, L){
+  const T = E.terms[term]; const ks = ['ww','pt','qa'].filter(k => T.comp && T.comp[k]);
+  const items = (k) => (T.comp[k].hps || []).map((h, i) => ({h, i, lab: (T.comp[k].labels || [])[i] || String(i + 1)})).filter(it => isNum(it.h) && it.h > 0);
+  const n0 = (v, d = 2) => isNum(v) ? fmt(v, d) : '';
+  const head1 = ks.map(k => `<th colspan="${items(k).length + 3}">${CL[k]}${T.comp[k].w ? ` (${T.comp[k].w}%)` : ''}</th>`).join('');
+  const head2 = ks.map(k => items(k).map(it => `<th>${esc(it.lab)}</th>`).join('') + '<th>Total</th><th>PS</th><th>WS</th>').join('');
+  const hps = ks.map(k => { const it = items(k); return it.map(x => `<td>${x.h}</td>`).join('') + `<td>${it.reduce((a, x) => a + x.h, 0)}</td><td>100</td><td>${T.comp[k].w ? T.comp[k].w + '%' : ''}</td>`; }).join('');
+  const row = (x, i) => `<tr><td>${i + 1}</td><td class="l">${esc(x.name)}</td>${ks.map(k => items(k).map(it => `<td>${isNum((x[k] || [])[it.i]) ? x[k][it.i] : ''}</td>`).join('') +
+    `<td>${isNum(x[k + 'Total']) ? x[k + 'Total'] : (items(k).some(it => isNum((x[k] || [])[it.i])) ? items(k).reduce((a, it) => a + (+(x[k] || [])[it.i] || 0), 0) : '')}</td><td>${n0(x[k + 'PS'])}</td><td>${n0(x[k + 'WS'])}</td>`).join('')}
+    <td>${n0(x.ig)}</td><td><b>${isNum(x.tg) ? x.tg : ''}</b></td></tr>`;
+  return `<div class="rdp">${M.printHeader('CLASS RECORD')}
+    <table class="rd-info"><tr><td>Subject</td><td><b>${esc(E.subject || '')}</b></td><td>Grade &amp; Section</td><td><b>${esc(E.title)}</b></td></tr>
+      <tr><td>Term</td><td><b>Term ${esc(term)}</b></td><td>School year</td><td><b>${esc(E.sy || (E.model && E.model.info && E.model.info.sy) || '')}</b></td></tr></table>
+    <table class="rd-t ecr-raw"><thead><tr><th rowspan="2">#</th><th rowspan="2" class="l">${sxLabel}</th>${head1}<th rowspan="2">Initial<br>grade</th><th rowspan="2">Term<br>grade</th></tr><tr>${head2}</tr>
+      <tr class="hps"><td></td><td class="l"><b>Highest possible score</b></td>${hps}<td></td><td></td></tr></thead>
+      <tbody>${L.map(row).join('') || '<tr><td colspan="99">No learners.</td></tr>'}</tbody></table>
+    ${M.printSign(M.cls(), 'Prepared by:', 'Noted by:').replace('Class Adviser', 'Subject Teacher')}</div>`;
+}
+function ecrSummaryPage(E, term, only){
+  const T = E.terms[term]; const ks = ['ww','pt','qa'].filter(k => T.comp && T.comp[k]); let last = null, i = 0;
+  const rows = (only || T.learners).map(x => { let pre = ''; if(x.sex && x.sex !== last){ last = x.sex; i = 0; pre = `<tr class="tot"><td colspan="${ks.length + 5}" class="l"><b>${x.sex === 'M' ? 'MALE' : 'FEMALE'}</b></td></tr>`; }
+    const g = isNum(x.tg) ? x.tg : null; return pre + `<tr><td>${++i}</td><td class="l">${esc(x.name)}</td>${ks.map(k => `<td>${isNum(x[k + 'PS']) ? fmt(x[k + 'PS'], 2) : ''}</td>`).join('')}<td>${isNum(x.ig) ? fmt(x.ig, 2) : ''}</td><td><b>${g ?? ''}</b></td><td>${g !== null ? esc(M.descriptor(g)) : ''}</td></tr>`; }).join('');
+  return `<div class="rdp">${M.printHeader('SUMMARY OF TERM GRADES')}
+    <table class="rd-info"><tr><td>Subject</td><td><b>${esc(E.subject || '')}</b></td><td>Grade &amp; Section</td><td><b>${esc(E.title)}</b></td></tr><tr><td>Term</td><td><b>Term ${esc(term)}</b></td><td>School year</td><td><b>${esc(E.sy || '')}</b></td></tr></table>
+    <table class="rd-t"><thead><tr><th>#</th><th class="l">Learner</th>${ks.map(k => `<th>${CL[k]} PS${T.comp[k].w ? ` (${T.comp[k].w}%)` : ''}</th>`).join('')}<th>Initial grade</th><th>Term grade</th><th>Descriptor</th></tr></thead><tbody>${rows}</tbody></table>
+    ${M.printSign(M.cls(), 'Prepared by:', 'Noted by:').replace('Class Adviser', 'Subject Teacher')}</div>`;
+}
+M.ecrPrint = function(E){
+  const terms = termsOf(E); if(!terms.length) return M.toast('No scores yet in this class record');
+  let term = terms[terms.length - 1];
+  const build = (kind) => { const T = E.terms[term];
+    if(kind === 'raw'){ const S = [['M','MALE'],['F','FEMALE']].map(([sx, t]) => [t, T.learners.filter(x => (x.sex || 'M') === sx)]).filter(x => x[1].length); return {land: true, pages: S.map(([t, L]) => ecrRawPage(E, term, t, L))}; }
+    // big classes: boys and girls on separate sheets so the print stays readable
+    if(T.learners.length > 30){ const S = ['M','F'].map(sx => T.learners.filter(x => (x.sex || 'M') === sx)).filter(a => a.length); return {land: false, pages: S.map(a => ecrSummaryPage(E, term, a))}; }
+    return {land: false, pages: [ecrSummaryPage(E, term)]}; };
+  M.modal(`Print ECR · ${E.title} · ${E.subject}`, `<div class="row" style="gap:8px;flex-wrap:wrap"><div class="seg" id="epT">${terms.map(t => `<button data-t="${t}" class="${t === term ? 'on' : ''}">Term ${t}</button>`).join('')}</div></div>
+    <div class="list" style="margin-top:12px">${[['raw','Class record — raw scores','Every written work, performance task and exam score with HPS, totals, PS, WS, initial and term grade. A4 landscape, boys and girls on separate sheets.'],['sum','Summary of term grades','PS per component, initial grade, term grade and descriptor. A4 portrait (boys and girls on separate sheets for big classes).']].map(([k, t, d]) => `<div class="item" style="align-items:center;gap:12px">${ico('print','width:22px;height:22px;color:var(--green)')}<div class="grow"><div class="title">${t}</div><div class="tiny muted">${d}</div></div><button class="btn sm" data-ev="${k}">${ico('eye')} View</button><button class="btn sm primary" data-ep="${k}">${ico('print')} Print</button></div>`).join('')}</div>`, b => {
+    $$('#epT button', b).forEach(x => x.onclick = () => { term = x.dataset.t; $$('#epT button', b).forEach(y => y.classList.toggle('on', y === x)); });
+    $$('[data-ev]', b).forEach(x => x.onclick = () => { const r = build(x.dataset.ev); const html = M.fitA4(r.pages, r.land);
+      M.pagePreview(`ECR · Term ${term} · ${E.title}`, html, {land: r.land, note: `A4 ${r.land ? 'landscape' : 'portrait'} · 0.5 in margins · ${r.pages.length} sheet(s)`}); });
+    $$('[data-ep]', b).forEach(x => x.onclick = () => { const r = build(x.dataset.ep); M.doPrint(M.fitA4(r.pages, r.land), M.pageCss('A4', r.land), {noFit: true}); });
+  }, true);
+};
+
+/* =====================================================================
    3 · ECR SAFETY NET for Google Drive — one folder per class record
    ===================================================================== */
 M.ecrDriveExport = async function(){

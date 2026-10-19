@@ -11,7 +11,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.7', date:'2026-10-17', label:'October 17, 2026'};
+M.VERSION = {n:'6.8', date:'2026-10-19', label:'October 19, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -120,12 +120,12 @@ M.NAV = [
   {id:'attendance', label:'Attendance', icon:'attendance', eyebrow:'SeatCheck · seats, SF2, SF4, cleaning', title:'Attendance'},
   {id:'learners', label:'Learners', icon:'learners', eyebrow:'Roster & credentials checklist', title:'Learners'},
   {id:'grades', label:'Grades', icon:'grades', eyebrow:'Consolidated gradesheet', title:'Grades'},
-  {id:'analysis', group:'analytics', label:'Analysis', icon:'analysis', eyebrow:'Class analysis tools', title:'Analysis'},
-  {id:'assess', group:'analytics', label:'Assessments', icon:'assess', eyebrow:'AI test maker · Budget of Work', title:'Assessments'},
-  {id:'items', group:'analytics', label:'Item Analysis', icon:'items', eyebrow:'Summative tests & term examinations', title:'Item Analysis'},
   {id:'reading', label:'Reading', icon:'book', eyebrow:'BULIG reading monitoring · levels & assessment periods', title:'Reading'},
   {id:'classes', label:'Classes', icon:'classes', eyebrow:'Electronic class records (ECR)', title:'Classes'},
   {id:'forms', label:'Forms', icon:'forms', eyebrow:'DepEd School Forms SF1–SF10', title:'Forms'},
+  {id:'analysis', group:'analytics', label:'Analysis', icon:'analysis', eyebrow:'Class analysis tools', title:'Analysis'},
+  {id:'assess', group:'analytics', label:'Assessments', icon:'assess', eyebrow:'AI test maker · Budget of Work', title:'Assessments'},
+  {id:'items', group:'analytics', label:'Item Analysis', icon:'items', eyebrow:'Summative tests & term examinations', title:'Item Analysis'},
   {id:'repo', label:'Repository', icon:'repo', eyebrow:'Documents & files', title:'Repository'},
   {id:'settings', label:'Settings', icon:'settings', eyebrow:'School, backup & data', title:'Settings'}
 ];
@@ -477,13 +477,19 @@ M.doPrintFit = (html, size = 'A4 landscape') => {
   M.doPrint(`<div class="fitbox" style="width:${W}mm;height:${H - 0.5}mm;overflow:hidden"><div style="width:${sw}px;transform:scale(${k.toFixed(4)});transform-origin:0 0">${html}</div></div>`, css, {noFit:true});
 };
 // A4 pages (inside the 0.5 in margins) holding 4 or 2 equal cells; each cell's content is designed at designW × designH mm and scaled to fit
-M.quadPages = function(cells, designW, designH, per = 4, paper = 'A4'){
+M.quadPages = function(cells, designW, designH, per = 4, paper = 'A4', o = {}){
   const [PW, PH] = M.printableMm(M.pageCss(paper)); const pw = Math.floor(PW) - 0.5, ph = Math.floor(PH) - 0.5;
-  const cw = per === 4 ? pw / 2 : pw, ch = ph / 2; const k = Math.min(1, cw / designW, ch / designH);
+  const cw = per === 4 ? pw / 2 : pw, ch = ph / 2; const pad = o.pad != null ? o.pad : 1.2; const px = 96 / 25.4;
   const pos = per === 4 ? [[0,0],[cw,0],[0,ch],[cw,ch]] : [[0,0],[0,ch]];
+  // every cell is scaled to fit its quarter (or half) and centred in it — nothing can run past the cut lines
+  const cell = (html, j) => { let h = designH;
+    if(o.measure){ const m = M.measurePrint(`<div style="width:${designW}mm">${html}</div>`, designW); h = Math.max(designH, m.h / px); }
+    const k = Math.min(1, (cw - pad * 2) / designW, (ch - pad * 2) / h);
+    const left = pos[j][0] + (cw - designW * k) / 2, top = pos[j][1] + (o.top ? pad : (ch - h * k) / 2);
+    return `<div class="quad-cell" style="left:${left.toFixed(2)}mm;top:${top.toFixed(2)}mm;width:${(designW * k).toFixed(2)}mm;height:${(h * k).toFixed(2)}mm"><div style="width:${designW}mm;height:${h.toFixed(2)}mm;transform:scale(${k.toFixed(4)});transform-origin:0 0">${html}</div></div>`; };
   const pages = [];
   for(let i=0;i<cells.length;i+=per){ const chunk = cells.slice(i, i+per);
-    pages.push(`<div class="quad-page" style="width:${pw}mm;height:${ph}mm">${per === 4 ? `<i class="cut v" style="left:${cw}mm"></i>` : ''}<i class="cut h" style="top:${ch}mm"></i>${chunk.map((c, j) => `<div class="quad-cell" style="left:${pos[j][0]}mm;top:${pos[j][1]}mm;width:${cw}mm;height:${ch}mm"><div style="width:${designW}mm;height:${designH}mm;transform:scale(${k.toFixed(4)});transform-origin:${per === 4 ? (j % 2 ? 'right' : 'left') : 'center'} top;margin:${per === 4 ? (j % 2 ? '0 0 0 auto' : '0') : '0 auto'}">${c}</div></div>`).join('')}</div>`); }
+    pages.push(`<div class="quad-page" style="width:${pw}mm;height:${ph}mm">${per === 4 ? `<i class="cut v" style="left:${cw}mm"></i>` : ''}<i class="cut h" style="top:${ch}mm"></i>${chunk.map(cell).join('')}</div>`); }
   return pages.join('');
 };
 M.doPrint = (html, pageCss, opts = {}) => {
@@ -569,6 +575,13 @@ M.backupReminder = () => {
   setTimeout(check, 2500); setInterval(check, 60 * 1000);
   document.addEventListener('visibilitychange', () => { if(!document.hidden) setTimeout(check, 800); });
 };
+/* ---------------- live day · date · time (top right, always visible) ---------------- */
+M.liveClock = () => { const d0 = $('#lcDay'), d1 = $('#lcDate'), d2 = $('#lcTime'); if(!d0) return;
+  const tick = () => { const n = new Date(); d0.textContent = n.toLocaleDateString(undefined, {weekday:'long'}); d1.textContent = n.toLocaleDateString(undefined, {month:'long', day:'numeric', year:'numeric'});
+    d2.textContent = n.toLocaleTimeString([], {hour:'numeric', minute:'2-digit', second:'2-digit'}); };
+  tick(); setInterval(tick, 1000);
+  // keeps floating in the top-right corner when the page scrolls
+  const fl = () => document.body.classList.toggle('lc-float', window.scrollY > 90); window.addEventListener('scroll', fl, {passive:true}); fl(); };
 M.boot = () => {
   M.load(); M.applyTheme();
   $('#classSelect').onchange = e => { M.S.activeClassId = e.target.value; M.save(); M.route(); };
@@ -582,6 +595,7 @@ M.boot = () => {
   window.addEventListener('online', net); window.addEventListener('offline', net); net();
   M.route();
   M.backupReminder();
+  M.liveClock();
   if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
 };
 })();

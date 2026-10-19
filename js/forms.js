@@ -14,7 +14,8 @@ M.FORMS = [
   {code:'SF7', title:'School Personnel Assignment List and Basic Profile', desc:'Teaching and non-teaching personnel, assignments and teaching loads.'},
   {code:'SF8', title:'Learner’s Basic Health and Nutrition Report', desc:'Height, weight, BMI and nutritional status of learners.'},
   {code:'SF9', title:'Learner’s Progress Report Card', desc:'Learner’s Performance Report (front and back) filled from the gradesheet and attendance.', gen:'sf9'},
-  {code:'SF10', title:'Learner’s Permanent Academic Record', desc:'Formerly Form 137 — the learner’s permanent scholastic record.'}
+  {code:'SF10', title:'Learner’s Permanent Academic Record', desc:'Formerly Form 137 — the learner’s permanent scholastic record.'},
+  {code:'AR', title:'Anecdotal Records', desc:'Your dated observations of learners in your advisory class — half an A4 per record, or download as Word to edit.', gen:'ar'}
 ];
 
 /* =====================================================================
@@ -23,13 +24,14 @@ M.FORMS = [
 M.views.forms = async function(el, args){
   const code = (args[0]||'').toUpperCase();
   if(code === 'SF9') return sf9View(el, args[1]);
+  if(code === 'AR') return M.anecdotalView(el);
   if(code) return formPage(el, M.FORMS.find(f=>f.code===code) || M.FORMS[0]);
   const docs = await M.docsAll().catch(()=>[]);
   const count = (c) => docs.filter(d=>d.formCode===c).length;
   const inUse = {}; for(const f of M.FORMS){ if(f.code==='SF9' || (M.TPL_FORMS||[]).includes(f.code)){ const t = await M.tplCurrent(f.code, docs.filter(d => d.formCode===f.code && d.isTemplate && d.blob).sort((a,b)=>b.added.localeCompare(a.added))); inUse[f.code] = t ? t.name : (f.code==='SF9' ? 'Built-in DepEd SF9' : ''); } }
   el.innerHTML = `<div class="grid g-3 forms-grid">${M.FORMS.map(f => `
     <a class="card form-card" href="#forms/${f.code}">
-      <div class="row"><div class="sf-code">${f.code}</div><span class="spacer"></span>${f.gen?`<span class="chip green">Generate</span>`:(M.TPL_FORMS||[]).includes(f.code)?`<span class="chip gold">Auto-fill</span>`:''}<span class="chip">${count(f.code)} file(s)</span></div>
+      <div class="row"><div class="sf-code">${f.code}</div><span class="spacer"></span>${f.gen?`<span class="chip green">Generate</span>`:(M.TPL_FORMS||[]).includes(f.code)?`<span class="chip gold">Auto-fill</span>`:''}${f.code === 'AR' ? `<span class="chip">${((M.cls().anecdotal)||[]).length} record(s)</span>${M.newTag('anecdotal')}` : `<span class="chip">${count(f.code)} file(s)</span>`}</div>
       <div class="title" style="margin-top:12px">${esc(f.title)}</div>
       <div class="small muted">${esc(f.desc)}</div>
       ${inUse[f.code] ? `<div class="tiny" style="margin-top:8px"><span class="badge-cur">Currently used</span> ${esc(inUse[f.code])}</div>` : ''}

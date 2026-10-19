@@ -305,12 +305,13 @@ function detail(el, id, mode, termArg){
     ${mode==='edit' ? `<a class="btn" href="#classes/${E.id}/view/${term||''}">${ico('grades')} Summary</a>` : ''}
     <a class="btn sparkle" href="#classes/${E.id}/analyze/${term||'1'}">${ico('sparkle')} Analyze</a>
   </div>
-  <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn sm gold" id="ePs">${ico('print')} Progress slips ${M.newTag('progress-slips')}</button><button class="btn sm" id="eTt">🎲 Teacher tools ${M.newTag('teacher-tools')}</button></div>
+  <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn sm gold" id="ePs">${ico('print')} Progress slips ${M.newTag('progress-slips')}</button><button class="btn sm" id="eTt">🎲 Teacher tools ${M.newTag('teacher-tools')}</button><button class="btn sm" id="ePr">${ico('print')} Print ECR ${M.newTag('ecr-print')}</button></div>
   <div class="row" style="margin-top:12px"><button class="btn sm" id="eUp">${ico('upload')} Update from new ECR file</button><input type="file" id="eUpF" accept=".xlsx,.xls,.xlsm" hidden><button class="btn sm" id="eEd">${ico('edit')} Rename</button>${E.docId?`<button class="btn sm" id="eDl">${ico('download')} Download ECR file</button>`:''}<span class="spacer"></span><button class="btn sm danger" id="eDel">Delete</button></div></div>
   <div id="eBody" style="margin-top:20px"></div>`;
   if($('#eT')) $('#eT').onclick = e => { const b = e.target.closest('button'); if(b) location.hash = `#classes/${E.id}/${mode==='analyze'?'analyze':'view'}/${b.dataset.t}`; };
   $('#ePs').onclick = () => M.progressSlips(E);
   $('#eTt').onclick = () => M.teacherTools(E);
+  $('#ePr').onclick = () => M.ecrPrint(E);
   $('#eUp').onclick = () => $('#eUpF').click();
   $('#eUpF').onchange = e => { const f = e.target.files[0]; e.target.value=''; if(f) importECR(f); };
   if($('#eDl')) $('#eDl').onclick = async () => { const d = await M.docGet(E.docId); if(d && d.blob) M.downloadBlob(d.blob, d.name); else M.toast('File not found on this device'); };

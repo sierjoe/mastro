@@ -150,7 +150,7 @@ M.xvRender = function(doc, sst, styles, area, opts = {}){
   if(opts.paper){ [pw, ph] = opts.paper; }
   // MASTRO prints every page with 0.5 in margins on all sides (a form may ask for less, e.g. SF4/SF5 at 0.3 in)
   const mg = opts.margin != null ? opts.margin : 0.5; const mL = mg, mR = mg, mT = mg, mB = mg;
-  const iw = (pw - mL - mR) * 96, ih = (ph - mT - mB) * 96;
+  const iw = (pw - mL - mR) * 96 - 3, ih = (ph - mT - mB) * 96 - 8;   // a few px of safety so rounding never pushes the bottom row onto a second sheet
   const fit = opts.fit || spr?.getAttribute('fitToPage') === '1' || spr?.getAttribute('fitToPage') === 'true';
   let k = fit ? Math.min(1, iw / W, ih / H) : Math.min(1, (+(ps?.getAttribute('scale')||100))/100, iw / W);
   if(!fit && H * k > ih) k = Math.min(k, ih / H);
