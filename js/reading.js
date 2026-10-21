@@ -206,10 +206,94 @@ function repTab(el, c, d, L){
     {id:'grp', t:'Intervention groupings', s:'Groups by level after the latest AP (change the point in the Groupings tab).', pages:() => [groupsPage(c, d, L, d.aps.length)]}
   ];
   el.innerHTML = `<div class="card"><h2 style="margin:0 0 4px">BULIG reports · ${esc(d.subject === 'FILIPINO' ? 'Filipino' : 'English')} reading</h2><p class="small muted" style="margin:0 0 14px">Every report fits A4 inside 0.5 in margins — big classes shrink to fit, nothing runs off the page. Tap <b>View</b> to check it before printing.</p>
+    <div class="item rpc-item" style="align-items:center;gap:12px;margin-bottom:10px"><img src="${RPC_IMG(d)}" alt="" style="width:40px;height:56px;object-fit:cover;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.2)"><div class="grow"><div class="title">Reading Progress Card (BPrC) ${M.newTag('rpc')} <span class="chip" style="font-size:10px;padding:2px 8px">2 per A4 landscape</span></div><div class="tiny muted">The BULIG card for each learner — name, LRN and every level passed with the date and assessor. Pick one, several or all learners; print or download a PDF.</div></div><button class="btn sm primary" id="rpcGo">${ico('print')} Choose learners</button></div>
     <div class="list">${R.map(r => `<div class="item" style="align-items:center;gap:12px">${ico('pdf','width:24px;height:24px;color:var(--green)')}<div class="grow"><div class="title">${r.t}${r.land ? ' <span class="chip" style="font-size:10px;padding:2px 8px">A4 landscape</span>' : ' <span class="chip" style="font-size:10px;padding:2px 8px">A4</span>'}</div><div class="tiny muted">${r.s}</div></div>
       ${r.ap ? apSel(r.ap) : ''}<button class="btn sm" data-v="${r.id}" ${r.ap && !aps.length ? 'disabled' : ''}>${ico('eye')} View</button><button class="btn sm primary" data-p="${r.id}" ${r.ap && !aps.length ? 'disabled' : ''}>${ico('print')} Print</button></div>`).join('')}</div></div>`;
   $$('[data-v]', el).forEach(b => b.onclick = () => { const r = R.find(x => x.id === b.dataset.v); preview(r.t, r.pages(), !!r.land); });
+  $('#rpcGo', el).onclick = () => rpcPicker(c, d, L);
   $$('[data-p]', el).forEach(b => b.onclick = () => { const r = R.find(x => x.id === b.dataset.p); printPages(r.pages(), !!r.land); });
+}
+
+/* ---------- Reading Progress Card (BPrC) — the BULIG card template, filled ---------- */
+const RPC_IMG = (d) => d.subject === 'FILIPINO' ? 'templates/RPC_Filipino.jpg' : 'templates/RPC_English.jpg';
+const RPC_W = 1226, RPC_H = 1732;   // template image size (px)
+const RPC_ROWS = [[661,790],[790,918],[918,1046],[1046,1174],[1174,1302],[1302,1430],[1430,1558]];
+const RPC_COLS = {desc:[203,447], rem:[447,691], date:[691,934], sig:[934,1178]};
+const RPC_DESC = ['Oral Language','Phonological Awareness','Word Recognition','Vocabulary & Listening Comprehension','Fluency','Graded Reading Comprehension','Genuine Love for Reading & Writing'];
+const RPC_KEYS = [['L1'],['L2A','L2B'],['L3A','L3B'],['L4'],['L5'],['L6'],['L7']];
+// what the card shows for levels 1–7: passed (with date + assessor), mastered at pre-test, in progress
+function rpcRows(d, lid){
+  const r = d.L[lid] || {}; if(!r.pre) return RPC_KEYS.map(() => null);
+  const preI = LVI[r.pre]; const passes = {};   // key → {date, by}
+  d.aps.forEach((a, i) => { const before = levelAt(d, lid, i); if(before && (a.marks || {})[lid] === 'P') passes[before] = {date: a.date, by: assessorOf(d, i + 1, before)}; });
+  const cur = curLevel(d, lid); const curI = LVI[cur];
+  return RPC_KEYS.map((keys, n) => { const idx = keys.map(k => LVI[k]); const last = keys[keys.length - 1];
+    if(Math.max(...idx) < preI) return {rem:'Mastered (pre-test)', date: d.preDate, by: d.preBy};
+    if(passes[last]) return {rem: keys.length > 1 ? `Passed ${keys.map(k => lvOf(k).short).join(' & ')}` : 'Passed', date: passes[last].date, by: passes[last].by};
+    if(idx.includes(curI)){ const part = keys.filter(k => passes[k]).map(k => lvOf(k).short); return {rem: part.length ? `${part.join(', ')} passed · in progress` : (cur === r.pre && !d.aps.some(a => (a.marks || {})[lid]) ? 'Starting level (pre-test)' : 'In progress'), date: part.length ? passes[keys.find(k => passes[k])].date : '', by: ''}; }
+    return null; });
+}
+const pct = (v, t) => (v / t * 100).toFixed(3) + '%';
+const fdt = (iso) => iso ? M.parse(iso).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'}) : '';
+function rpcHtml(c, d, l){
+  const lg = (M.S.settings.logos || {}).school; const rows = rpcRows(d, l.id);
+  const box = (x0, x1, y0, y1, html, cls) => `<div class="rpc-f ${cls || ''}" style="left:${pct(x0, RPC_W)};width:${pct(x1 - x0, RPC_W)};top:${pct(y0, RPC_H)};height:${pct(y1 - y0, RPC_H)}">${html}</div>`;
+  return `<div class="rpc-card"><img class="rpc-bg" src="${RPC_IMG(d)}" alt="">
+    ${lg ? `<img class="rpc-logo" src="${lg}" alt="" style="left:${pct(858, RPC_W)};top:${pct(55, RPC_H)};width:${pct(100, RPC_W)};height:${pct(100, RPC_H)}">` : ''}
+    ${box(140, 690, 268, 316, `<span style="font-size:${Math.min(2.9, 2.9 * 22 / Math.max(22, l.name.length)).toFixed(2)}cqw">${esc(l.name)}</span>`, 'rpc-name')}${box(935, 1190, 268, 316, esc(l.lrn || ''), 'rpc-name')}
+    ${RPC_ROWS.map(([y0, y1], n) => { const x = rows[n]; return box(...RPC_COLS.desc, y0, y1, esc(RPC_DESC[n]), 'rpc-desc') + (x ? box(...RPC_COLS.rem, y0, y1, esc(x.rem), 'rpc-rem ' + (/passed|mastered/i.test(x.rem) ? 'ok' : 'rpc-ip')) + box(...RPC_COLS.date, y0, y1, esc(fdt(x.date)), '') + box(...RPC_COLS.sig, y0, y1, x.by ? `<span>${esc(x.by)}</span>` : '', 'rpc-sig') : ''); }).join('')}
+  </div>`;
+}
+// A4 landscape, 2 cards side by side (one card keeps the same half size)
+function rpcPages(c, d, list){
+  const css = M.pageCss('A4', true); const [PW, PH] = M.printableMm(css); const W = Math.floor(PW) - 0.5, H = Math.floor(PH) - 0.5, half = W / 2, pad = 2;
+  const ch = H - pad * 2, cw = Math.min(half - pad * 2, ch * RPC_W / RPC_H), chh = cw * RPC_H / RPC_W;
+  const cell = (l, x) => `<div class="quad-cell" style="left:${(x + (half - cw) / 2).toFixed(2)}mm;top:${((H - chh) / 2).toFixed(2)}mm;width:${cw.toFixed(2)}mm;height:${chh.toFixed(2)}mm">${rpcHtml(c, d, l)}</div>`;
+  const out = []; for(let i = 0; i < list.length; i += 2){ out.push(`<div class="quad-page" style="width:${W}mm;height:${H}mm"><i class="cut v" style="left:${half}mm"></i>${cell(list[i], 0)}${list[i + 1] ? cell(list[i + 1], half) : ''}</div>`); }
+  return out.join('');
+}
+async function rpcPdf(c, d, list){
+  await M.loadScript('vendor/jspdf.umd.min.js'); const {jsPDF} = window.jspdf;
+  const load = (src) => new Promise((res, rej) => { const im = new Image(); im.onload = () => { const cv = document.createElement('canvas'); cv.width = im.naturalWidth; cv.height = im.naturalHeight; cv.getContext('2d').drawImage(im, 0, 0); res(cv.toDataURL('image/jpeg', 0.9)); }; im.onerror = rej; im.src = src; });
+  const bg = await load(RPC_IMG(d)); const logo = (M.S.settings.logos || {}).school || null;
+  const pdf = new jsPDF({orientation:'landscape', unit:'mm', format:'a4', compress:true});
+  const PW = 297, PH = 210, m = 12.7, half = (PW - 2 * m) / 2, ch = PH - 2 * m, cw = Math.min(half - 4, ch * RPC_W / RPC_H), chh = cw * RPC_H / RPC_W;
+  const fit = (t, w, size) => { pdf.setFontSize(size); while(size > 4 && pdf.getTextWidth(t) > w){ size -= 0.3; pdf.setFontSize(size); } return size; };
+  list.forEach((l, i) => { if(i && i % 2 === 0) pdf.addPage('a4', 'landscape');
+    const ox = m + (i % 2) * half + (half - cw) / 2, oy = m + (ch - chh) / 2, X = (px) => ox + px / RPC_W * cw, Y = (py) => oy + py / RPC_H * chh;
+    pdf.addImage(bg, 'JPEG', ox, oy, cw, chh, undefined, 'FAST');
+    if(logo){ try { pdf.addImage(logo, X(858), Y(55), X(958) - X(858), Y(155) - Y(55)); } catch(e){} }
+    if(i % 2 === 1){ pdf.setLineDashPattern([1.5, 1.5], 0); pdf.setDrawColor(150); pdf.line(m + half, m, m + half, PH - m); pdf.setLineDashPattern([], 0); }
+    pdf.setTextColor(17, 17, 17); pdf.setFont('helvetica', 'bold');
+    const put = (t, x0, x1, y0, y1, size, bold, color, align, maxL = 2) => { if(!t) return; pdf.setFont('helvetica', bold ? 'bold' : 'normal'); if(color) pdf.setTextColor(...color); else pdf.setTextColor(17, 17, 17);
+      const w = X(x1) - X(x0) - 1.2; let sz = size; pdf.setFontSize(sz); let lines = pdf.splitTextToSize(String(t), w);
+      while(lines.length > maxL && sz > 4){ sz -= 0.3; pdf.setFontSize(sz); lines = pdf.splitTextToSize(String(t), w); } const lh = sz * 0.36;
+      const yc = (Y(y0) + Y(y1)) / 2 - (lines.length - 1) * lh / 2 + sz * 0.12;
+      lines.slice(0, 3).forEach((ln, k) => pdf.text(ln, align === 'left' ? X(x0) + 0.8 : (X(x0) + X(x1)) / 2, yc + k * lh, {align: align === 'left' ? 'left' : 'center'})); };
+    put(l.name, 140, 690, 268, 316, 9.5, true, null, 'left', 1); put(l.lrn || '', 935, 1190, 268, 316, 9.5, true, null, 'left', 1);
+    const rows = rpcRows(d, l.id);
+    RPC_ROWS.forEach(([y0, y1], n) => { put(RPC_DESC[n], ...RPC_COLS.desc, y0, y1, 6.6, false, null, 'center', 3); const x = rows[n]; if(!x) return;
+      put(x.rem, ...RPC_COLS.rem, y0, y1, 6.6, true, /passed|mastered/i.test(x.rem) ? [20, 97, 60] : [180, 120, 0]); put(fdt(x.date), ...RPC_COLS.date, y0, y1, 6.6, false); put(x.by, ...RPC_COLS.sig, y0, y1, 5.4, false, [70, 70, 70]); }); });
+  const name = list.length === 1 ? `Reading Progress Card - ${list[0].name.split(',')[0]} (${d.subject === 'FILIPINO' ? 'Filipino' : 'English'}).pdf` : `Reading Progress Cards - ${M.className(c)} (${d.subject === 'FILIPINO' ? 'Filipino' : 'English'}, ${list.length}).pdf`;
+  M.downloadBlob(pdf.output('blob'), name); M.toast('PDF downloaded');
+}
+function rpcPicker(c, d, L){
+  const sel = {}; L.forEach(l => { if((d.L[l.id] || {}).pre) sel[l.id] = 1; });
+  M.modal(`Reading Progress Cards · ${d.subject === 'FILIPINO' ? 'Filipino' : 'English'}`, `
+    <p class="small muted" style="margin-top:0">Name and LRN come from your class roster (SF1). Levels passed, dates and assessors come from the pre-test and the Assessment Periods. Ticked: learners with a pre-test level.</p>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" id="rcAll">All</button><button class="btn sm" id="rcNone">None</button><input class="input" id="rcQ" placeholder="Find a learner…" style="max-width:220px;padding:6px 10px"><span class="spacer"></span><span class="small muted" id="rcN"></span></div>
+    <div class="ps-list" id="rcList">${bySex(L).map(([, t, arr]) => `<div class="tiny muted" style="margin:8px 0 4px">${t}</div>${arr.map(l => `<label class="ps-pick"><input type="checkbox" data-l="${l.id}" ${sel[l.id] ? 'checked' : ''}> ${esc(l.name)} <span class="tiny muted">${esc(l.lrn || 'no LRN')}${(d.L[l.id] || {}).pre ? ' · ' + lvOf(curLevel(d, l.id)).t : ' · no pre-test level'}</span></label>`).join('')}`).join('')}</div>
+    <div class="row" style="margin-top:12px;gap:8px"><span class="spacer"></span><button class="btn" id="rcV">${ico('eye')} View</button><button class="btn" id="rcD">${ico('download')} Download PDF</button><button class="btn primary" id="rcP">${ico('print')} Print</button></div>`, b => {
+    const upd = () => { const n = $$('#rcList input:checked', b).length; $('#rcN', b).textContent = `${n} card(s) · ${Math.ceil(n / 2)} A4 sheet(s)`; };
+    $$('#rcList input', b).forEach(x => x.onchange = upd); upd();
+    $('#rcAll', b).onclick = () => { $$('#rcList input', b).forEach(x => x.checked = true); upd(); }; $('#rcNone', b).onclick = () => { $$('#rcList input', b).forEach(x => x.checked = false); upd(); };
+    $('#rcQ', b).oninput = (e) => { const q = M.normName(e.target.value); $$('.ps-pick', b).forEach(x => x.style.display = !q || M.normName(x.textContent).includes(q) ? '' : 'none'); };
+    const chosen = () => $$('#rcList input:checked', b).map(x => L.find(l => l.id === x.dataset.l));
+    const need = () => { const L2 = chosen(); if(!L2.length) M.toast('Tick at least one learner'); return L2; };
+    $('#rcP', b).onclick = () => { const L2 = need(); if(L2.length) M.doPrint(rpcPages(c, d, L2), M.pageCss('A4', true), {noFit: true}); };
+    $('#rcD', b).onclick = () => { const L2 = need(); if(L2.length) rpcPdf(c, d, L2); };
+    $('#rcV', b).onclick = () => { const L2 = need(); if(L2.length) M.pagePreview(`Reading Progress Cards · ${L2.length}`, rpcPages(c, d, L2), {land: true, note:`A4 landscape · 2 cards per sheet · 0.5 in margins · ${Math.ceil(L2.length / 2)} sheet(s)`, onPrint: () => M.doPrint(rpcPages(c, d, L2), M.pageCss('A4', true), {noFit: true})}); };
+  }, true);
 }
 
 /* report pieces */

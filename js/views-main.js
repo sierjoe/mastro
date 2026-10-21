@@ -101,14 +101,15 @@ M.views.home = async function(el){
       <div class="chips"><span class="chip">${c.learners.length} learners</span><span class="chip">${boys} boys</span><span class="chip">${girls} girls</span><span class="chip">Terms with grades: ${M.termsWithData(c).join(', ')||'none'}</span>${Object.entries(M.statusSummary(c)).filter(([,v])=>v.length).map(([k,v])=>`<span class="chip">${M.STATUS[k].short} ${v.length}</span>`).join('')}</div>
     </div>
     <div class="grid g-2 keep">
-      <div class="card stat accent"><div class="label">Class GA · T${t}</div><div class="value">${fmt(st.mean)}</div><div class="sub">median ${fmt(st.median)}</div></div>
+      <div class="card stat accent"><div class="label">Class GA · T${t}</div><div class="value">${M.fg(st.mean)}</div><div class="sub">median ${M.fg(st.median)}</div></div>
       <div class="card stat"><div class="label">Passing (≥75)</div><div class="value">${st.n?Math.round(st.passRate)+'%':'—'}</div><div class="sub">${st.n?st.passed+' of '+st.n:'no data'}</div></div>
-      <div class="card stat"><div class="label">Highest GA</div><div class="value">${top?fmt(top.v):'—'}</div><div class="sub">${top?esc(top.l.name.split(',').reverse().join(' ').trim()):''}</div></div>
+      <div class="card stat"><div class="label">Highest GA</div><div class="value">${top?M.fg(top.v):'—'}</div><div class="sub">${top?esc(top.l.name.split(',').reverse().join(' ').trim()):''}</div></div>
       <div class="card stat"><div class="label">Missing credentials</div><div class="value" style="color:${cs.missing.length?'var(--amber)':'inherit'}">${cs.missing.length}</div><div class="sub">learners with gaps</div></div>
     </div>
   </div>
 
   ${c.learners.length ? `<div class="card hsearch" style="margin-top:20px"><div class="row" style="gap:10px">${ico('learners','width:22px;height:22px;color:var(--green)')}<div class="grow" style="position:relative;flex:1 1 auto;min-width:0"><input class="input" id="hsQ" style="width:100%" placeholder="Search a learner — type a name or LRN to see everything about them" autocomplete="off"><div class="hs-sug" id="hsSug" hidden></div></div>${M.newTag('home-search')}</div><div id="hsOut"></div></div>` : ''}
+  ${M.calendarCard ? `<div style="margin-top:20px" id="calWrap">${M.calendarCard()}</div>` : ''}
   <div class="grid g-2" style="margin-top:20px">
     <div class="card">
       <div class="row"><h2 style="margin:0">Credentials & requirements</h2><span class="spacer"></span><a class="btn sm" href="#learners">${ico('learners')} Open checklist</a></div>
@@ -139,6 +140,7 @@ M.views.home = async function(el){
     </div>
   </div>`;
   if($('#hsQ')) homeSearch(c);
+  if($('#calWrap')){ M.calendarBind($('#calWrap')); const lb = document.createElement('button'); lb.className = 'btn sm'; lb.textContent = '📝 What I did last time'; lb.onclick = () => M.welcomeBack(true); $('#calAll').before(lb); }
   if($('#hBk')) $('#hBk').onclick = () => M.backupAll();
   if($('#wRestore')){ $('#wRestore').onclick = () => $('#wFile').click(); $('#wFile').onchange = e => { const f = e.target.files[0]; e.target.value=''; if(f) M.restoreFile(f); }; }
   const docs = (await M.docsAll().catch(()=>[])).sort((a,b)=>b.added.localeCompare(a.added)).slice(0,4);
@@ -160,7 +162,7 @@ M.views.grades = function viewGrades(el){
     const r = M.termRow(c, t, l.id); idx++;
     body += `<tr data-lid="${l.id}"><td class="muted">${idx}</td><td class="sticky-col"><b>${esc(l.name)}</b> ${M.statusChip(l,1)}</td>` +
       cols.map(k => `<td class="num"><input class="grade-in ${isNum(r[k])&&r[k]<PASS?'low':''}" inputmode="decimal" data-sub="${esc(k)}" value="${isNum(r[k])?r[k]:''}" aria-label="${esc(k)} grade for ${esc(l.name)}"></td>`).join('') +
-      `<td class="num computed" data-c="MAPEH">${fmt(r.MAPEH,2).replace(/\.00$/,'')}</td><td class="num" data-c="GA"><b class="${isNum(r.GA)&&Math.round(r.GA)<PASS?'low':''}">${fmt(r.GA)}</b></td><td data-c="desc">${r.desc?`<span class="desc d-${r.desc}">${r.desc}</span>`:''}</td></tr>`;
+      `<td class="num computed" data-c="MAPEH">${M.fg(r.MAPEH)}</td><td class="num" data-c="GA"><b class="${isNum(r.GA)&&Math.round(r.GA)<PASS?'low':''}">${fmt(r.GA)}</b></td><td data-c="desc">${r.desc?`<span class="desc d-${r.desc}">${r.desc}</span>`:''}</td></tr>`;
   });
   const meanRow = () => `<tr><td></td><td class="sticky-col"><b>Class mean</b>${L.some(l=>!M.counted(l))?'<div class="tiny muted">excl. T/O, NLP, DO</div>':''}</td>${[...cols,'MAPEH','GA'].map(k=>`<td class="num computed">${fmt(M.stats(L.filter(M.counted).map(l=>M.termRow(c,t,l.id)[k])).mean)}</td>`).join('')}<td></td></tr>`;
   el.innerHTML = M.excludedNote(c) + `
@@ -194,10 +196,10 @@ M.views.grades = function viewGrades(el){
     c.grades[t] = c.grades[t] || {}; const g = c.grades[t][lid] = c.grades[t][lid] || {};
     if(raw===''){ delete g[k]; }
     else { const n = Number(raw); if(!isFinite(n) || n<0 || n>100){ M.toast('Enter a grade from 0 to 100'); inp.value = isNum(g[k])?g[k]:''; return; } g[k] = n; }
-    M.save();
+    M.save(); if(M.logAct) M.logAct(`Edited grades in the gradesheet · Term ${t}`, 'grades:' + t);
     const r = M.termRow(c, t, lid);
     inp.classList.toggle('low', isNum(g[k]) && g[k] < PASS);
-    $('[data-c="MAPEH"]', tr).textContent = fmt(r.MAPEH,2).replace(/\.00$/,'');
+    $('[data-c="MAPEH"]', tr).textContent = M.fg(r.MAPEH);
     $('[data-c="GA"]', tr).innerHTML = `<b class="${isNum(r.GA)&&Math.round(r.GA)<PASS?'low':''}">${fmt(r.GA)}</b>`;
     $('[data-c="desc"]', tr).innerHTML = r.desc?`<span class="desc d-${r.desc}">${r.desc}</span>`:'';
     $('#gFoot').innerHTML = meanRow();
@@ -291,8 +293,8 @@ M.views.analysis = function viewAnalysis(el){
   ${M.excludedNote(c).replace('class="card status-note"','class="card status-note" style="margin-top:16px"')}
   <div class="small muted" style="margin:16px 4px 10px">${esc(subjLabel)} · ${esc(termLabel)} · ${sexLabel} · ${st.n} learner(s) with grades</div>
   <div class="grid g-4">
-    <div class="card stat accent"><div class="label">Mean</div><div class="value">${fmt(st.mean)}</div><div class="sub">average of all grades</div></div>
-    <div class="card stat"><div class="label">Median</div><div class="value">${fmt(st.median)}</div><div class="sub">middle grade</div></div>
+    <div class="card stat accent"><div class="label">Mean</div><div class="value">${M.fg(st.mean)}</div><div class="sub">average of all grades</div></div>
+    <div class="card stat"><div class="label">Median</div><div class="value">${M.fg(st.median)}</div><div class="sub">middle grade</div></div>
     <div class="card stat"><div class="label">Mode</div><div class="value" style="font-size:${st.modes&&st.modes.length>1?'22px':''}">${M.modeText(st)}</div><div class="sub">${st.n&&st.modes.length?`appears ${st.modeFreq}× (whole numbers)`:'no repeated grade'}</div></div>
     <div class="card stat"><div class="label">Std. deviation</div><div class="value">${fmt(st.sd)}</div><div class="sub">${st.n?(st.sd<4?'grades are close together':st.sd<8?'moderate spread':'widely spread'):''}</div></div>
     <div class="card stat"><div class="label">Highest</div><div class="value">${fmt(st.max)}</div><div class="sub">${ranked[0]?esc(ranked[0].l.name):''}</div></div>
@@ -305,16 +307,16 @@ M.views.analysis = function viewAnalysis(el){
     <div class="card"><h2>Proficiency descriptors</h2>${st.n?descBar(data.map(x=>M.descriptor(x.v))):'<div class="empty">—</div>'}
       <h3 style="margin-top:22px">Boys vs girls · ${esc(subjLabel)}</h3>
       <div class="table-wrap" style="max-height:none"><table><thead><tr><th>Group</th><th class="num">N</th><th class="num">Mean</th><th class="num">Median</th><th class="num">Mode</th><th class="num">Pass %</th></tr></thead>
-      <tbody>${bySex.map(({sx,s})=>`<tr><td>${sx==='M'?'Boys':'Girls'}</td><td class="num">${s.n}</td><td class="num">${fmt(s.mean)}</td><td class="num">${fmt(s.median)}</td><td class="num">${M.modeText(s)}</td><td class="num">${s.n?fmt(s.passRate,1):'—'}</td></tr>`).join('')}</tbody></table></div>
+      <tbody>${bySex.map(({sx,s})=>`<tr><td>${sx==='M'?'Boys':'Girls'}</td><td class="num">${s.n}</td><td class="num">${M.fg(s.mean)}</td><td class="num">${M.fg(s.median)}</td><td class="num">${M.modeText(s)}</td><td class="num">${s.n?fmt(s.passRate,1):'—'}</td></tr>`).join('')}</tbody></table></div>
     </div>
   </div>
   <div class="card" style="margin-top:20px">
-    <div class="row"><h2 style="margin:0">Learning area comparison</h2><span class="spacer"></span>${lowest?`<span class="chip gold">Lowest mean: ${esc(lowest.k)} (${fmt(lowest.s.mean)})</span>`:''}</div>
-    <div style="margin:14px 0 18px">${compRows.map(({k,s})=>`<div class="bar-row"><span>${esc(k)}</span><div class="bar-track"><div class="bar-fill ${s.n&&s.mean<PASS?'low':''}" style="width:${s.n?Math.max(2,(s.mean-60)/40*100):0}%"></div></div><b class="num" style="text-align:right">${fmt(s.mean)}</b></div>`).join('')}
+    <div class="row"><h2 style="margin:0">Learning area comparison</h2><span class="spacer"></span>${lowest?`<span class="chip gold">Lowest mean: ${esc(lowest.k)} (${M.fg(lowest.s.mean)})</span>`:''}</div>
+    <div style="margin:14px 0 18px">${compRows.map(({k,s})=>`<div class="bar-row"><span>${esc(k)}</span><div class="bar-track"><div class="bar-fill ${s.n&&s.mean<PASS?'low':''}" style="width:${s.n?Math.max(2,(s.mean-60)/40*100):0}%"></div></div><b class="num" style="text-align:right">${M.fg(s.mean)}</b></div>`).join('')}
       <div class="tiny muted">Bars start at 60 so differences are easier to see.</div></div>
     <div class="table-wrap" style="max-height:none"><table>
       <thead><tr><th>Learning area</th><th class="num">N</th><th class="num">Mean</th><th class="num">Median</th><th class="num">Mode</th><th class="num">SD</th><th class="num">Lowest</th><th class="num">Highest</th><th class="num">Pass %</th></tr></thead>
-      <tbody>${comp.map(({k,s})=>`<tr ${k==='GA'?'style="font-weight:700"':''}><td>${k==='GA'?'General Average':esc(k)}</td><td class="num">${s.n}</td><td class="num">${fmt(s.mean)}</td><td class="num">${fmt(s.median)}</td><td class="num">${M.modeText(s)}</td><td class="num">${fmt(s.sd)}</td><td class="num">${fmt(s.min)}</td><td class="num">${fmt(s.max)}</td><td class="num">${s.n?fmt(s.passRate,1):'—'}</td></tr>`).join('')}</tbody>
+      <tbody>${comp.map(({k,s})=>`<tr ${k==='GA'?'style="font-weight:700"':''}><td>${k==='GA'?'General Average':esc(k)}</td><td class="num">${s.n}</td><td class="num">${M.fg(s.mean)}</td><td class="num">${M.fg(s.median)}</td><td class="num">${M.modeText(s)}</td><td class="num">${fmt(s.sd)}</td><td class="num">${fmt(s.min)}</td><td class="num">${fmt(s.max)}</td><td class="num">${s.n?fmt(s.passRate,1):'—'}</td></tr>`).join('')}</tbody>
     </table></div>
   </div>
   <div class="grid g-2" style="margin-top:20px">
@@ -322,7 +324,7 @@ M.views.analysis = function viewAnalysis(el){
       <div class="table-wrap"><table><thead><tr><th class="num">Rank</th><th>Learner</th><th class="num">Grade</th><th>Descriptor</th></tr></thead>
       <tbody>${rankRows(ranked)}</tbody></table></div></div>
     <div class="card"><h2>Needs support (below 75)</h2>
-      ${support.length ? `<div class="list">${support.map(x=>`<div class="item"><div class="avatar ${x.l.sex}">${esc(M.initials(x.l.name))}</div><div class="grow"><div class="title">${esc(x.l.name)}</div><div class="tiny muted">${lowAreas(c, term, x.l.id)}</div></div><b class="low">${fmt(x.v)}</b></div>`).join('')}</div>` : '<div class="empty">No learner is below 75 for this selection. 🎉</div>'}
+      ${support.length ? `<div class="list">${support.map(x=>`<div class="item"><div class="avatar ${x.l.sex}">${esc(M.initials(x.l.name))}</div><div class="grow"><div class="title">${esc(x.l.name)}</div><div class="tiny muted">${lowAreas(c, term, x.l.id)}</div></div><b class="low">${M.fg(x.v)}</b></div>`).join('')}</div>` : '<div class="empty">No learner is below 75 for this selection. 🎉</div>'}
     </div>
   </div>`;
   $('#aTerm').onclick = e => { const b=e.target.closest('button'); if(!b||b.disabled) return; M.S.ui.term=b.dataset.t; M.save(); viewAnalysis(el); };
@@ -334,7 +336,7 @@ M.views.analysis = function viewAnalysis(el){
 function rankRows(ranked){
   let rank = 0, prev = null;
   return ranked.map((x,i) => { if(x.v!==prev){ rank=i+1; prev=x.v; } const d=M.descriptor(x.v);
-    return `<tr><td class="num muted">${rank}</td><td>${esc(x.l.name)} ${M.statusChip(x.l,1)}</td><td class="num"><b class="${Math.round(x.v)<PASS?'low':''}">${fmt(x.v)}</b></td><td>${d?`<span class="desc d-${d}">${d}</span>`:''}</td></tr>`; }).join('');
+    return `<tr><td class="num muted">${rank}</td><td>${esc(x.l.name)} ${M.statusChip(x.l,1)}</td><td class="num"><b class="${Math.round(x.v)<PASS?'low':''}">${M.fg(x.v)}</b></td><td>${d?`<span class="desc d-${d}">${d}</span>`:''}</td></tr>`; }).join('');
 }
 function lowAreas(c, term, lid){
   const r = M.rowFor(c, term, lid); const lows = M.AREAS.filter(k => isNum(r[k]) && Math.round(r[k]) < PASS);
@@ -486,6 +488,17 @@ function learnerDossier(c, l){
     <h3 style="margin-top:14px">Subject class records (ECR)</h3>${ecrH}
   </div>`;
 }
+/* v6.9: an edited name / sex is carried into every record that keeps its own copy (attendance, ECR rosters) */
+M.propagateLearner = function(c, l, before){ const changed = []; const same = (a, b) => M.normName(a) === M.normName(b) || M.sim(a, b) >= 0.93;
+  if(before.name !== l.name){ delete l.np;
+    ((M.S.att && M.S.att.sections) || []).forEach(sec => Object.values(sec.students || {}).forEach(st => { if(st.lid === l.id || (!st.lid && same(st.name, before.name))){ if(!st.lid) st.name = l.name; if(before.sex !== l.sex) st.sex = l.sex; changed.push('attendance'); } }));
+    (M.S.ecr || []).forEach(E => { let hit = false;
+      Object.values(E.terms || {}).forEach(T => (T.learners || []).forEach(x => { if(same(x.name, before.name)){ x.name = l.name; hit = true; } }));
+      if(E.model && E.model.roster) ['M','F'].forEach(sx => E.model.roster[sx].forEach((n, i) => { if(n && same(n, before.name)){ E.model.roster[sx][i] = l.name; hit = true; } }));
+      if(hit){ if(E.model){ E.model.dirty = true; E.model.edited = new Date().toISOString(); } changed.push(E.title + ' ECR'); } });
+  } else if(before.sex !== l.sex){ ((M.S.att && M.S.att.sections) || []).forEach(sec => Object.values(sec.students || {}).forEach(st => { if(st.lid === l.id){ st.sex = l.sex; changed.push('attendance'); } })); }
+  if(changed.length){ M.save(); if(M.logAct) M.logAct(`Updated ${l.name} everywhere (${[...new Set(changed)].join(', ')})`); }
+  return [...new Set(changed)]; };
 /* v6.6: remove learners everywhere MASTRO keeps per-learner data */
 M.removeLearners = function(c, ids){ const set = new Set(ids);
   c.learners = c.learners.filter(x => !set.has(x.id));
@@ -526,7 +539,7 @@ function learnerProfile(c, l){
   M.modal(l.name, `
     <div class="row" style="margin-bottom:14px">${l.status?`<span class="chip ${M.STATUS[l.status].cls}">${esc(M.STATUS[l.status].label)}${l.statusDate?' · '+esc(l.statusDate):''}${l.statusNote?' · '+esc(l.statusNote):''}</span>`:'<span class="chip green">Active</span>'}<span class="chip">${l.sex==='M'?'Male':l.sex==='F'?'Female':'Sex not set'}</span><span class="chip">LRN ${esc(l.lrn||'—')}</span>${l.birthday?`<span class="chip">Born ${esc(l.birthday)} · age ${M.ageOn(l.birthday)}</span>`:''}</div>
     <div class="table-wrap" style="max-height:none"><table><thead><tr><th>Learning area</th>${terms.map(t=>`<th class="num">T${t}</th>`).join('')}<th class="num">Final</th></tr></thead>
-    <tbody>${[...M.AREAS,'GA'].map(k=>`<tr ${k==='GA'?'style="font-weight:700"':''}><td>${k==='GA'?'General Average':esc(k)}</td>${rows.map(r=>`<td class="num ${isNum(r[k])&&Math.round(r[k])<PASS?'low':''}">${fmt(r[k],k==='GA'||k==='MAPEH'?2:0)}</td>`).join('')}<td class="num">${fmt(f[k])}</td></tr>`).join('')}</tbody></table></div>
+    <tbody>${[...M.AREAS,'GA'].map(k=>`<tr ${k==='GA'?'style="font-weight:700"':''}><td>${k==='GA'?'General Average':esc(k)}</td>${rows.map(r=>`<td class="num ${isNum(r[k])&&Math.round(r[k])<PASS?'low':''}">${M.fg(r[k])}</td>`).join('')}<td class="num">${M.fg(f[k])}</td></tr>`).join('')}</tbody></table></div>
     <h3 style="margin-top:16px">Credentials</h3>
     <div class="chips">${M.checkItems().map(it=>`<span class="chip ${cl[it.id]?'green':'red'}">${cl[it.id]?'✓':'✕'} ${esc(it.label)}${cl[it.id]?' · '+esc(cl[it.id]):''}</span>`).join('')}</div>
     ${l.remarks?`<p class="small"><b>Remarks:</b> ${esc(l.remarks)}</p>`:''}
@@ -563,7 +576,9 @@ function learnerForm(c, l){
       if(lrn && lrn.length!==12) M.toast('Note: LRN is usually 12 digits');
       const data = {name, lrn, sex:$('#fS',b).value, birthday:$('#fB',b).value, age:$('#fA',b).value.replace(/\D/g,''), remarks:$('#fR',b).value.trim(),
         status:$('#fSt',b).value, statusDate:$('#fSt',b).value ? ($('#fSD',b).value || M.today()) : '', statusNote:$('#fSN',b).value.trim()};
+      const before = l ? {name: l.name, sex: l.sex, lrn: l.lrn} : null;
       let target = l; if(l) Object.assign(l, data); else { target = Object.assign({id:M.uid('L')}, data); c.learners.push(target); }
+      if(before) M.propagateLearner(c, target, before);
       M.syncStatus(c, target);
       M.save(); M.closeModal(); M.route(); M.toast('Saved');
     };
@@ -961,7 +976,7 @@ function exportAnalysisXlsx(c, term, sex){
   const tl = term==='F' ? 'Final' : 'Term '+term;
   const sum = [[`${M.className(c)} · ${tl} · ${sex==='all'?'All':sex==='M'?'Boys':'Girls'}`],[],['Learning area','N','Mean','Median','Mode','SD','Lowest','Highest','Range','Passed (≥75)','Pass %']];
   [...M.AREAS,'Music & Arts','PE & Health','GA'].forEach(k => { const s = M.stats(M.valuesFor(c, term, k, sex).map(x=>x.v));
-    sum.push([k==='GA'?'General Average':k, s.n, s.n?r2(s.mean):null, s.n?r2(s.median):null, M.modeText(s), s.n?r2(s.sd):null, s.min??null, s.max??null, s.n?r2(s.range):null, s.passed??null, s.n?r2(s.passRate):null]); });
+    sum.push([k==='GA'?'General Average':k, s.n, s.n?Math.round(s.mean):null, s.n?Math.round(s.median):null, M.modeText(s), s.n?r2(s.sd):null, s.min??null, s.max??null, s.n?r2(s.range):null, s.passed??null, s.n?r2(s.passRate):null]); });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sum), 'Summary');
   const det = [['Learner','Sex',...M.AREAS,'General Average','Descriptor']];
   M.sortedLearners(c).filter(l=>sex==='all'||l.sex===sex).forEach(l => { const r = M.rowFor(c, term, l.id); det.push([l.name, l.sex, ...M.AREAS.map(k=>isNum(r[k])?r2(r[k]):null), r.GA, r.desc]); });
@@ -975,7 +990,7 @@ function printGradesheet(c, t){
   const L = M.sortedLearners(c); let i = 0, last = null;
   const rows = L.map(l => { const r = M.termRow(c, t, l.id); let pre = '';
     if(l.sex!==last){ last=l.sex; pre = `<tr><td colspan="15"><b>${l.sex==='M'?'MALE':l.sex==='F'?'FEMALE':'—'}</b></td></tr>`; }
-    return pre + `<tr><td>${++i}</td><td>${esc(l.lrn)}</td><td>${esc(l.name)}</td>${M.AREAS.slice(0,7).map(k=>`<td style="text-align:center">${isNum(r[k])?r[k]:''}</td>`).join('')}<td style="text-align:center">${isNum(r.MAPEH)?r2(r.MAPEH):''}</td><td style="text-align:center">${isNum(r['Music & Arts'])?r['Music & Arts']:''}</td><td style="text-align:center">${isNum(r['PE & Health'])?r['PE & Health']:''}</td><td style="text-align:center"><b>${fmt(r.GA).replace('—','')}</b></td><td>${r.desc}</td></tr>`; }).join('');
+    return pre + `<tr><td>${++i}</td><td>${esc(l.lrn)}</td><td>${esc(l.name)}</td>${M.AREAS.slice(0,7).map(k=>`<td style="text-align:center">${isNum(r[k])?r[k]:''}</td>`).join('')}<td style="text-align:center">${isNum(r.MAPEH)?Math.round(r.MAPEH):''}</td><td style="text-align:center">${isNum(r['Music & Arts'])?r['Music & Arts']:''}</td><td style="text-align:center">${isNum(r['PE & Health'])?r['PE & Health']:''}</td><td style="text-align:center"><b>${fmt(r.GA).replace('—','')}</b></td><td>${r.desc}</td></tr>`; }).join('');
   M.doPrint(M.printHeader(`CONSOLIDATED GRADES – TERM ${t}`) +
     `<p>Grade Level: <b>${esc(c.grade)}</b> &nbsp; Section: <b>${esc(c.section)}</b> &nbsp; School Year: <b>${esc(c.sy)}</b><br>Adviser: <b>${esc(c.adviser)}</b></p>
     <table><thead><tr><th>#</th><th>LRN</th><th>Name</th>${M.AREAS.slice(0,7).map(k=>`<th>${M.SHORT[k]}</th>`).join('')}<th>MAPEH</th><th>M&amp;A</th><th>PE&amp;H</th><th>GA</th><th>Descriptor</th></tr></thead><tbody>${rows}</tbody></table>` + M.printSign(c));
@@ -988,8 +1003,8 @@ function printAnalysis(c, term, sex){
   M.doPrint(M.printHeader(`CLASS ANALYSIS REPORT – ${tl}`) +
     `<p>Grade &amp; Section: <b>${esc(M.className(c))}</b> &nbsp; School Year: <b>${esc(c.sy)}</b> &nbsp; Group: <b>${sex==='all'?'All learners':sex==='M'?'Boys':'Girls'}</b></p>
     <table><thead><tr><th>Learning Area</th><th>N</th><th>Mean</th><th>Median</th><th>Mode</th><th>SD</th><th>Lowest</th><th>Highest</th><th>Passing %</th></tr></thead>
-    <tbody>${comp.map(({k,s})=>`<tr><td>${k==='GA'?'<b>General Average</b>':esc(k)}</td><td style="text-align:center">${s.n}</td><td style="text-align:center">${fmt(s.mean)}</td><td style="text-align:center">${fmt(s.median)}</td><td style="text-align:center">${M.modeText(s)}</td><td style="text-align:center">${fmt(s.sd)}</td><td style="text-align:center">${fmt(s.min)}</td><td style="text-align:center">${fmt(s.max)}</td><td style="text-align:center">${s.n?fmt(s.passRate,1):'—'}</td></tr>`).join('')}</tbody></table>
+    <tbody>${comp.map(({k,s})=>`<tr><td>${k==='GA'?'<b>General Average</b>':esc(k)}</td><td style="text-align:center">${s.n}</td><td style="text-align:center">${M.fg(s.mean)}</td><td style="text-align:center">${M.fg(s.median)}</td><td style="text-align:center">${M.modeText(s)}</td><td style="text-align:center">${fmt(s.sd)}</td><td style="text-align:center">${fmt(s.min)}</td><td style="text-align:center">${fmt(s.max)}</td><td style="text-align:center">${s.n?fmt(s.passRate,1):'—'}</td></tr>`).join('')}</tbody></table>
     <p style="margin-top:14px"><b>Proficiency (General Average):</b> ${M.DESCS.map(d=>`${d} (${M.DESC_RANGE[d]}): ${counts[d]}`).join(' · ')}</p>
-    <p><b>Learners below 75 (${support.length}):</b> ${support.length ? support.map(x=>`${esc(x.l.name)} (${fmt(x.v)})`).join('; ') : 'None'}</p>` + M.printSign(c));
+    <p><b>Learners below 75 (${support.length}):</b> ${support.length ? support.map(x=>`${esc(x.l.name)} (${M.fg(x.v)})`).join('; ') : 'None'}</p>` + M.printSign(c));
 }
 })();

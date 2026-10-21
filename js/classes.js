@@ -237,7 +237,7 @@ M.views.classes = function view(el, args){
     <div class="card ecr-card">
       <div class="row"><span class="chip green">${esc(E.subject||'Subject')}</span><span class="spacer"></span><span class="tiny muted">${terms.map(t=>'T'+t).join(' · ')||'no terms'}</span></div>
       <div class="title" style="margin-top:10px;font-size:17px"><b>${esc(E.title)}</b></div>
-      <div class="small muted">${A?A.L.length:(E.roster||[]).length} learners${!terms.length?' · no scores uploaded yet':''}${A&&A.st.n?` · Term ${last} mean <b>${fmt(A.st.mean)}</b> · ${A.risk.length} below 75`:''}</div>
+      <div class="small muted">${A?A.L.length:(E.roster||[]).length} learners${!terms.length?' · no scores uploaded yet':''}${A&&A.st.n?` · Term ${last} mean <b>${M.fg(A.st.mean)}</b> · ${A.risk.length} below 75`:''}</div>
       <div class="tiny muted" style="margin-top:6px">🕒 Last edited: <b>${M.ecrLastEditText(E)}</b> ${M.newTag('ecr-lastedit')}</div>
       <div class="row" style="margin-top:12px"><a class="btn sm" href="#classes/${E.id}">Open</a>${E.docId?`<a class="btn sm" href="#classes/${E.id}/edit">${ico('edit')} Work on ECR</a>`:''}${E.model&&E.model.dirty?'<span class="chip gold" title="Edited in MASTRO — download the updated ECR">edited</span>':''}<span class="spacer"></span><a class="btn sparkle" href="#classes/${E.id}/analyze/${last||'1'}">${ico('sparkle')} Analyze</a></div>
     </div>`; }).join('')}</div>` : `<div class="card"><div class="empty">No class records yet. Upload your ECRs below to start.</div></div>`}
@@ -335,17 +335,17 @@ function report(body, E, term){
   <div class="card insight"><div class="row"><div>${ico('sparkle','width:26px;height:26px;color:var(--gold)')}</div><div class="grow">
     <div class="title"><b>Term ${term} insights · ${esc(E.title)} · ${esc(E.subject)}</b></div>
     <ul class="small" style="margin:8px 0 0;padding-left:18px;line-height:1.6">
-      <li>Class mean <b>${fmt(A.st.mean)}</b> (median ${fmt(A.st.median)}, SD ${fmt(A.st.sd)}); <b>${A.st.passed}</b> of ${A.st.n} learners (${fmt(A.st.passRate,1)}%) reached 75.</li>
+      <li>Class mean <b>${M.fg(A.st.mean)}</b> (median ${M.fg(A.st.median)}, SD ${fmt(A.st.sd)}); <b>${A.st.passed}</b> of ${A.st.n} learners (${fmt(A.st.passRate,1)}%) reached 75.</li>
       ${A.weakest?`<li>Weakest component: <b>${esc(A.weakest.label)}</b> (mean PS ${fmt(A.weakest.s.mean,1)}) — ${A.comps.filter(c=>c!==A.weakest&&c.s.n).map(c=>`${c.k.toUpperCase()} ${fmt(c.s.mean,1)}`).join(', ')}.</li>`:''}
       ${A.risk.length?`<li><b>${A.risk.length} learner(s) below 75</b> need intervention${A.risk.filter(r=>r.why.some(w=>/missing/.test(w))).length?` — ${A.risk.filter(r=>r.why.some(w=>/missing/.test(w))).length} of them have missing outputs`:''}.</li>`:'<li>No learner is below 75. 🎉</li>'}
       ${A.missingBy.length?`<li><b>${A.missingBy.length} learner(s) with missing scores</b> (${A.missingBy.reduce((a,y)=>a+y.n,0)} blank entries in WW/PT).</li>`:''}
       ${A.lowActs.length?`<li>Lowest-scored activity: <b>${A.lowActs[0].k.toUpperCase()} ${A.lowActs[0].no}</b> (${fmt(A.lowActs[0].mean,1)}% of HPS ${A.lowActs[0].hps}) — consider re-teaching or re-checking the item.</li>`:''}
       ${A.trend?`<li>Compared with Term ${+term-1} (mean ${fmt(A.trend.prevMean)}): ${A.trend.drops.length} learner(s) dropped by 3+ points, ${A.trend.gains.length} improved by 3+.</li>`:''}
-      ${A.bySex.every(b=>b.s.n)?`<li>Boys ${fmt(A.bySex[0].s.mean)} vs girls ${fmt(A.bySex[1].s.mean)}.</li>`:''}
+      ${A.bySex.every(b=>b.s.n)?`<li>Boys ${M.fg(A.bySex[0].s.mean)} vs girls ${M.fg(A.bySex[1].s.mean)}.</li>`:''}
     </ul></div>
     <div class="row" style="align-self:flex-start"><button class="btn sm" id="rX">${ico('download')} Excel</button><button class="btn sm primary" id="rP">${ico('print')} Print report</button></div></div></div>
   <div class="grid g-4" style="margin-top:20px">
-    <div class="card stat accent"><div class="label">Mean</div><div class="value">${fmt(A.st.mean)}</div><div class="sub">median ${fmt(A.st.median)}</div></div>
+    <div class="card stat accent"><div class="label">Mean</div><div class="value">${M.fg(A.st.mean)}</div><div class="sub">median ${M.fg(A.st.median)}</div></div>
     <div class="card stat"><div class="label">Mode</div><div class="value">${M.modeText(A.st)}</div><div class="sub">SD ${fmt(A.st.sd)}</div></div>
     <div class="card stat"><div class="label">Highest · Lowest</div><div class="value" style="font-size:24px">${fmt(A.st.max,0)} · ${fmt(A.st.min,0)}</div><div class="sub">range ${fmt(A.st.range,0)}</div></div>
     <div class="card stat"><div class="label">Passing (≥75)</div><div class="value">${fmt(A.st.passRate,1)}%</div><div class="sub">${A.st.passed} of ${A.st.n}</div></div>
@@ -372,7 +372,7 @@ function printReport(E, term, A, descs){
   M.doPrint(M.printHeader(`CLASS RECORD ANALYSIS — TERM ${term}`) +
     `<p>Grade &amp; Section: <b>${esc(E.title)}</b> &nbsp; Learning Area: <b>${esc(E.subject)}</b> &nbsp; School Year: <b>${esc(E.sy||'')}</b></p>
     <table><thead><tr><th>Learners</th><th>Mean</th><th>Median</th><th>Mode</th><th>SD</th><th>Highest</th><th>Lowest</th><th>Passed (≥75)</th></tr></thead><tbody><tr>
-    <td style="text-align:center">${A.st.n}</td><td style="text-align:center">${fmt(A.st.mean)}</td><td style="text-align:center">${fmt(A.st.median)}</td><td style="text-align:center">${M.modeText(A.st)}</td><td style="text-align:center">${fmt(A.st.sd)}</td><td style="text-align:center">${fmt(A.st.max,0)}</td><td style="text-align:center">${fmt(A.st.min,0)}</td><td style="text-align:center">${A.st.passed} (${fmt(A.st.passRate,1)}%)</td></tr></tbody></table>
+    <td style="text-align:center">${A.st.n}</td><td style="text-align:center">${M.fg(A.st.mean)}</td><td style="text-align:center">${M.fg(A.st.median)}</td><td style="text-align:center">${M.modeText(A.st)}</td><td style="text-align:center">${fmt(A.st.sd)}</td><td style="text-align:center">${fmt(A.st.max,0)}</td><td style="text-align:center">${fmt(A.st.min,0)}</td><td style="text-align:center">${A.st.passed} (${fmt(A.st.passRate,1)}%)</td></tr></tbody></table>
     ${A.comps.length?`<p style="margin-top:10px"><b>Components:</b> ${A.comps.map(c=>`${esc(c.label)} ${fmt(c.s.mean,1)}`).join(' · ')}${A.weakest?` — weakest: <b>${esc(A.weakest.label)}</b>`:''}</p>`:''}
     <p><b>Proficiency:</b> ${M.DESCS.map(d=>`${d} ${descs[d]}`).join(' · ')}</p>
     <p><b>Below 75 (${A.risk.length}):</b> ${A.risk.map(r=>`${esc(r.x.name)} (${fmt(r.g,0)}${r.why.length?'; '+esc(r.why.join(', ')):''})`).join('; ') || 'None'}</p>

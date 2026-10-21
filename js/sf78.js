@@ -32,8 +32,9 @@ M.sf8Age = (bISO, dISO) => { if(!bISO || !dISO) return null; const [by, bm, bd] 
   return {y: AC, m: AA, v: +(AC + '.' + String(AA).padStart(2, '0')), months: AC * 12 + AA}; };
 const lookup = (tab, v) => { let r = null; for(const row of tab){ if(row[0] <= v + 1e-9) r = row; else break; } return r; };
 M.sf8Status = (T, sex, age, w, h) => {
-  const out = {h2: null, bmi: null, cat: '', hfa: ''}; if(!T || !isNum(w) || !isNum(h) || h <= 0) return out;
-  out.h2 = h * h; out.bmi = w / out.h2; if(!age) return out;
+  const out = {h2: null, bmi: null, cat: '', hfa: ''}; if(!isNum(w) || !isNum(h) || h <= 0) return out;
+  out.h2 = h * h; out.bmi = w / out.h2;   // BMI = weight (kg) ÷ height (m)² — always shown, even without the template's WHO tables
+  if(!T || !age) return out;
   const f = sex === 'F'; const r = lookup(T.bmi, age.v); const q = lookup(T.hfa, age.v);
   if(r && age.v >= 5){ const o = f ? 8 : 0; const sw = r[2+o], wTo = r[4+o], nTo = r[6+o], owTo = r[8+o];
     out.cat = out.bmi > owTo ? T.L.ob : out.bmi > nTo ? T.L.ow : out.bmi > wTo ? T.L.n : out.bmi > sw ? T.L.w : T.L.sw; }

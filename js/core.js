@@ -11,7 +11,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.8', date:'2026-10-19', label:'October 19, 2026'};
+M.VERSION = {n:'6.9', date:'2026-10-21', label:'October 21, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -296,7 +296,9 @@ M.nameMatch = (a, b) => {
 };
 
 /* ---------------- grade computation (matches the Excel formulas) ---------------- */
-M.mapeh = (g) => { const v=['Music & Arts','PE & Health'].map(k=>g[k]).filter(M.isNum); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null; };
+M.mapeh = (g) => { const v=['Music & Arts','PE & Health'].map(k=>g[k]).filter(M.isNum); return v.length ? Math.round(v.reduce((a,b)=>a+b,0)/v.length) : null; };   // whole number, like the report card
+// every grade MASTRO shows — learner grades, averages, means, medians — is a whole number
+M.fg = (v) => M.isNum(v) ? String(Math.round(v)) : '—';
 M.descriptor = (ga) => { if(!M.isNum(ga)) return ''; const r = Math.round(ga); return r>=90?'Advancing':r>=80?'Benchmarking':r>=75?'Connecting':r>=65?'Developing':'Emerging'; };
 M.termRow = (c, term, lid) => {
   const g = (c.grades[term]||{})[lid] || {};
@@ -313,7 +315,7 @@ M.termsWithData = (c) => ['1','2','3'].filter(t => Object.values(c.grades[t]||{}
 M.finalRow = (c, lid) => {
   const rows = M.termsWithData(c).map(t => M.termRow(c, t, lid));
   const row = {};
-  [...M.RAW,'MAPEH'].forEach(k => { const v = rows.map(r=>r[k]).filter(M.isNum); row[k] = v.length ? M.r2(v.reduce((a,b)=>a+b,0)/v.length) : null; });
+  [...M.RAW,'MAPEH'].forEach(k => { const v = rows.map(r=>r[k]).filter(M.isNum); row[k] = v.length ? Math.round(v.reduce((a,b)=>a+b,0)/v.length) : null; });
   const areas = M.AREAS.map(k=>row[k]);
   row.GA = areas.every(M.isNum) ? Math.round(areas.reduce((a,b)=>a+b,0)/8) : null;
   row.desc = M.descriptor(row.GA);
@@ -465,7 +467,12 @@ const parsePage = (pageCss) => { const m = String(pageCss || '').match(/size:\s*
   else { const key = (sz.match(/A4|A5|letter|legal|folio/i) || ['A4'])[0].toUpperCase(); [w, h] = M.PAPERS[key] || M.PAPERS.A4; if(/landscape/i.test(sz)) [w, h] = [h, w]; }
   return {w, h}; };
 M.pageCss = (paper = 'A4', landscape = false) => { let [w, h] = M.PAPERS[paper] || M.PAPERS.A4; if(landscape) [w, h] = [h, w]; return `@page{size:${w}mm ${h}mm;margin:0.5in}`; };
-M.printableMm = (pageCss) => { const p = parsePage(pageCss); return [p.w - 2*M.PRINT_MARGIN_MM, p.h - 2*M.PRINT_MARGIN_MM]; };
+// Safari (and some printers) print A4 layouts on US Letter, or add their own margins. Page boxes are therefore sized
+// to fit BOTH A4 and Letter inside 0.5 in margins — so a sheet never spills onto a blank second page.
+M.SAFE_LETTER = true;
+M.printableMm = (pageCss) => { const p = parsePage(pageCss); let w = p.w, h = p.h;
+  if(M.SAFE_LETTER && Math.abs(Math.min(w, h) - 210) < 1 && Math.abs(Math.max(w, h) - 297) < 1){ const land = w > h; w = Math.min(w, land ? 279.4 : 215.9); h = Math.min(h, land ? 215.9 : 279.4); }
+  return [w - 2*M.PRINT_MARGIN_MM, h - 2*M.PRINT_MARGIN_MM]; };
 // measure html exactly as it will print (print styles also apply to the hidden #printArea)
 M.measurePrint = (html, widthMm) => { const a = $('#printArea'); const old = a.innerHTML; a.innerHTML = html; a.style.width = widthMm + 'mm'; a.classList.add('measuring');
   const r = {w: a.scrollWidth, h: a.scrollHeight}; a.classList.remove('measuring'); a.style.width = ''; a.innerHTML = old; return r; };

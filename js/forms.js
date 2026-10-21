@@ -194,8 +194,8 @@ function sf9Back(D){
 }
 // paper layouts: two panels side by side (landscape) or front/back on separate pages (portrait)
 M.SF9_LAYOUTS = {
-  duplex:   {label:'A4 portrait · front & back', cls:'a4p', fmt:'a4', orient:'portrait',  margin:12.7, w:184, h:271, both:false},
-  landscape:{label:'A4 landscape · both sides',  cls:'a4l', fmt:'a4', orient:'landscape', margin:12.7, w:271, h:184, both:true},
+  duplex:   {label:'A4 portrait · front & back', cls:'a4p', fmt:'a4', orient:'portrait',  margin:12.7, w:184, h:254, both:false},
+  landscape:{label:'A4 landscape · both sides',  cls:'a4l', fmt:'a4', orient:'landscape', margin:12.7, w:254, h:184, both:true},
   a5p:      {label:'A5 portrait · front & back', cls:'a5p', fmt:'a5', orient:'portrait',  margin:6, w:136, h:197, both:false},
   a5l:      {label:'A5 landscape · both sides',  cls:'a5l', fmt:'a5', orient:'landscape', margin:6, w:198, h:135, both:true}
 };

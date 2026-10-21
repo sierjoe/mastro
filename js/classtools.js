@@ -48,7 +48,7 @@ function slipHtml(E, term, x){
     if(!items.length) return '';
     const got = items.filter(it => isNum(it.v)); const tot = got.reduce((a, it) => a + it.v, 0), hp = items.reduce((a, it) => a + it.h, 0);
     return `<tr><td class="ps-c"><b>${CL[k]}</b>${C.w ? `<span>${C.w}%</span>` : ''}</td>
-      <td class="ps-g">${items.map(it => `<span class="ps-i ${isNum(it.v) ? '' : 'miss'}" title="${esc(it.ttl)}"><i>${esc(String(it.lab).replace(/^(\d+)$/, k === 'qa' ? 'Exam $1' : '#$1'))}</i><b>${isNum(it.v) ? it.v : '—'}</b><u>/${it.h}</u></span>`).join('')}</td>
+      <td class="ps-g">${items.map(it => `<span class="ps-i ${isNum(it.v) ? (it.v <= 0.75 * it.h ? 'lowsc' : '') : 'miss'}" title="${esc(it.ttl)}"><i>${esc(String(it.lab).replace(/^(\d+)$/, k === 'qa' ? 'Exam $1' : '#$1'))}</i><b>${isNum(it.v) ? it.v : '—'}</b><u>/${it.h}</u></span>`).join('')}</td>
       <td class="ps-n">${got.length ? tot : '—'}<small>/${hp}</small></td><td class="ps-n">${isNum(x[k + 'PS']) ? fmt(x[k + 'PS'], 2) : '—'}</td><td class="ps-n">${isNum(x[k + 'WS']) ? fmt(x[k + 'WS'], 2) : '—'}</td></tr>`; };
   const g = isNum(x.tg) ? x.tg : null;
   return `<div class="pslip">
@@ -220,7 +220,7 @@ function ecrRawPage(E, term, sxLabel, L){
   const head1 = ks.map(k => `<th colspan="${items(k).length + 3}">${CL[k]}${T.comp[k].w ? ` (${T.comp[k].w}%)` : ''}</th>`).join('');
   const head2 = ks.map(k => items(k).map(it => `<th>${esc(it.lab)}</th>`).join('') + '<th>Total</th><th>PS</th><th>WS</th>').join('');
   const hps = ks.map(k => { const it = items(k); return it.map(x => `<td>${x.h}</td>`).join('') + `<td>${it.reduce((a, x) => a + x.h, 0)}</td><td>100</td><td>${T.comp[k].w ? T.comp[k].w + '%' : ''}</td>`; }).join('');
-  const row = (x, i) => `<tr><td>${i + 1}</td><td class="l">${esc(x.name)}</td>${ks.map(k => items(k).map(it => `<td>${isNum((x[k] || [])[it.i]) ? x[k][it.i] : ''}</td>`).join('') +
+  const row = (x, i) => `<tr><td>${i + 1}</td><td class="l">${esc(x.name)}</td>${ks.map(k => items(k).map(it => { const v = (x[k] || [])[it.i]; return `<td class="${isNum(v) && v <= 0.75 * it.h ? 'lowsc' : ''}">${isNum(v) ? v : ''}</td>`; }).join('') +
     `<td>${isNum(x[k + 'Total']) ? x[k + 'Total'] : (items(k).some(it => isNum((x[k] || [])[it.i])) ? items(k).reduce((a, it) => a + (+(x[k] || [])[it.i] || 0), 0) : '')}</td><td>${n0(x[k + 'PS'])}</td><td>${n0(x[k + 'WS'])}</td>`).join('')}
     <td>${n0(x.ig)}</td><td><b>${isNum(x.tg) ? x.tg : ''}</b></td></tr>`;
   return `<div class="rdp">${M.printHeader('CLASS RECORD')}

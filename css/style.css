@@ -349,8 +349,8 @@ table.month th.dim{opacity:.45}
   box-sizing:border-box;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 /* page boxes = paper minus the @page margin, so nothing spills onto a second sheet */
 .sf9-page{align-items:center}
-.sf9-page.a4p{width:184mm;height:271mm}
-.sf9-page.a4l{width:271mm;height:184mm;justify-content:space-evenly}
+.sf9-page.a4p{width:184mm;height:254mm}
+.sf9-page.a4l{width:254mm;height:184mm;justify-content:space-evenly}
 .sf9-page.a5p{width:136mm;height:197mm}
 .sf9-page.a5l{width:198mm;height:135mm;justify-content:space-evenly}
 /* the panel is always laid out at full A4 size, then scaled down as one piece — lines and text shrink together */
@@ -587,7 +587,7 @@ tr.sel td{background:rgba(47,138,97,.10)}
 @media (max-height:820px){.nav{gap:3px}.nav a{padding:8px 14px}.brand{padding-bottom:14px}.dev-card{padding:9px 11px}}
 
 /* ---------- A4 pages with 4 (or 2) cells: answer sheets, grade slips ---------- */
-.quad-page{position:relative;width:184mm;height:271mm;overflow:hidden;background:#fff;color:#000;box-sizing:border-box}
+.quad-page{position:relative;width:184mm;height:254mm;overflow:hidden;background:#fff;color:#000;box-sizing:border-box}
 .quad-cell{position:absolute;overflow:hidden;box-sizing:border-box}
 .quad-cell > svg{display:block;width:100%;height:100%}
 .quad-page .cut{position:absolute;border:0 dashed #b5b5b5}
@@ -953,3 +953,36 @@ tr.sel td{background:rgba(47,138,97,.10)}
 .ar-box{border:.2mm solid #888;margin-top:1.6mm}.ar-lb{font-size:7.5pt;font-weight:700;color:#1f6b4a;background:#e9f1ec;padding:.8mm 1.5mm;border-bottom:.2mm solid #888;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ar-tx{padding:1.2mm 1.8mm;font-size:9pt;line-height:1.35;white-space:normal}
 .ar-sign{display:flex;gap:6mm;margin-top:4mm;font-size:7.5pt;text-align:center}.ar-sign>div{flex:1}.ar-sign .nm{border-top:.25mm solid #000;margin-top:7mm;padding-top:.6mm;font-weight:800;font-size:8pt;text-transform:uppercase;min-height:3mm}
+@media print{html,body{height:auto!important;min-height:0!important}}
+input.sc.lowsc{color:#c62828!important;font-weight:800}
+.rdp .rd-t td.lowsc,.ps-i.lowsc b{color:#c62828!important;font-weight:800}
+/* v6.9 school calendar + welcome back */
+.cal-term{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center;margin-top:12px;padding:12px 14px;border-radius:14px;background:rgba(31,107,74,.07)}
+.cal-term b{font-size:18px;color:var(--green)}.cal-term .bar-track{grid-column:1/-1;height:8px}
+.cal-row{display:grid;grid-template-columns:118px 92px minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 4px;border-bottom:1px solid rgba(0,0,0,.05);font-size:13.5px}
+.cal-row.past{opacity:.45}
+.cal-d{font-weight:700;font-variant-numeric:tabular-nums}
+.cal-k{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--kc);background:color-mix(in srgb,var(--kc) 12%,transparent);border-radius:999px;padding:3px 9px;text-align:center}
+.cal-in{font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+.cal-full{max-height:62vh;overflow:auto;padding-right:6px}.cal-m h3{margin:14px 0 4px;color:var(--green)}
+.wb-list{margin:6px 0 10px;padding-left:20px;line-height:1.8}
+@media (max-width:640px){.cal-row{grid-template-columns:96px minmax(0,1fr)}.cal-k,.cal-in{display:none}}
+/* v6.9 consolidated anecdotal records */
+.ar-group{border-radius:18px;padding:12px 14px;background:rgba(31,107,74,.05);display:flex;flex-direction:column;gap:8px}
+.ar-gh b{font-size:15.5px}
+.ar-term{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--gold);margin:4px 0 -2px 4px}
+.ar-ct{width:100%;border-collapse:collapse;font-size:8.3pt;margin-top:2mm}
+.ar-ct th,.ar-ct td{border:.2mm solid #888;padding:1.2mm 1.5mm;vertical-align:top;position:static;color:#111;text-transform:none;letter-spacing:0;white-space:normal;background:none;line-height:1.3}
+.ar-ct th{background:#e9f1ec;color:#1f6b4a;font-size:7.5pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ar-ct .ar-tr td{background:#f6f1df;font-weight:800;color:#1f6b4a;font-size:8pt;letter-spacing:.06em;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ar-ct .ar-cd{font-size:7.5pt}.ar-ct .ar-cd span{color:#444}.ar-ct .ar-cd i{color:#1f6b4a}
+/* v6.9 Reading Progress Card */
+.rpc-card{position:relative;width:100%;height:100%;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#111;container-type:inline-size}
+.rpc-bg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.rpc-logo{position:absolute;object-fit:contain;border-radius:50%;background:#fff}
+.rpc-f{position:absolute;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 .6%;box-sizing:border-box;line-height:1.15;font-size:2.4cqw;overflow:hidden}
+.rpc-f.rpc-name{justify-content:flex-start;align-items:flex-end;padding-bottom:.4%;font-weight:800;font-size:3.1cqw;text-align:left;white-space:nowrap}
+.rpc-f.rpc-desc{font-size:2.15cqw;color:#222}
+.rpc-f.rpc-rem{font-weight:800}.rpc-f.rpc-rem.ok{color:#14613c}.rpc-f.rpc-rem.rpc-ip{color:#b06d00}
+.rpc-f.rpc-sig span{font-size:1.9cqw;color:#444;align-self:flex-end;padding-bottom:6%}
+.print-only .rpc-bg{-webkit-print-color-adjust:exact;print-color-adjust:exact}

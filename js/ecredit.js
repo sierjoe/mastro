@@ -301,7 +301,9 @@ function termTab(eb, E, model, t, ui, mark){
   const head2 = `<tr class="h2">${['ww','pt'].map(k => T.hps[k].map((_, j) => `<th class="ttl-h">${lab(k,j)}${ttl(k,j)}</th>`).join('') + '<th class="cm">Total</th><th class="cm">PS</th><th class="cm">WS</th>').join('')}${T.hps.ex.map((_, j) => `<th class="ttl-h">${lab('ex',j)}<div class="tiny muted">${f0(T.exW[j])}%</div>${ttl('ex',j)}</th>`).join('')}<th class="cm">PS</th><th class="cm">WS</th></tr>`;
   const hpsRow = `<tr class="hps"><td class="sticky-col"><b>HIGHEST POSSIBLE SCORE</b></td>${['ww','pt'].map(k => T.hps[k].map((h, j) => `<td><input class="sc" data-hk="${k}" data-j="${j}" value="${f0(h)}" inputmode="decimal"></td>`).join('') + `<td class="cm" data-ht="${k}">${f0(cnt(T.hps[k])?sum(T.hps[k]):null)}</td><td class="cm">${f0(T.psMax[k])}</td><td class="cm">${T.w[k]}</td>`).join('')}${T.hps.ex.map((h, j) => `<td><input class="sc" data-hk="ex" data-j="${j}" value="${f0(h)}" inputmode="decimal"></td>`).join('')}<td class="cm">${f0(T.psMax.ex)}</td><td class="cm">${T.w.ex}</td><td></td><td></td><td></td></tr>`;
   const nk = (sx, i, k, j) => `${sx}${i}|${k}|${j}`;
-  const cellTd = (sx, i, k, j, v) => { const n = T.notes[nk(sx,i,k,j)]; return `<td class="${n?'noted':''}" ${n?`title="${esc(n)}"`:''}><input class="sc" data-sx="${sx}" data-i="${i}" data-k="${k}" data-j="${j}" value="${f0(v)}" inputmode="decimal"></td>`; };
+  // scores at or below 75% of the highest possible score show in red
+  const lowSc = (v, h) => isNum(v) && isNum(h) && h > 0 && v <= 0.75 * h;
+  const cellTd = (sx, i, k, j, v) => { const n = T.notes[nk(sx,i,k,j)]; return `<td class="${n?'noted':''}" ${n?`title="${esc(n)}"`:''}><input class="sc ${lowSc(v, T.hps[k][j]) ? 'lowsc' : ''}" data-sx="${sx}" data-i="${i}" data-k="${k}" data-j="${j}" value="${f0(v)}" inputmode="decimal"></td>`; };
   const row = (sx, i) => { const s = T.scores[sx][i]; const o = calc(model, T, s); const name = model.roster[sx][i];
     return `<tr data-r="${sx}${i}" class="${!name?'emptyslot':''}"><td class="sticky-col"><span class="muted tiny">${i+1}</span> ${esc(name||'—')}</td>
       ${['ww','pt'].map(k => s[k].map((v, j) => cellTd(sx, i, k, j, v)).join('') + `<td class="cm" data-o="${k}Total">${f0(o[k+'Total'])}</td><td class="cm" data-o="${k}PS">${f2(o[k+'PS'])}</td><td class="cm" data-o="${k}WS">${f2(o[k+'WS'])}</td>`).join('')}
@@ -349,8 +351,9 @@ function termTab(eb, E, model, t, ui, mark){
   grid.oninput = e => { const x = e.target;
     if(x.classList.contains('sc')){ const v = val(x); if(Number.isNaN(v)){ x.classList.add('bad'); return; } x.classList.remove('bad');
       if(x.dataset.hk){ const k = x.dataset.hk; if(isNum(v) && v < 0){ x.classList.add('bad'); return; } T.hps[k][+x.dataset.j] = v; const ht = eb.querySelector(`[data-ht="${k}"]`); if(ht) ht.textContent = f0(cnt(T.hps[k])?sum(T.hps[k]):null);
-        ['M','F'].forEach(sx => model.roster[sx].forEach((n, i) => refresh(sx, i))); }
-      else { const {sx, i, k, j} = x.dataset; const h = T.hps[k][+j]; x.classList.toggle('over', isNum(v) && isNum(h) && v > h); T.scores[sx][+i][k][+j] = v; refresh(sx, +i); }
+        ['M','F'].forEach(sx => model.roster[sx].forEach((n, i) => refresh(sx, i)));
+        $$(`input.sc[data-k="${k}"][data-j="${x.dataset.j}"]`, grid).forEach(y => { const yv = val(y); y.classList.toggle('lowsc', lowSc(yv, v)); }); }
+      else { const {sx, i, k, j} = x.dataset; const h = T.hps[k][+j]; x.classList.toggle('over', isNum(v) && isNum(h) && v > h); x.classList.toggle('lowsc', lowSc(v, h)); T.scores[sx][+i][k][+j] = v; refresh(sx, +i); }
       commit(E); mark(); }
     else if(x.classList.contains('w-in')){ const v = val(x); if(!isNum(v) || v < 0 || v > 100){ x.classList.add('bad'); return; } x.classList.remove('bad'); T.w[x.dataset.w] = v/100; ['M','F'].forEach(sx => model.roster[sx].forEach((n, i) => refresh(sx, i))); commit(E); mark(); }
   };
