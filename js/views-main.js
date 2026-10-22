@@ -109,7 +109,8 @@ M.views.home = async function(el){
     </div>
   </div>
 
-  ${c.learners.length ? `<div class="card hsearch" style="margin-top:20px"><div class="row" style="gap:10px">${ico('learners','width:22px;height:22px;color:var(--green)')}<div class="grow" style="position:relative;flex:1 1 auto;min-width:0"><input class="input" id="hsQ" style="width:100%" placeholder="Search a learner — type a name or LRN to see everything about them" autocomplete="off"><div class="hs-sug" id="hsSug" hidden></div></div>${M.newTag('home-search')}</div><div id="hsOut"></div></div>` : ''}
+  ${c.learners.length ? `<div class="hsearch-wrap" style="margin-top:20px"><button class="btn hs-open" id="hsOpen">${ico('learners','width:18px;height:18px')} Search for a Student ${M.newTag('home-search')}</button>
+    <div class="card hsearch" id="hsCard" hidden><div class="row" style="gap:10px">${ico('learners','width:22px;height:22px;color:var(--green)')}<div class="grow" style="position:relative;flex:1 1 auto;min-width:0"><input class="input" id="hsQ" style="width:100%" placeholder="Type a name or LRN to see everything about the learner" autocomplete="off"><div class="hs-sug" id="hsSug" hidden></div></div><button class="icon-btn" id="hsClose" title="Close search">✕</button></div><div id="hsOut"></div></div></div>` : ''}
   ${M.calendarCard ? `<div style="margin-top:20px" id="calWrap">${M.calendarCard()}</div>` : ''}
   <div class="grid g-2" style="margin-top:20px">
     <div class="card">
@@ -423,9 +424,13 @@ function printChecklist(c){
 }
 /* v6.3 Home search: one learner, everything MASTRO knows */
 function homeSearch(c){
-  const q = $('#hsQ'), sug = $('#hsSug'), out = $('#hsOut'); let hits = [], sel = 0;
+  const q = $('#hsQ'), sug = $('#hsSug'), out = $('#hsOut'), card = $('#hsCard'), openB = $('#hsOpen'); let hits = [], sel = 0;
+  // collapsed to a single button until used; folds back when closed or left empty
+  const open = () => { openB.hidden = true; card.hidden = false; card.classList.remove('hs-in'); void card.offsetWidth; card.classList.add('hs-in'); setTimeout(() => q.focus(), 60); };
+  const close = () => { q.value = ''; out.innerHTML = ''; sug.hidden = true; M.S.ui.hsLid = null; card.hidden = true; openB.hidden = false; };
+  openB.onclick = open; $('#hsClose').onclick = close;
   const show = (l) => { sug.hidden = true; q.value = l.name; out.innerHTML = learnerDossier(c, l); M.S.ui.hsLid = l.id;
-    $$('[data-hs]', out).forEach(b => b.onclick = () => { const k = b.dataset.hs; if(k === 'x'){ out.innerHTML = ''; q.value = ''; M.S.ui.hsLid = null; q.focus(); } else if(k === 'p') learnerProfile(c, l); });
+    $$('[data-hs]', out).forEach(b => b.onclick = () => { const k = b.dataset.hs; if(k === 'x') close(); else if(k === 'p') learnerProfile(c, l); });
   };
   const find = () => { const v = q.value.trim(); const n = M.normName(v);
     if(!n && !/\d/.test(v)){ sug.hidden = true; return; }
@@ -437,12 +442,13 @@ function homeSearch(c){
     sug.innerHTML = hits.map((x, i) => `<button class="hs-it ${i===0?'on':''}" data-i="${i}"><b>${esc(x.l.name)}</b> <span class="tiny muted">${esc(x.l.lrn || '')} · ${x.l.sex || ''}</span></button>`).join('');
     $$('.hs-it', sug).forEach(b => b.onmousedown = e => { e.preventDefault(); show(hits[+b.dataset.i].l); });
   };
-  q.oninput = find;
-  q.onkeydown = e => { if(sug.hidden) return; const its = $$('.hs-it', sug);
+  q.oninput = () => { if(!q.value.trim()) out.innerHTML = ''; find(); };
+  q.onkeydown = e => { if(e.key === 'Escape' && (sug.hidden || !q.value.trim())){ close(); return; }
+    if(sug.hidden) return; const its = $$('.hs-it', sug);
     if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){ e.preventDefault(); sel = (sel + (e.key === 'ArrowDown' ? 1 : -1) + its.length) % its.length; its.forEach((b, i) => b.classList.toggle('on', i === sel)); }
     else if(e.key === 'Enter' && hits[sel]){ e.preventDefault(); show(hits[sel].l); } else if(e.key === 'Escape') sug.hidden = true; };
-  q.onblur = () => setTimeout(() => sug.hidden = true, 150);
-  const keep = M.S.ui.hsLid && c.learners.find(l => l.id === M.S.ui.hsLid); if(keep) show(keep);
+  q.onblur = () => setTimeout(() => { sug.hidden = true; if(!q.value.trim() && !out.innerHTML.trim() && !card.contains(document.activeElement)) close(); }, 180);
+  M.S.ui.hsLid = null;
 }
 function learnerDossier(c, l){
   const terms = ['1','2','3'], rows = terms.map(t => M.termRow(c, t, l.id)), f = M.finalRow(c, l.id);
@@ -753,7 +759,7 @@ M.views.settings = function(el){
         ${f('region','Region / Division line (printed reports)')}
         <div class="grid g-2" style="gap:12px">${f('head','School Principal')}${f('headTitle','Title')}</div>
         ${f('driveUrl','Google Drive folder')}
-        <label class="field">Appearance<select class="input" data-s="theme"><option value="auto" ${s.theme==='auto'?'selected':''}>Match device</option><option value="light" ${s.theme==='light'?'selected':''}>Light</option><option value="dark" ${s.theme==='dark'?'selected':''}>Dark</option></select></label>
+        <label class="field">Appearance<select class="input" data-s="theme"><option value="auto" ${s.theme==='auto'?'selected':''}>Match device</option><option value="light" ${s.theme==='light'?'selected':''}>Light</option><option value="glass" ${s.theme==='glass'?'selected':''}>Glass (sunset gradient)</option><option value="dark" ${s.theme==='dark'?'selected':''}>Dark</option></select></label>
         <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" data-sb="xmas" ${s.xmas!==false?'checked':''}> 🎄 Christmas look on the tab I'm using ${M.newTag('xmas')}</label>
         <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:4px"><input type="checkbox" data-sb="fridayReminder" ${s.fridayReminder!==false?'checked':''}> 🗓️ Remind me to back up every Friday at 3:00 PM ${M.newTag('friday-backup')}</label>
       </div>

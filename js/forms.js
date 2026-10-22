@@ -267,7 +267,7 @@ function sf9View(el, lidArg){
     else if(!M.sidFor(sec, l.id)) warn.push('Attendance: this learner has no seat — link them in Attendance → Manage');
     if(M.termsWithData(c).length < 3) warn.push('Final grades appear once Term 1–3 grades are all in');
     body.innerHTML = `${warn.length?`<div class="card" style="margin-bottom:20px">${warn.map(w=>`<div class="flag"><span class="dot"></span><div>${esc(w)}</div></div>`).join('')}</div>`:''}
-      <div class="sf9-preview ${LAY(layout).both?'both':'duplex'}">${sf9Pages(D, layout)}</div>`;
+      <div class="sf9-preview ${LAY(layout).both?'both':'duplex'}">${M.emphPrint(sf9Pages(D, layout))}</div>`;
     fitPreview(body);
   }
   if(ui.tab==='att') attTab(body, c, L, sec, () => sf9View(el, l.id));

@@ -101,7 +101,7 @@ function editor(c, L, done){
     const save = () => { if(isNew && !letters(c).includes(L)) letters(c).push(L); L.edited = new Date().toISOString(); if(L.phone) M.S.settings.phone = L.phone; M.save(); };
     $('#rqSave', b).onclick = () => { save(); M.closeModal(); M.toast('Letter saved'); done && done(); };
     $('#rqW', b).onclick = async () => { save(); await letterDocx(c, L); markSent(c, L); };
-    $('#rqP', b).onclick = () => { save(); markSent(c, L); M.doPrint(`<div class="rq-page">${letterHtml(c, L)}</div>`, M.pageCss('A4'), {noFit: true}); };
+    $('#rqP', b).onclick = () => { save(); markSent(c, L); M.doPrint(`<div class="rq-page">${letterHtml(c, L)}</div>`, M.pageCss('A4')); };
     M.onModalClose = () => done && done();
     rowsUI(); prev();
   }, true);
@@ -135,18 +135,19 @@ M.sf1Extras = async function(wrap){
   await syncRemarks(c); tiCard($('#tiCard', wrap), c);
 };
 function tiCard(el, c){
-  const u = ui(); const T = M.sortedLearners(c).filter(l => isTI(l) && M.counted(l)); const tr = track(c); const id137 = f137();
+  const u = ui(); const all = M.sortedLearners(c).filter(l => M.counted(l)); const TI = all.filter(isTI); const T = TI.concat(all.filter(l => !isTI(l))); const tr = track(c); const id137 = f137();
   const lettersOf = (lid) => letters(c).filter(L => L.lids.includes(lid));
   el.innerHTML = `<div class="row" style="gap:10px;flex-wrap:wrap"><div class="grow"><h2 style="margin:0">Transferred In (T/I) · SF10 requests ${M.newTag('sf10-requests')}</h2>
-      <div class="small muted">Learners marked T/I in the SF1 remarks${T.some(l => l.status === 'TI') ? ' or tagged Transferred In' : ''}. Tick learners who came from the same school / adviser and make one letter for all of them. When the SF10 arrives, tick <b>Received</b> — Old Form 137 is ticked in Learners.</div></div>
+      <div class="small muted">All learners can be ticked. <span class="ti-badge">T/I</span> learners (from the SF1 remarks or the Transferred In status) are listed first — priority (${TI.length}). Tick learners who came from the same school / adviser and make one letter for all of them. When the SF10 arrives, tick <b>Received</b> — Old Form 137 is ticked in Learners.</div></div>
       <button class="btn primary" id="tiNew" ${T.length ? '' : 'disabled'}>${ico('plus')} Letter for ticked learners</button></div>
     ${T.length ? `<div class="table-wrap" style="margin-top:12px;max-height:none"><table class="ti-t"><thead><tr><th></th><th class="sticky-col">Learner</th><th>SF1 remark</th>${STAGES.map(([, t]) => `<th class="c">${t}</th>`).join('')}<th class="c">Old 137</th><th>Letters</th></tr></thead>
       <tbody>${T.map(l => { const t = tr[l.id] || {}; const L = lettersOf(l.id); const has137 = id137 && (c.checklist[l.id] || {})[id137];
-        return `<tr class="${t.rec ? 'ti-done' : ''}"><td><input type="checkbox" data-sel="${l.id}" ${u.sel[l.id] ? 'checked' : ''}></td><td class="sticky-col"><b>${esc(l.name)}</b><div class="tiny muted">LRN ${esc(l.lrn || '—')}</div></td><td class="tiny">${esc(l.sf1Rem || (l.status === 'TI' ? 'Transferred In' : ''))}</td>
+        const ti = isTI(l); const sep = !ti && TI.length && l === T[TI.length] ? `<tr class="ti-sep"><td colspan="${STAGES.length + 5}">Other learners</td></tr>` : '';
+        return sep + `<tr class="${t.rec ? 'ti-done' : ''} ${ti ? 'ti-pri' : ''}"><td><input type="checkbox" data-sel="${l.id}" ${u.sel[l.id] ? 'checked' : ''}></td><td class="sticky-col"><b>${esc(l.name)}</b>${ti ? ' <span class="ti-badge" title="Transferred In — priority">T/I</span>' : ''}<div class="tiny muted">LRN ${esc(l.lrn || '—')}</div></td><td class="tiny">${esc(l.sf1Rem || (l.status === 'TI' ? 'Transferred In' : ''))}</td>
           ${STAGES.map(([k]) => `<td class="c"><label class="ti-ck"><input type="checkbox" data-st="${k}" data-l="${l.id}" ${t[k] ? 'checked' : ''}><span class="tiny">${t[k] ? esc(M.parse(t[k]).toLocaleDateString(undefined, {month:'short', day:'numeric'})) : ''}</span></label></td>`).join('')}
           <td class="c">${has137 ? '<span class="chip green" style="font-size:10.5px;padding:2px 8px">✓</span>' : '<span class="muted">—</span>'}</td>
           <td>${L.map(x => `<button class="btn sm" data-open="${x.id}" title="Open letter">${STAGES.find(s => s[0] === x.stage)[1]}${x.lids.length > 1 ? ` · ${x.lids.length}` : ''}</button>`).join(' ') || '<span class="tiny muted">none</span>'}</td></tr>`; }).join('')}</tbody></table></div>`
-    : '<div class="empty" style="margin-top:12px">No T/I learners found. MASTRO reads the REMARKS column of your SF1 (e.g. “T/I DATE:2026-06-08”) or the Transferred In status in Learners.</div>'}
+    : '<div class="empty" style="margin-top:12px">No learners yet. MASTRO reads the REMARKS column of your SF1 (e.g. “T/I DATE:2026-06-08”) or the Transferred In status in Learners.</div>'}
     ${letters(c).length ? `<h3 style="margin-top:16px">Saved letters</h3><div class="list">${letters(c).slice().reverse().map(L => `<div class="item" style="gap:10px;align-items:center"><div class="grow"><b>${esc(L.lids.map(id => (c.learners.find(l => l.id === id) || {name:'?'}).name.split(',')[0]).join(', '))}</b><div class="tiny muted">${STAGES.find(s => s[0] === L.stage)[1]} · ${L.date ? esc(L.date) : 'no date yet'} · edited ${esc(new Date(L.edited || L.created).toLocaleDateString())}</div></div><button class="btn sm" data-open="${L.id}">${ico('edit')} Open</button><button class="icon-btn del-l" data-del="${L.id}" title="Delete letter">${ico('trash','width:16px;height:16px')}</button></div>`).join('')}</div>` : ''}`;
   const rr = () => tiCard(el, c);
   $$('[data-sel]', el).forEach(x => x.onchange = () => { if(x.checked) u.sel[x.dataset.sel] = 1; else delete u.sel[x.dataset.sel]; });

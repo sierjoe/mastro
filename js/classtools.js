@@ -12,7 +12,7 @@ const CL = {ww:'Written Works', pt:'Performance Tasks', qa:'Examinations'};
 M.pagePreview = function(title, html, opts = {}){
   const land = !!opts.land;
   M.modal(title, `<div class="row" style="margin-bottom:10px;gap:8px;flex-wrap:wrap"><span class="small muted">${esc(opts.note || ('A4 ' + (land ? 'landscape' : 'portrait') + ' · 0.3 in margins'))}</span><span class="spacer"></span>${opts.extra || ''}<button class="btn primary" id="pvP">${ico('print')} Print</button></div>
-    <div class="rd-prev-wrap"><div class="print-only rd-prev">${html}</div></div>`, b => {
+    <div class="rd-prev-wrap"><div class="print-only rd-prev">${M.safePages(html)}</div></div>`, b => {
     const box = $('.rd-prev', b); const pw = (land ? 297 : 210) * 96 / 25.4; box.style.zoom = Math.min(1, ($('.rd-prev-wrap', b).clientWidth - 24) / pw).toFixed(3);
     $('#pvP', b).onclick = () => opts.onPrint ? opts.onPrint() : M.doPrint(html, M.pageCss('A4', land), {noFit: true});
     if(opts.onMount) opts.onMount(b);

@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.10 · October 22, 2026)
+# MASTRO — Adviser's Workspace (v6.11 · October 22, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -19,6 +19,15 @@ Offline forms, documents and class management for the class adviser
 - **Learner status**: tag T/O, SARDO, NLP or Dropped Out; statistics and reports reflect it.
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
+
+### New in v6.11
+- **Glass theme** (sunset gradient glassmorphism) — switch themes any time with the palette button in the top bar or Settings → Appearance.
+- Buttons morph softly on hover. Home: **Search for a Student** stays a button until you tap it, and folds back when closed or left empty.
+- Forms → SF1: every learner can be ticked for an SF10 request letter; T/I learners are marked **T/I** and listed first (priority).
+- ECR: **Tag learners** button opens a list of all learners with NLS / TO choices (no more hover button beside long names).
+- Anecdotal Records: 30 **pre-built comments** — 10 positive, 10 neutral, 10 needs improvement (tardiness, absenteeism, behavior, hygiene…); tap one, then edit.
+- Printouts are shown and printed at ~94% so nothing reaches the paper's edge; SF10 hides the empty rows after Physical Education & Health.
+- Printouts: learner names in **bold**, LRNs in red.
 
 ### New in v6.10
 - Reading Progress Card: one A4 sheet per learner — English copy (left) and Filipino copy (right); Remarks and Assessor's signature are left blank for handwriting.
@@ -106,7 +115,7 @@ Offline forms, documents and class management for the class adviser
 ## Update your GitHub copy (you already have v1 online)
 1. Unzip `MASTRO.zip`. Open the `mastro` folder.
 2. In your `mastro` repository on GitHub, click **Add file → Upload files**.
-3. Drag **everything inside the folder** (files and the folders `css`, `js`, `icons`, `vendor`, `templates`) into the page — v6.10 adds `js/sf10req.js` and `templates/SF10_Request_Template.docx`; v6.9 added `js/calendar.js`, `templates/RPC_English.jpg` and `templates/RPC_Filipino.jpg`; v6.8 added `js/anecdotal.js`; v6.7 added `js/classtools.js`, `templates/SF4_Template.xlsx` and `templates/SF5_Template.xlsx`; v6.5 added `icons/bulig.png` and `icons/bulig-mark.png`; v6.4 added `js/reading.js`; v6.2 added `js/bowdata.js`, `js/sf78.js`, `templates/SF7_Template.xlsx` and `templates/SF8_Template.xlsx`; v6.1 added `js/assess.js`; v6 added `js/xlsxview.js`, `js/ecredit.js`, `js/tests.js`, `vendor/pdf.min.js` and `vendor/pdf.worker.min.js`;
+3. Drag **everything inside the folder** (files and the folders `css`, `js`, `icons`, `vendor`, `templates`) into the page — v6.11 changes files only (no new files); v6.10 added `js/sf10req.js` and `templates/SF10_Request_Template.docx`; v6.9 added `js/calendar.js`, `templates/RPC_English.jpg` and `templates/RPC_Filipino.jpg`; v6.8 added `js/anecdotal.js`; v6.7 added `js/classtools.js`, `templates/SF4_Template.xlsx` and `templates/SF5_Template.xlsx`; v6.5 added `icons/bulig.png` and `icons/bulig-mark.png`; v6.4 added `js/reading.js`; v6.2 added `js/bowdata.js`, `js/sf78.js`, `templates/SF7_Template.xlsx` and `templates/SF8_Template.xlsx`; v6.1 added `js/assess.js`; v6 added `js/xlsxview.js`, `js/ecredit.js`, `js/tests.js`, `vendor/pdf.min.js` and `vendor/pdf.worker.min.js`;
    then **Commit changes**. Files with the same name are replaced.
 4. Optional clean-up: `js/app.js` and `vendor/exceljs.min.js` are no longer used — you can delete them on GitHub.
 5. Wait 1–2 minutes, then open your app link. On iPhone, open MASTRO once while online so it saves the new version.
@@ -129,4 +138,4 @@ is already loaded; to bring in newer SeatCheck records, go to **Attendance → M
 - Saved only on the device (browser storage). Use **Settings → Back up everything** often and keep the file in your Google Drive folder.
 - To move data to another device: **Settings → Restore backup** there.
 - Clearing Safari website data deletes MASTRO data — keep backups.
-- When you change files later, also edit `sw.js` and raise `mastro-v6.10.0` (e.g. to `mastro-v6.10.1`) so devices download the update.
+- When you change files later, also edit `sw.js` and raise `mastro-v6.11.0` (e.g. to `mastro-v6.11.1`) so devices download the update.

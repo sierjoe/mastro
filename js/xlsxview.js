@@ -90,6 +90,8 @@ M.xvRender = function(doc, sst, styles, area, opts = {}){
       if(t === 's') val = v ? (sst[+v.textContent] || '') : ''; else if(t === 'inlineStr') val = [...c.getElementsByTagNameNS(NS,'t')].map(x=>x.textContent).join(''); else if(t === 'str' || t === 'e') val = v ? v.textContent : ''; else if(t === 'b') val = v ? (v.textContent==='1'?'TRUE':'FALSE') : ''; else val = v && v.textContent !== '' ? +v.textContent : '';
       cells[`${p.c},${p.r}`] = {val, s: +(c.getAttribute('s')||0)}; }); });
   if(opts.hideRows) opts.hideRows.forEach(n => rowHidden[n] = 1);
+  // learner-name cells filled by MASTRO print in bold
+  const boldAt = opts.boldCells ? Object.fromEntries(opts.boldCells.map(x => { const p = parseRef(x); return p ? [`${p.c},${p.r}`, 1] : null; }).filter(Boolean)) : null;
   let c1 = 1, r1 = 1, c2 = maxC, r2 = maxR;
   if(area){ const [a, b] = area.replace(/\$/g,'').split(':'); const A = parseRef(a), B = parseRef(b||a); if(A && B){ c1 = A.c; r1 = A.r; c2 = B.c; r2 = B.r; } }
   const merges = {}, covered = {};
@@ -102,7 +104,7 @@ M.xvRender = function(doc, sst, styles, area, opts = {}){
   const bcss = (b) => b ? `${BSTYLE[b.st] || '1px solid'} #${b.color}` : '';
   let html = `<table class="xv-t" style="width:${W}px"><colgroup>${[...Array(c2-c1+1).keys()].map(i => `<col style="width:${cpx(c1+i)}px">`).join('')}</colgroup><tbody>`;
   for(let r=r1; r<=r2; r++){
-    html += `<tr style="height:${rpx(r)}px">`;
+    html += rowHidden[r] ? '<tr style="display:none">' : `<tr style="height:${rpx(r)}px">`;
     for(let c=c1; c<=c2; c++){
       const k = `${c},${r}`; if(covered[k]) continue;
       const cell = cells[k]; const xf = styles.xfs[cell ? cell.s : 0] || styles.xfs[0] || {font:{}, border:{}};
@@ -114,7 +116,7 @@ M.xvRender = function(doc, sst, styles, area, opts = {}){
       const f = xf.font || {};
       const st = [fontCss(f.name||'Calibri', f.sz||11)];
       if(mg && !xf.wrap) st.push('overflow:hidden');
-      if(f.b) st.push('font-weight:bold'); if(f.i) st.push('font-style:italic'); if(f.u) st.push('text-decoration:underline'); if(f.color) st.push(`color:#${f.color}`);
+      if(f.b || (boldAt && boldAt[k])) st.push('font-weight:bold'); if(f.i) st.push('font-style:italic'); if(f.u) st.push('text-decoration:underline'); if(f.color) st.push(`color:#${f.color}`);
       if(xf.fill) st.push(`background:#${xf.fill}`);
       ['left','right','top','bottom'].forEach(sd => { const b = bEdge(sd); if(b) st.push(`border-${sd}:${bcss(b)}`); });
       const val = cell ? cell.val : '';
@@ -156,6 +158,7 @@ M.xvRender = function(doc, sst, styles, area, opts = {}){
   const fit = opts.fit || spr?.getAttribute('fitToPage') === '1' || spr?.getAttribute('fitToPage') === 'true';
   let k = fit ? Math.min(1, iw / W, ih / H) : Math.min(1, (+(ps?.getAttribute('scale')||100))/100, iw / W);
   if(!fit && H * k > ih) k = Math.min(k, ih / H);
+  if(opts.safe !== false) k *= (M.SAFE_K || 1);   // ~94%: the form never reaches the paper's edge
   return {W, H, k, paper:[pw, ph], margins:[mT, mR, mB, mL],
     html: `<div class="xv-page" style="width:${pw}in;height:${ph}in;padding:${mT}in ${mR}in ${mB}in ${mL}in"><div class="xv-fit" style="width:${(W*k).toFixed(1)}px;height:${(H*k).toFixed(1)}px"><div class="xv-scale" style="transform:scale(${k.toFixed(4)})">${html}</div></div></div>`};
 };

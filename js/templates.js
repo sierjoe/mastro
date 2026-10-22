@@ -318,7 +318,15 @@ const FORMS = {
     const ppl = [{name:X.head.schoolHead, sex:'', pos:M.headTitle()}, {name:X.head.adviser, sex:'', pos:'Teacher / Class Adviser'}];
     let r = tbl.start; ppl.forEach(p => { while(!sh.isEmpty(tbl.nameCol, r) && r < tbl.start + 50) r++; sh.set(tbl.nameCol, r, p.name, 'Personnel'); if(tbl.map.position) sh.set(tbl.map.position, r, p.pos); r++; }); return '2 personnel rows (school head, adviser)'; }},
   SF8: {fill(sh, X){ fillLabels(sh, X.head, LABELS); fillSignatures(sh, X.head); const tbl = findTable(sh); if(!tbl) return 'No learner table found.'; return fillLearners(sh, tbl, X.learners).length + ' learner(s) (height/weight left for you)'; }},
-  SF10: {perLearner:true, paper:'8.5 × 13 in', fill(sh, X, p){
+  SF10: {perLearner:true, paper:'8.5 × 13 in',
+    // the blank learning-area rows after "Physical Education & Health" (before "General Average") are left out of the view / print
+    areas(sh){ const hide = []; let pe = 0;
+      for(let r = 1; r <= sh.maxR; r++){ let line = ''; for(let c = 1; c <= Math.min(sh.maxC, 60); c++){ const m = sh.master(c, r); if(m.c === c && m.r === r){ const t = sh.text(c, r); if(t) line += t + ' '; } }
+        line = line.trim();
+        if(/physical\s*education/i.test(line)){ pe = r; continue; }
+        if(pe){ if(/general\s*average/i.test(line) || r - pe > 8){ pe = 0; continue; } if(!line) hide.push(r); } }
+      return [{opts: {hideRows: hide}}]; },
+    fill(sh, X, p){
     const find = (re, r1=1, r2=sh.maxR) => { let hit = null; sh.each((c, r, t) => { if(r < r1 || r > r2) return; if(re.test(t) && (!hit || r < hit.r || (r===hit.r && c < hit.c))) hit = {c, r}; }); return hit; };
     const all = (re) => { const out = []; sh.each((c, r, t) => { if(re.test(t)) out.push({c, r}); }); return out.sort((a,b)=>a.r-b.r||a.c-b.c); };
     // 1) learner's information — only the rows above "SCHOLASTIC RECORD" (never the elementary-school boxes)
@@ -460,8 +468,9 @@ M.templatePages = async function(code, blob, opts, onStep){
       // some forms print on more than one page (row ranges); unused learner rows can be hidden on screen/print
       const areas = (B.F.areas && B.F.areas(x.sh, p)) || [{area: x.src.area}];
       for(const ar of areas){
-        const R = M.xvRender(x.doc, B.T.sst, B.T.styles, ar.area || x.src.area, Object.assign({}, base, ar.opts || {}));
-        pages.push({label: p ? p.name : x.src.sht.name, lid: p && p.l ? p.l.id : null, html: R.html, paper: R.paper, W: R.W, H: R.H, k: R.k, margins: R.margins});
+        const boldCells = x.sh.filled.filter(f => /^(last|first|middle|ext|name|learner|certification name)$/i.test(f.label)).map(f => f.cell);
+        const R = M.xvRender(x.doc, B.T.sst, B.T.styles, ar.area || x.src.area, Object.assign({boldCells}, base, ar.opts || {}));
+        pages.push({label: p ? p.name : x.src.sht.name, lid: p && p.l ? p.l.id : null, html: M.emphPrint(R.html), paper: R.paper, W: R.W, H: R.H, k: R.k, margins: R.margins});
       }
       report.push({sheet: p ? p.name : x.src.sht.name, note: x.note, filled: x.sh.filled});
     }
@@ -542,7 +551,7 @@ function progress(text){
 M.xvProgress = progress;
 const paperName = (pp) => { const k = pp.map(x => +x.toFixed(2)).join('×'); return ({'8.5×13':'8.5 × 13 in (folio)','8.5×14':'8.5 × 14 in (legal)','8.5×11':'8.5 × 11 in (letter)','8.27×11.69':'A4','11.69×8.27':'A4 landscape','13×8.5':'13 × 8.5 in (folio, landscape)','14×8.5':'8.5 × 14 in landscape'})[k] || `${pp[0]} × ${pp[1]} in`; };
 M.xvPaperName = paperName;
-M.xvPrintPages = (pages) => M.doPrint(pages.map(p => p.html).join(''), M.xvPageCss(pages[0].paper), {margin: pages[0].margins ? pages[0].margins[0] : 0.5});
+M.xvPrintPages = (pages) => M.doPrint(pages.map(p => p.html).join(''), M.xvPageCss(pages[0].paper), {margin: pages[0].margins ? pages[0].margins[0] : 0.5, noFit: true});
 M.xvPdf = async function(pages, filename){
   const pr = progress('Preparing PDF…');
   try {

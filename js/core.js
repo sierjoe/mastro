@@ -11,7 +11,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.10', date:'2026-10-22', label:'October 22, 2026'};
+M.VERSION = {n:'6.11', date:'2026-10-22', label:'October 22, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -506,11 +506,38 @@ M.quadPages = function(cells, designW, designH, per = 4, paper = 'A4', o = {}){
     pages.push(`<div class="quad-page" style="width:${pw}mm;height:${ph}mm">${per === 4 ? `<i class="cut v" style="left:${cw}mm"></i>` : ''}<i class="cut h" style="top:${ch}mm"></i>${chunk.map(cell).join('')}</div>`); }
   return pages.join('');
 };
+// printouts: learner names in bold, LRNs in red (every class roster + every class record roster is recognised)
+M.emphRe = () => { const names = new Set(); const add = (n) => { n = String(n || '').trim().replace(/\s+/g, ' '); if(n.length >= 5 && /[a-z]/i.test(n)) names.add(n); };
+  (M.S.classes || []).forEach(c => (c.learners || []).forEach(l => { add(l.name); const [last, rest] = String(l.name || '').split(','); if(rest && rest.trim()){ add(rest.trim() + ' ' + last.trim()); } }));
+  (M.S.ecr || []).forEach(E => { Object.values(E.terms || {}).forEach(T => (T.learners || []).forEach(x => add(x.name))); const R = E.model && E.model.roster; if(R) [...(R.M || []), ...(R.F || [])].forEach(add); });
+  const key = names.size + ':' + [...names].join('|').length; if(M.emphRe.k === key) return M.emphRe.re;
+  const rx = (n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s*,\s*/g, ',\\s*').replace(/ /g, '\\s+');
+  const list = [...names].sort((a, b) => b.length - a.length).map(rx);
+  M.emphRe.k = key; M.emphRe.re = new RegExp(`${list.length ? `(${list.join('|')})|` : ''}(\\b\\d{12}\\b)`, 'gi'); if(!list.length) M.emphRe.re = new RegExp('((?!))|(\\b\\d{12}\\b)', 'g'); return M.emphRe.re; };
+M.emphPrint = (html) => { if(!html || M.S.settings.emphPrint === false) return html;
+  const re = M.emphRe(); const t = document.createElement('template'); t.innerHTML = html;
+  const w = document.createTreeWalker(t.content, NodeFilter.SHOW_TEXT); const nodes = []; let n;
+  while((n = w.nextNode())){ const pe = n.parentElement; if(!pe || /^(STYLE|SCRIPT|TEXTAREA)$/.test(pe.tagName) || pe.closest('.p-nm,.p-lrn,.no-emph')) continue; re.lastIndex = 0; if(re.test(n.nodeValue)) nodes.push(n); }
+  nodes.forEach(nd => { const s = nd.nodeValue; const f = document.createDocumentFragment(); let last = 0; re.lastIndex = 0; let m;
+    while((m = re.exec(s))){ if(!m[0]){ re.lastIndex++; continue; } if(m.index > last) f.appendChild(document.createTextNode(s.slice(last, m.index)));
+      const e = document.createElement(m[2] ? 'span' : 'b'); e.className = m[2] ? 'p-lrn' : 'p-nm'; e.textContent = m[0]; f.appendChild(e); last = m.index + m[0].length; }
+    if(last < s.length) f.appendChild(document.createTextNode(s.slice(last))); nd.parentNode.replaceChild(f, nd); });
+  return nodes.length ? t.innerHTML : html; };
+// every printout is shown and printed at ~94% inside its page box, so nothing ever touches or crosses the paper's edge
+M.SAFE_K = 0.94;
+M.safePages = (html) => { html = M.emphPrint(html); if(!/class="(?:fitbox|quad-page)/.test(html)) return html;
+  const d = document.createElement('div'); d.innerHTML = html;
+  M.$$('.fitbox, .quad-page', d).forEach(p => { if(p.dataset.safe || p.parentElement.closest('.fitbox, .quad-page')) return; p.dataset.safe = '1';
+    const w = document.createElement('div'); w.className = 'safe-k ' + (p.classList.contains('fitbox') ? 'sk-top' : 'sk-mid'); w.style.transform = `scale(${M.SAFE_K})`;
+    while(p.firstChild) w.appendChild(p.firstChild); p.appendChild(w); });
+  return d.innerHTML; };
 M.doPrint = (html, pageCss, opts = {}) => {
   const mg = opts.margin != null ? opts.margin : M.PRINT_MARGIN_IN;   // inches (0.3 in on every printout)
   const p = parsePage(pageCss); const css = `@page{size:${p.w.toFixed(1)}mm ${p.h.toFixed(1)}mm;margin:${mg}in}`;
+  html = M.emphPrint(html);
   // anything wider than the printable width is zoomed down so it never runs off the paper
-  if(!opts.noFit){ const W = p.w - 2*mg*25.4; const m = M.measurePrint(html, W); const k = (W * 96 / 25.4) / m.w; if(k < 0.995) html = `<div class="pzoom" style="zoom:${Math.max(0.3, k).toFixed(4)}">${html}</div>`; }
+  if(!opts.noFit){ const W = p.w - 2*mg*25.4; const m = M.measurePrint(html, W); const k = Math.min(1, (W * 96 / 25.4) / m.w) * (opts.safe === false ? 1 : M.SAFE_K); if(k < 0.995) html = `<div class="pzoom" style="zoom:${Math.max(0.3, k).toFixed(4)}">${html}</div>`; }
+  else if(opts.safe !== false) html = M.safePages(html);
   $('#printArea').innerHTML = html;
   $('#pageStyle').textContent = css;
   setTimeout(() => window.print(), 80);
@@ -590,6 +617,12 @@ M.backupReminder = () => {
   document.addEventListener('visibilitychange', () => { if(!document.hidden) setTimeout(check, 800); });
 };
 /* ---------------- live day · date · time (top right, always visible) ---------------- */
+// themes: switch any time from the palette button (top bar) or Settings → Appearance
+M.THEMES = [['light','Light · forest & gold'],['glass','Glass · sunset gradient'],['dark','Dark'],['auto','Match device']];
+M.themeMenu = () => { const cur = M.S.settings.theme || 'auto';
+  M.modal('Theme', `<div class="theme-pick">${M.THEMES.map(([k, t]) => `<button class="theme-opt ${k === cur ? 'on' : ''}" data-th="${k}"><span class="th-sw th-${k}"></span><span>${t}</span></button>`).join('')}</div>`, b => {
+    M.$$('[data-th]', b).forEach(x => x.onclick = () => { M.S.settings.theme = x.dataset.th; M.save(); M.applyTheme(); M.closeModal(); const sel = document.querySelector('[data-s="theme"]'); if(sel) sel.value = x.dataset.th; M.toast('Theme: ' + x.textContent.trim()); }); }); };
+document.addEventListener('click', e => { if(e.target.closest('#themeBtn')) M.themeMenu(); });
 M.liveClock = () => { const d0 = $('#lcDay'), d1 = $('#lcDate'), d2 = $('#lcTime'); if(!d0) return;
   const tick = () => { const n = new Date(); d0.textContent = n.toLocaleDateString(undefined, {weekday:'long'}); d1.textContent = n.toLocaleDateString(undefined, {month:'long', day:'numeric', year:'numeric'});
     d2.textContent = n.toLocaleTimeString([], {hour:'numeric', minute:'2-digit', second:'2-digit'}); };

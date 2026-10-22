@@ -369,7 +369,7 @@ function printPages(pages, land){ M.doPrint(fitPages(pages, land), M.pageCss('A4
 function preview(title, pages, land){
   const html = fitPages(pages, land);
   M.modal(title, `<div class="row" style="margin-bottom:10px"><span class="small muted">A4 ${land ? 'landscape' : 'portrait'} · 0.3 in margins · ${pages.length} page(s)</span><span class="spacer"></span><button class="btn primary" id="pvP">${ico('print')} Print</button></div>
-    <div class="rd-prev-wrap"><div class="print-only rd-prev ${land ? 'land' : ''}">${html}</div></div>`, b => {
+    <div class="rd-prev-wrap"><div class="print-only rd-prev ${land ? 'land' : ''}">${M.safePages(html)}</div></div>`, b => {
     const box = $('.rd-prev', b); const fit = () => { const pw = (land ? 297 : 210) * 96 / 25.4; const z = Math.min(1, ($('.rd-prev-wrap', b).clientWidth - 24) / pw); box.style.zoom = z.toFixed(3); }; fit();
     $('#pvP', b).onclick = () => printPages(pages, land);
   }, true);

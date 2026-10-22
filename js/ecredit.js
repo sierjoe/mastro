@@ -308,7 +308,7 @@ function termTab(eb, E, model, t, ui, mark){
   const cellTd = (sx, i, k, j, v) => { const n = T.notes[nk(sx,i,k,j)]; return `<td class="${n?'noted':''}" ${n?`title="${esc(n)}"`:''}><input class="sc ${lowSc(v, T.hps[k][j]) ? 'lowsc' : ''}" data-sx="${sx}" data-i="${i}" data-k="${k}" data-j="${j}" value="${f0(v)}" inputmode="decimal"></td>`; };
   const row = (sx, i) => { const s = T.scores[sx][i]; const o = calc(model, T, s); const name = model.roster[sx][i];
     const tag = (T.tags || {})[sx + i] || '';
-    return `<tr data-r="${sx}${i}" class="${!name?'emptyslot':''} ${tag ? 'ecr-tagged' : ''}"><td class="sticky-col"><span class="muted tiny">${i+1}</span> ${esc(name||'—')}${name ? ` <button class="ecr-tagb ${tag ? 'on' : ''}" data-tag="${sx}${i}" title="Tag this learner for Term ${esc(t)}">${tag ? ECR_TAGS[tag] : '＋ tag'}</button>` : ''}</td>
+    return `<tr data-r="${sx}${i}" class="${!name?'emptyslot':''} ${tag ? 'ecr-tagged' : ''}"><td class="sticky-col"><span class="muted tiny">${i+1}</span> ${tag ? `<span class="ecr-tagchip t-${tag}" title="${esc(ECR_TAGS[tag])} · Term ${esc(t)}">${tag}</span> ` : ''}${esc(name||'—')}</td>
       ${['ww','pt'].map(k => s[k].map((v, j) => cellTd(sx, i, k, j, v)).join('') + `<td class="cm" data-o="${k}Total">${f0(o[k+'Total'])}</td><td class="cm" data-o="${k}PS">${f2(o[k+'PS'])}</td><td class="cm" data-o="${k}WS">${f2(o[k+'WS'])}</td>`).join('')}
       ${s.ex.map((v, j) => cellTd(sx, i, 'ex', j, v)).join('')}<td class="cm" data-o="exPS">${f2(o.exPS)}</td><td class="cm" data-o="exWS">${f2(o.exWS)}</td>
       <td class="cm" data-o="ig">${f2(o.ig)}</td><td class="tg ${isNum(o.tg)&&o.tg<75?'low':''}" data-o="tg">${f0(o.tg)}</td><td class="ds" data-o="desc">${o.desc?`<span class="desc d-${o.desc}">${o.desc}</span>`:''}</td></tr>`; };
@@ -321,6 +321,7 @@ function termTab(eb, E, model, t, ui, mark){
     return ents.length ? `<div class="list" style="max-height:260px;overflow:auto;padding:4px">${ents.map(n => `<div class="item" style="padding:7px 12px"><div class="grow"><div class="small"><b>${esc(n.name)}</b> · ${esc(n.col)}</div><div class="tiny">${esc(n.v)}</div></div><button class="icon-btn" data-delnote="${esc(n.key)}" title="Remove note">✕</button></div>`).join('')}</div>` : '<div class="empty small">No notes yet. Tap a score box, then type a note in the bar above the table.</div>'; };
   eb.innerHTML = `<div class="card"><div class="row"><h2 style="margin:0">Term ${t} <span class="tiny muted">sheet “${esc(T.sheet)}”</span></h2><span class="spacer"></span>
       ${st && st.n ? `<span class="chip">mean ${fmt(st.mean)}</span><span class="chip">${st.passed}/${st.n} reached 75</span>` : ''}
+      <button class="btn sm" id="tagBtn" title="Mark learners No longer in school / Transferred out for this term">${ico('learners','width:14px;height:14px')} Tag learners ${M.newTag('ecr-tagpanel')}${Object.keys(T.tags || {}).length ? ` <span class="chip" style="padding:1px 7px;font-size:11px">${Object.keys(T.tags).length}</span>` : ''}</button>
       <label class="row small" style="cursor:pointer;gap:6px"><input type="checkbox" id="edEmpty" ${ui.empty?'checked':''}> Show empty rows</label></div>
     <div class="note-bar" id="noteBar"><span class="nb-ico">📝</span><div class="nb-what small muted">Tap any score box to add a note (absent, excused, no output…). ${M.newTag('ecr-notes')} Notes never change scores or grades.</div></div>
     <div class="table-wrap ecr-grid-wrap"><table class="ecr-grid"><thead>${head1}${head2}</thead><tbody>${hpsRow}${body}</tbody></table></div></div>
@@ -351,14 +352,20 @@ function termTab(eb, E, model, t, ui, mark){
       else td.textContent = /Total$/.test(k) ? f0(v) : f2(v); }); };
   const val = (x) => { const s = x.value.trim(); if(s === '') return null; const n = +s; return isFinite(n) ? n : NaN; };
   const grid = $('.ecr-grid', eb);
-  grid.addEventListener('click', e => { const b = e.target.closest('.ecr-tagb'); if(!b) return; e.preventDefault(); const key = b.dataset.tag; const sx = key[0], i = +key.slice(1); const cur = (T.tags || {})[key] || '';
-    M.modal(`Tag · ${model.roster[sx][i]}`, `<p class="small muted" style="margin-top:0">For <b>Term ${esc(t)}</b> only. A tagged learner's row is greyed out and left out of this term's class statistics.</p>
-      <div class="list">${[['','Enrolled (no tag)'],['NLS','No longer in school'],['TO','Transferred out']].map(([k, t]) => `<label class="item" style="cursor:pointer;gap:10px;padding:10px 12px"><input type="radio" name="etg" value="${k}" ${k === cur ? 'checked' : ''}> ${t}</label>`).join('')}</div>
-      <div class="row" style="margin-top:12px"><span class="spacer"></span><button class="btn primary" id="etgOk">Save</button></div>`, mb => {
-      $('#etgOk', mb).onclick = () => { const v = (mb.querySelector('input[name=etg]:checked') || {}).value || ''; T.tags = T.tags || {}; if(v) T.tags[key] = v; else delete T.tags[key];
-        commit(E); M.closeModal(); const tr = eb.querySelector(`tr[data-r="${key}"]`); if(tr){ tr.classList.toggle('ecr-tagged', !!v); const bb = tr.querySelector('.ecr-tagb'); bb.textContent = v ? ECR_TAGS[v] : '＋ tag'; bb.classList.toggle('on', !!v); }
-        M.toast(v ? `${model.roster[sx][i]} tagged ${ECR_TAGS[v]} (Term ${t})` : 'Tag removed'); };
-    }); });
+  const tagPanel = () => { const tg = Object.assign({}, T.tags || {}); const opts = [['','—'],['NLS','NLS'],['TO','TO']];
+    const rows = sx => model.roster[sx].map((n, i) => n ? `<div class="tagp-row"><span class="tagp-n">${i+1}. ${esc(n)}</span><span class="seg tagp-seg">${opts.map(([k, l]) => `<button class="${(tg[sx+i]||'') === k ? 'on' : ''}" data-tk="${sx}${i}" data-tv="${k}">${l}</button>`).join('')}</span></div>` : '').join('');
+    M.modal(`Tag learners · Term ${t}`, `<p class="small muted" style="margin-top:0"><b>NLS</b> = No longer in school · <b>TO</b> = Transferred out. Tags apply to <b>Term ${esc(t)}</b> only; tagged rows are greyed out and left out of the class statistics.</p>
+      <input class="input" id="tagQ" placeholder="Find a learner…" style="margin-bottom:8px">
+      <div class="tagp"><div class="tagp-h">MALE</div>${rows('M')}<div class="tagp-h">FEMALE</div>${rows('F')}</div>
+      <div class="row" style="margin-top:12px"><span class="small muted" id="tagCnt"></span><span class="spacer"></span><button class="btn primary" id="tagOk">Save tags</button></div>`, mb => {
+      const cnt = () => $('#tagCnt', mb).textContent = `${Object.keys(tg).length} tagged`; cnt();
+      $$('[data-tk]', mb).forEach(x => x.onclick = () => { const k = x.dataset.tk; if(x.dataset.tv) tg[k] = x.dataset.tv; else delete tg[k];
+        $$(`[data-tk="${k}"]`, mb).forEach(y => y.classList.toggle('on', y === x)); cnt(); });
+      $('#tagQ', mb).oninput = e => { const q = e.target.value.trim().toLowerCase(); $$('.tagp-row', mb).forEach(r => r.style.display = !q || r.textContent.toLowerCase().includes(q) ? '' : 'none'); };
+      $('#tagOk', mb).onclick = () => { T.tags = tg; commit(E); M.closeModal(); rerender(); M.toast(`Tags saved for Term ${t}`); };
+    }); };
+  $('#tagBtn', eb).onclick = tagPanel;
+  grid.addEventListener('click', e => { if(e.target.closest('.ecr-tagchip')){ e.preventDefault(); tagPanel(); } });
   grid.oninput = e => { const x = e.target;
     if(x.classList.contains('sc')){ const v = val(x); if(Number.isNaN(v)){ x.classList.add('bad'); return; } x.classList.remove('bad');
       if(x.dataset.hk){ const k = x.dataset.hk; if(isNum(v) && v < 0){ x.classList.add('bad'); return; } T.hps[k][+x.dataset.j] = v; const ht = eb.querySelector(`[data-ht="${k}"]`); if(ht) ht.textContent = f0(cnt(T.hps[k])?sum(T.hps[k]):null);

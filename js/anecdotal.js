@@ -15,6 +15,47 @@ const ftime = (t) => { if(!t) return ''; const [h, m] = t.split(':').map(Number)
 const ui = () => (M.arUI = M.arUI || {lid:'', q:'', sel:{}, mode:'learner'});
 const termOf = (r) => r.term || (M.termOfDate ? M.termOfDate(r.date) : '1');
 const TERMS = ['1','2','3'];
+/* ---------- pre-built comments: pick one, then edit the details ---------- */
+// {n} becomes the learner's first name. Each fills Observation, Interpretation and Action.
+const PRESETS = {
+  pos: [
+    ['Helps classmates', '{n} helped a classmate who was having difficulty with the lesson activity, explaining the steps patiently until the classmate finished the task.', 'Shows empathy and a willingness to share knowledge with peers.', 'Commended {n} in class. Assign {n} as a peer helper in group activities.'],
+    ['Active participation', '{n} raised a hand several times during the discussion and gave answers that were relevant to the lesson.', 'Shows interest in the lesson and confidence in sharing ideas.', 'Praised the participation. Encourage {n} to keep sharing and to help quieter classmates join in.'],
+    ['Leadership in group work', '{n} organized the group, assigned tasks to each member and made sure the output was submitted on time.', 'Shows leadership, responsibility and good organization skills.', 'Recognized the effort before the class. Give {n} more chances to lead group tasks.'],
+    ['Honesty', '{n} returned a lost item found in the classroom to the teacher so it could be given back to its owner.', 'Shows honesty and respect for the property of others.', 'Commended {n} privately and before the class as a good example of integrity.'],
+    ['Punctual and prepared', '{n} arrived before the start of classes and had all the needed materials ready for the lesson.', 'Shows responsibility, good time management and readiness to learn.', 'Acknowledged the good habit. Continue to encourage punctuality and preparedness.'],
+    ['Completes tasks on time', '{n} submitted all written works and performance tasks for the week on or before the deadline, neatly done.', 'Shows diligence and a strong sense of responsibility for schoolwork.', 'Gave positive feedback. Continue monitoring and encourage {n} to keep the same work habits.'],
+    ['Respectful and courteous', '{n} greeted the teachers and visitors politely and used courteous words when asking for help.', 'Shows good manners and respect for others.', 'Commended the behavior. Encourage {n} to continue modelling courtesy for classmates.'],
+    ['Shows improvement', '{n} scored higher in the latest assessment compared with the previous ones and asked questions about the items missed.', 'Shows effort and a growing understanding of the lesson.', 'Praised the improvement. Keep giving feedback and encourage {n} to sustain the effort.'],
+    ['Cleanliness and orderliness', '{n} voluntarily cleaned the work area and arranged the chairs after the activity without being told.', 'Shows initiative, discipline and care for the shared learning space.', 'Commended {n} before the class. Include {n} as a model for the cleanliness program.'],
+    ['Creativity', '{n} presented an original and well-made output for the performance task, using available materials creatively.', 'Shows creativity, resourcefulness and pride in good work.', 'Displayed the output in the classroom. Encourage {n} to join school contests and activities.'],
+  ],
+  neu: [
+    ['Quiet during discussion', '{n} listened quietly during the class discussion and did not volunteer answers, but answered correctly when called.', 'May be shy or still building confidence to speak before the class.', 'Continue to observe. Give {n} small chances to share in pairs or small groups first.'],
+    ['Asked to change seat', '{n} asked to be transferred to another seat, saying it was hard to see the board from the back.', 'The request may be related to the learner\'s view of the board or comfort in class.', 'Moved {n} to a seat nearer the board. Check if the concern continues.'],
+    ['Consulted the teacher', '{n} approached the teacher after class to ask about a lesson that was not clear.', 'Shows a willingness to seek help when needed.', 'Explained the lesson again. Follow up on {n}\'s understanding in the next activities.'],
+    ['Late submission with reason', '{n} submitted the task a day late and explained that there was no available material at home.', 'The delay appears to be related to available resources at home.', 'Accepted the output. Advised {n} to inform the teacher early so help can be given.'],
+    ['Looked tired / sleepy', '{n} looked tired and rested the head on the desk during the morning lesson.', 'The cause is not yet known; may be related to rest or activities at home.', 'Talked with {n} privately. Continue to observe and coordinate with the parent/guardian if it continues.'],
+    ['Change in seatmates / friends', '{n} was seen spending breaks alone, away from the usual group of friends.', 'May be a normal change in friendships; no conflict was observed.', 'Continue to observe. Talk with {n} if signs of distress appear.'],
+    ['Parent / guardian visit', 'The parent/guardian of {n} visited the school to ask about the learner\'s progress.', 'The family is involved and concerned about the learner\'s schooling.', 'Discussed {n}\'s performance and attendance. Agreed to keep in touch.'],
+    ['Did not bring materials', '{n} did not bring the needed materials for the activity and borrowed from a classmate.', 'May have forgotten, or materials may not be available at home.', 'Reminded {n} to prepare materials ahead. Check if the family needs support.'],
+    ['Health concern reported', '{n} reported not feeling well during class and asked to go to the clinic.', 'Learner was attended to; cause to be confirmed by the school clinic.', 'Referred {n} to the clinic and informed the parent/guardian.'],
+    ['Participation in activity', '{n} joined the school activity and did the assigned part as instructed.', 'Participated as expected for the activity.', 'No action needed. Continue to encourage participation.'],
+  ],
+  con: [
+    ['Tardiness', '{n} arrived late to class for the third time this week, after the lesson had already started.', 'Repeated tardiness affects learning time and may point to a concern at home or in travel.', 'Talked with {n} about the reason. Will inform the parent/guardian if it continues.'],
+    ['Absenteeism', '{n} was absent for several consecutive days without a letter or notice from the parent/guardian.', 'Frequent absences may lead to missed lessons and lower performance.', 'Contacted the parent/guardian. Will conduct a home visit if absences continue.'],
+    ['Disruptive behavior', '{n} talked loudly and disturbed classmates while the lesson was going on, even after being reminded.', 'The behavior disrupts the learning of others and needs to be addressed.', 'Talked with {n} privately about classroom rules. Will monitor and inform the parent/guardian if it continues.'],
+    ['Personal hygiene', '{n} came to school with untidy clothes and an unkempt appearance for several days.', 'May need guidance on personal hygiene or support from home.', 'Talked with {n} gently and privately. Coordinate with the parent/guardian and the school nurse.'],
+    ['Incomplete requirements', '{n} has not submitted several written works and performance tasks for the term.', 'Missing outputs will affect the term grade.', 'Gave {n} a list of missing tasks and a deadline. Informed the parent/guardian.'],
+    ['Conflict with classmate', '{n} had a heated argument with a classmate during break time.', 'Needs guidance on handling disagreements calmly and respectfully.', 'Talked with both learners and helped them settle the issue. Referred to the guidance advocate if it happens again.'],
+    ['Not paying attention', '{n} was seen doing unrelated things during the lesson and could not answer when called.', 'Lack of focus may affect the learner\'s understanding of the lesson.', 'Moved {n} nearer the front. Will give more check-ins during lessons.'],
+    ['Cutting classes', '{n} was not in the classroom during the afternoon session but was seen within the school campus.', 'Cutting classes leads to missed lessons and is against school rules.', 'Talked with {n} and informed the parent/guardian. Will monitor attendance closely.'],
+    ['Use of inappropriate language', '{n} used inappropriate words towards a classmate during the activity.', 'The behavior is disrespectful and needs correction.', 'Reminded {n} about respectful language. Informed the parent/guardian.'],
+    ['Low performance', '{n} got low scores in the recent quizzes and did not finish the class activity.', 'The learner may need extra help to catch up with the lesson.', 'Included {n} in remedial sessions. Will coordinate with the parent/guardian for home support.'],
+  ],
+};
+const firstName = (nm) => { const p = String(nm || '').split(','); const f = (p[1] || p[0] || '').trim().split(/\s+/)[0] || 'The learner'; return f.charAt(0).toUpperCase() + f.slice(1).toLowerCase(); };
 const nowTime = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
 
 /* ---------- the printed record: half of an A4 sheet ---------- */
@@ -121,11 +162,23 @@ function editor(c, r, done){
       <label class="field">Place / Setting<input class="input" id="aP" list="aPl" value="${esc(r.place || '')}"><datalist id="aPl">${PLACES.map(p => `<option value="${esc(p)}">`).join('')}</datalist></label>
       <label class="field">Observed by<input class="input" id="aO" value="${esc(r.observer || '')}"></label>
       <label class="field">Term<select class="input" id="aTm"><option value="">Auto from the date (SY calendar)</option>${TERMS.map(t => `<option value="${t}" ${r.term === t ? 'selected' : ''}>Term ${t}</option>`).join('')}</select></label></div>
+    <div class="ar-pre" style="margin-top:12px"><div class="row" style="gap:8px;flex-wrap:wrap"><b class="small">Pre-built comments ${M.newTag('ar-presets')}</b><span class="seg sm" id="aPk">${[['pos','Positive'],['neu','Neutral'],['con','Needs improvement']].map(([k, t]) => `<button data-pk="${k}" class="${k === (r.kind || 'neu') ? 'on' : ''}">${t}</button>`).join('')}</span><span class="tiny muted">Tap one to fill the boxes, then edit the details.</span></div>
+      <div class="ar-pre-l" id="aPl2"></div></div>
     <label class="field" style="margin-top:12px">Observation — what happened (facts only: what you saw and heard)<textarea class="input" id="aB" rows="5" placeholder="e.g. During the group activity, the learner volunteered to read the instructions aloud and helped two classmates finish their part.">${esc(r.obs || '')}</textarea></label>
     <label class="field" style="margin-top:10px">Interpretation / Comment<textarea class="input" id="aI" rows="2">${esc(r.interp || '')}</textarea></label>
     <label class="field" style="margin-top:10px">Action taken / Recommendation<textarea class="input" id="aA" rows="2">${esc(r.action || '')}</textarea></label>
     <div class="row" style="margin-top:14px;gap:8px"><span class="tiny muted">Saved on this device and included in Back up everything.</span><span class="spacer"></span><button class="btn" id="aX">Cancel</button><button class="btn primary" id="aS">${ico('save')} Save record</button></div>`, b => {
     $('#aX', b).onclick = M.closeModal;
+    const pk = () => { const k = ($('#aPk .on', b) || {}).dataset ? $('#aPk .on', b).dataset.pk : 'neu';
+      $('#aPl2', b).innerHTML = PRESETS[k].map((x, i) => `<button class="chip ar-pc ar-pc-${k}" data-pi="${i}" title="${esc(x[1].replace(/\{n\}/g, 'The learner'))}">${esc(x[0])}</button>`).join('');
+      $$('[data-pi]', b).forEach(x => x.onclick = () => { const P = PRESETS[k][+x.dataset.pi]; const lid = $('#aL', b).value; const n = lid ? firstName((c.learners.find(l => l.id === lid) || {}).name) : 'The learner';
+        const fill = (id, t) => { const el = $(id, b); t = t.replace(/\{n\}/g, n); if(el.value.trim() && !confirm('Replace what is already written in the boxes?')) return false; el.value = t; return true; };
+        if(fill('#aB', P[1]) === false) return; $('#aI', b).value = P[2].replace(/\{n\}/g, n); $('#aA', b).value = P[3].replace(/\{n\}/g, n); $('#aK', b).value = k;
+        if(!lid) M.toast('Choose the learner — the comment says “The learner” until you do'); }); };
+    $$('[data-pk]', b).forEach(x => x.onclick = () => { $$('[data-pk]', b).forEach(y => y.classList.toggle('on', y === x)); pk(); });
+    $('#aK', b).addEventListener('change', () => { const k = $('#aK', b).value; $$('[data-pk]', b).forEach(y => y.classList.toggle('on', y.dataset.pk === k)); pk(); });
+    $('#aL', b).addEventListener('change', () => { const nm = firstName((c.learners.find(l => l.id === $('#aL', b).value) || {}).name); ['#aB','#aI','#aA'].forEach(id => { const el = $(id, b); el.value = el.value.replace(/\bThe learner\b/g, nm); }); });
+    pk();
     $('#aS', b).onclick = () => { const v = (id) => $(id, b).value.trim();
       if(!v('#aL')) return M.toast('Choose the learner'); if(!v('#aB')) return M.toast('Write the observation');
       Object.assign(r, {term: v('#aTm'), lid: v('#aL'), kind: v('#aK'), date: v('#aD') || M.today(), time: v('#aT'), place: v('#aP'), observer: v('#aO'), obs: $('#aB', b).value.trim(), interp: $('#aI', b).value.trim(), action: $('#aA', b).value.trim(), edited: new Date().toISOString()});
