@@ -370,7 +370,7 @@ function tasksForm(s, rerender){
     };
   });
 }
-// QR cards: fixed 3 × 4 grid inside the A4 printable area (0.5 in margins); one learner prints the same card size
+// QR cards: fixed 3 × 4 grid inside the A4 printable area (0.3 in margins); one learner prints the same card size
 async function printQrCards(s, only){
   await M.loadScript('vendor/qrcode.js');
   const sids = only ? [only] : ordered(s, false);

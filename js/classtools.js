@@ -1,5 +1,5 @@
 /* MASTRO — Classes extras (v6.7)
-   1. Learners' progress slips: raw scores of Written Works, Performance Tasks and Examinations, 2 slips per A4 (0.5 in margins, no overflow)
+   1. Learners' progress slips: raw scores of Written Works, Performance Tasks and Examinations, 2 slips per A4 (0.3 in margins, no overflow)
    2. Teacher tools: make groups, spin wheel, duck race, random pick
    3. ECR safety net: every ECR in its own folder, packed for your Google Drive folder */
 (function () {
@@ -11,7 +11,7 @@ const CL = {ww:'Written Works', pt:'Performance Tasks', qa:'Examinations'};
 /* ---------- shared: A4 preview modal (same pages that print) ---------- */
 M.pagePreview = function(title, html, opts = {}){
   const land = !!opts.land;
-  M.modal(title, `<div class="row" style="margin-bottom:10px;gap:8px;flex-wrap:wrap"><span class="small muted">${esc(opts.note || ('A4 ' + (land ? 'landscape' : 'portrait') + ' · 0.5 in margins'))}</span><span class="spacer"></span>${opts.extra || ''}<button class="btn primary" id="pvP">${ico('print')} Print</button></div>
+  M.modal(title, `<div class="row" style="margin-bottom:10px;gap:8px;flex-wrap:wrap"><span class="small muted">${esc(opts.note || ('A4 ' + (land ? 'landscape' : 'portrait') + ' · 0.3 in margins'))}</span><span class="spacer"></span>${opts.extra || ''}<button class="btn primary" id="pvP">${ico('print')} Print</button></div>
     <div class="rd-prev-wrap"><div class="print-only rd-prev">${html}</div></div>`, b => {
     const box = $('.rd-prev', b); const pw = (land ? 297 : 210) * 96 / 25.4; box.style.zoom = Math.min(1, ($('.rd-prev-wrap', b).clientWidth - 24) / pw).toFixed(3);
     $('#pvP', b).onclick = () => opts.onPrint ? opts.onPrint() : M.doPrint(html, M.pageCss('A4', land), {noFit: true});
@@ -19,8 +19,8 @@ M.pagePreview = function(title, html, opts = {}){
   }, true);
 };
 // any list of page bodies → fixed A4 sheets; each is shrunk only when it would not fit
-M.fitA4 = function(pages, land){
-  const css = M.pageCss('A4', land); const [PW, PH] = M.printableMm(css); const W = Math.floor(PW) - 0.5, H = Math.floor(PH) - 0.5, px = 96 / 25.4;
+M.fitA4 = function(pages, land, paper){
+  const css = M.pageCss(paper || 'A4', land); const [PW, PH] = M.printableMm(css); const W = Math.floor(PW) - 0.5, H = Math.floor(PH) - 0.5, px = 96 / 25.4;
   return pages.map(html => { let k = 1;
     for(let i = 0; i < 6; i++){ const m = M.measurePrint(html, W / k); if(m.w * k <= W * px + 1 && m.h * k <= H * px - 2) break; k = Math.min(k * 0.995, (W * px) / Math.max(m.w, 1), (H * px - 2) / Math.max(m.h, 1)); }
     return `<div class="fitbox" style="width:${W}mm;height:${H}mm;overflow:hidden"><div style="width:${(W / k).toFixed(2)}mm;transform:scale(${k.toFixed(4)});transform-origin:0 0">${html}</div></div>`; }).join('');
@@ -94,7 +94,7 @@ M.progressSlips = function(E){
     $('#psNone', b).onclick = () => { $$('#psList input', b).forEach(c => c.checked = false); upd(b); };
     $('#psQ', b).oninput = (e) => { const q = M.normName(e.target.value); $$('.ps-pick', b).forEach(l => l.style.display = !q || M.normName(l.textContent).includes(q) ? '' : 'none'); };
     const go = (view) => { const list = chosen(b); if(!list.length) return M.toast('Tick at least one learner'); const html = slipPages(E, term, list);
-      if(view) M.pagePreview(`Progress slips · Term ${term} · ${list.length} learner(s)`, html, {note:`A4 · 2 slips per sheet · 0.5 in margins · ${Math.ceil(list.length / 2)} sheet(s)`});
+      if(view) M.pagePreview(`Progress slips · Term ${term} · ${list.length} learner(s)`, html, {note:`A4 · 2 slips per sheet · 0.3 in margins · ${Math.ceil(list.length / 2)} sheet(s)`});
       else M.doPrint(html, M.pageCss('A4'), {noFit: true}); };
     $('#psV', b).onclick = () => go(true); $('#psP', b).onclick = () => go(false);
     draw(b);
@@ -211,7 +211,7 @@ function confetti(host){ if(!host) return; host.style.position = host.style.posi
   host.appendChild(box); setTimeout(() => box.remove(), 2200); }
 
 /* =====================================================================
-   4 · PRINT THE ECR — class record (raw scores) and summary, A4 with 0.5 in margins
+   4 · PRINT THE ECR — class record (raw scores) and summary, A4 with 0.3 in margins
    ===================================================================== */
 function ecrRawPage(E, term, sxLabel, L){
   const T = E.terms[term]; const ks = ['ww','pt','qa'].filter(k => T.comp && T.comp[k]);
@@ -240,20 +240,54 @@ function ecrSummaryPage(E, term, only){
     <table class="rd-t"><thead><tr><th>#</th><th class="l">Learner</th>${ks.map(k => `<th>${CL[k]} PS${T.comp[k].w ? ` (${T.comp[k].w}%)` : ''}</th>`).join('')}<th>Initial grade</th><th>Term grade</th><th>Descriptor</th></tr></thead><tbody>${rows}</tbody></table>
     ${M.printSign(M.cls(), 'Prepared by:', 'Noted by:').replace('Class Adviser', 'Subject Teacher')}</div>`;
 }
+// ECR header block like the ECR's FINAL GRADES sheet
+function ecrHead(E, title){ const I = (E.model && E.model.info) || {}; const st = M.S.settings; const c = M.cls();
+  const v = (k, d) => esc(I[k] || d || '');
+  return M.printHeader(title) + `<table class="rd-info"><tr><td>Region</td><td><b>${v('region', st.region)}</b></td><td>Division</td><td><b>${v('division', st.division)}</b></td><td>School ID</td><td><b>${v('schoolId', st.schoolId)}</b></td></tr>
+    <tr><td>School name</td><td colspan="3"><b>${v('school', st.school)}</b></td><td>School year</td><td><b>${v('sy', E.sy || c.sy)}</b></td></tr>
+    <tr><td>Grade level</td><td><b>${v('grade', E.grade)}</b></td><td>Section</td><td><b>${v('section', E.section)}</b></td><td>Subject</td><td><b>${v('subject', E.subject)}</b></td></tr>
+    <tr><td>Teacher</td><td colspan="5"><b>${v('teacher', c.adviser)}</b></td></tr></table>`; }
+const ecrSign = (E) => { const I = (E.model && E.model.info) || {}; const c = M.cls(); return M.printSign(Object.assign({}, c, {adviser: I.teacher || c.adviser}), 'Prepared by:', 'Noted by:').replace('Class Adviser', 'Subject Teacher'); };
+// learners across the three terms (matched by name); a tag on any term is shown in that term
+function ecrRoster(E){ const terms = termsOf(E); const base = terms.length ? E.terms[terms[terms.length - 1]].learners : [];
+  const find = (t, n) => { const T = E.terms[t]; if(!T) return null; const k = M.normName(n); return T.learners.find(x => M.normName(x.name) === k) || T.learners.find(x => M.sim(x.name, n) >= 0.9) || null; };
+  return base.map(x => ({name: x.name, sex: x.sex || 'M', t: ['1','2','3'].map(t => find(t, x.name))})); }
+function ecrTermSummary(E, term, list){
+  const rows = list.map((r, i) => { const x = r.t[+term - 1]; const g = x && isNum(x.tg) ? x.tg : null;
+    if(x && x.tag) return `<tr class="ecr-tagged"><td>${i + 1}</td><td class="l">${esc(r.name)}</td><td colspan="4"><i>${esc(M.ECR_TAGS[x.tag] || x.tag)}</i></td></tr>`;
+    return `<tr><td>${i + 1}</td><td class="l">${esc(r.name)}</td><td>${x && isNum(x.ig) ? fmt(x.ig, 2) : ''}</td><td><b>${g ?? ''}</b></td><td>${g !== null ? esc(M.descriptor(g)) : ''}</td><td>${g !== null ? (g >= 75 ? 'Passed' : '<b class="low">Failed</b>') : ''}</td></tr>`; }).join('');
+  return rows; }
+function ecrFinalRows(list){
+  return list.map((r, i) => { const g = r.t.map(x => x && !x.tag && isNum(x.tg) ? x.tg : null); const tag = r.t.map(x => x && x.tag ? x.tag : '');
+    const fin = g.every(isNum) ? Math.round(g.reduce((a, b) => a + b, 0) / 3) : null; const anyTag = tag.find(Boolean);
+    return `<tr class="${anyTag ? 'ecr-tagged' : ''}"><td>${i + 1}</td><td class="l">${esc(r.name)}</td>${g.map((v, k) => `<td>${tag[k] ? `<i class="tn">${esc(tag[k] === 'TO' ? 'T/O' : 'NLS')}</i>` : v ?? ''}</td>`).join('')}
+      <td><b>${fin ?? ''}</b></td><td>${fin !== null ? esc(M.descriptor(fin)) : anyTag ? esc(M.ECR_TAGS[anyTag]) : ''}</td><td>${fin !== null ? (fin >= 75 ? 'Passed' : '<b class="low">Failed</b>') : ''}</td></tr>`; }).join(''); }
+function ecrSheet(E, kind, term){
+  const R = ecrRoster(E); const S = [['M','MALE'], ['F','FEMALE']].map(([sx, t]) => [t, R.filter(r => r.sex === sx)]).filter(x => x[1].length);
+  if(kind === 'term') return `<div class="rdp">${ecrHead(E, `CLASS RECORD · TERM ${term} SUMMARY`)}
+    <table class="rd-t ecr-sum"><thead><tr><th style="width:7%">No.</th><th class="l">Learners' names</th><th style="width:11%">Initial grade</th><th style="width:11%">Term ${term} grade</th><th style="width:15%">Descriptor</th><th style="width:10%">Remark</th></tr></thead>
+    <tbody>${S.map(([t, L]) => `<tr class="tot"><td colspan="6" class="l"><b>${t}</b></td></tr>${ecrTermSummary(E, term, L)}`).join('')}</tbody></table>${ecrSign(E)}</div>`;
+  return `<div class="rdp">${ecrHead(E, 'CLASS RECORD · FINAL GRADES')}
+    <table class="rd-t ecr-sum"><thead><tr><th rowspan="2" style="width:6%">No.</th><th rowspan="2" class="l">Learners' names</th><th colspan="3">Term grades</th><th rowspan="2" style="width:9%">Final grade</th><th rowspan="2" style="width:14%">Descriptor</th><th rowspan="2" style="width:9%">Remark</th></tr><tr><th style="width:8%">Term 1</th><th style="width:8%">Term 2</th><th style="width:8%">Term 3</th></tr></thead>
+    <tbody>${S.map(([t, L]) => `<tr class="tot"><td colspan="8" class="l"><b>${t}</b></td></tr>${ecrFinalRows(L)}`).join('')}</tbody></table>
+    <p class="tiny" style="margin-top:4px">Final grade = average of the three term grades (whole number). T/O = transferred out · NLS = no longer in school.</p>${ecrSign(E)}</div>`;
+}
 M.ecrPrint = function(E){
   const terms = termsOf(E); if(!terms.length) return M.toast('No scores yet in this class record');
-  let term = terms[terms.length - 1];
+  let term = terms[terms.length - 1]; let paper = (M.S.settings.ecrPaper || 'A4');
   const build = (kind) => { const T = E.terms[term];
     if(kind === 'raw'){ const S = [['M','MALE'],['F','FEMALE']].map(([sx, t]) => [t, T.learners.filter(x => (x.sex || 'M') === sx)]).filter(x => x[1].length); return {land: true, pages: S.map(([t, L]) => ecrRawPage(E, term, t, L))}; }
-    // big classes: boys and girls on separate sheets so the print stays readable
-    if(T.learners.length > 30){ const S = ['M','F'].map(sx => T.learners.filter(x => (x.sex || 'M') === sx)).filter(a => a.length); return {land: false, pages: S.map(a => ecrSummaryPage(E, term, a))}; }
-    return {land: false, pages: [ecrSummaryPage(E, term)]}; };
-  M.modal(`Print ECR · ${E.title} · ${E.subject}`, `<div class="row" style="gap:8px;flex-wrap:wrap"><div class="seg" id="epT">${terms.map(t => `<button data-t="${t}" class="${t === term ? 'on' : ''}">Term ${t}</button>`).join('')}</div></div>
-    <div class="list" style="margin-top:12px">${[['raw','Class record — raw scores','Every written work, performance task and exam score with HPS, totals, PS, WS, initial and term grade. A4 landscape, boys and girls on separate sheets.'],['sum','Summary of term grades','PS per component, initial grade, term grade and descriptor. A4 portrait (boys and girls on separate sheets for big classes).']].map(([k, t, d]) => `<div class="item" style="align-items:center;gap:12px">${ico('print','width:22px;height:22px;color:var(--green)')}<div class="grow"><div class="title">${t}</div><div class="tiny muted">${d}</div></div><button class="btn sm" data-ev="${k}">${ico('eye')} View</button><button class="btn sm primary" data-ep="${k}">${ico('print')} Print</button></div>`).join('')}</div>`, b => {
+    if(kind === 'term') return {land: false, pages: [ecrSheet(E, 'term', term)]};
+    return {land: false, pages: [ecrSheet(E, 'final')]}; };
+  const PN = {A4:'A4', FOLIO:'8.5 × 13 in'};
+  M.modal(`Print ECR · ${E.title} · ${E.subject}`, `<div class="row" style="gap:8px;flex-wrap:wrap"><div class="seg" id="epT">${terms.map(t => `<button data-t="${t}" class="${t === term ? 'on' : ''}">Term ${t}</button>`).join('')}</div><span class="spacer"></span>
+      <div class="seg" id="epP">${Object.entries(PN).map(([k, t]) => `<button data-p="${k}" class="${k === paper ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+    <div class="list" style="margin-top:12px">${[['term','Term summary sheet','Initial grade, term grade, descriptor and remark for the chosen term — boys then girls. Learners tagged T/O or NLS show their tag.'],['final','Final grades (Terms 1–3)','Like the ECR’s FINAL GRADES sheet: the three term grades, final grade, descriptor and remark.'],['raw','Class record — raw scores','Every written work, performance task and exam score with HPS, totals, PS, WS, initial and term grade. Landscape, boys and girls on separate sheets.']].map(([k, t, d]) => `<div class="item" style="align-items:center;gap:12px">${ico('print','width:22px;height:22px;color:var(--green)')}<div class="grow"><div class="title">${t}${k !== 'raw' ? ` ${M.newTag('ecr-' + k)}` : ''}</div><div class="tiny muted">${d}</div></div><button class="btn sm" data-ev="${k}">${ico('eye')} View</button><button class="btn sm primary" data-ep="${k}">${ico('print')} Print</button></div>`).join('')}</div>`, b => {
     $$('#epT button', b).forEach(x => x.onclick = () => { term = x.dataset.t; $$('#epT button', b).forEach(y => y.classList.toggle('on', y === x)); });
-    $$('[data-ev]', b).forEach(x => x.onclick = () => { const r = build(x.dataset.ev); const html = M.fitA4(r.pages, r.land);
-      M.pagePreview(`ECR · Term ${term} · ${E.title}`, html, {land: r.land, note: `A4 ${r.land ? 'landscape' : 'portrait'} · 0.5 in margins · ${r.pages.length} sheet(s)`}); });
-    $$('[data-ep]', b).forEach(x => x.onclick = () => { const r = build(x.dataset.ep); M.doPrint(M.fitA4(r.pages, r.land), M.pageCss('A4', r.land), {noFit: true}); });
+    $$('#epP button', b).forEach(x => x.onclick = () => { paper = x.dataset.p; M.S.settings.ecrPaper = paper; M.save(); $$('#epP button', b).forEach(y => y.classList.toggle('on', y === x)); });
+    $$('[data-ev]', b).forEach(x => x.onclick = () => { const r = build(x.dataset.ev); const html = M.fitA4(r.pages, r.land, paper);
+      M.pagePreview(`ECR · ${x.dataset.ev === 'final' ? 'Final grades' : 'Term ' + term} · ${E.title}`, html, {land: r.land, note: `${PN[paper]} ${r.land ? 'landscape' : 'portrait'} · 0.3 in margins · ${r.pages.length} sheet(s)`, onPrint: () => M.doPrint(html, M.pageCss(paper, r.land), {noFit: true})}); });
+    $$('[data-ep]', b).forEach(x => x.onclick = () => { const r = build(x.dataset.ep); M.doPrint(M.fitA4(r.pages, r.land, paper), M.pageCss(paper, r.land), {noFit: true}); });
   }, true);
 };
 

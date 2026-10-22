@@ -62,6 +62,7 @@ function dataFlags(c){
    HOME
    ===================================================================== */
 M.views.home = async function(el){
+  M.autoChecklist(M.cls());
   const c = M.cls(), t = M.latestTerm(c), s = M.S.settings;
   const boys = c.learners.filter(l=>l.sex==='M').length, girls = c.learners.filter(l=>l.sex==='F').length;
   const ga = M.valuesFor(c, t, 'GA'); const st = M.stats(ga.map(x=>x.v));
@@ -347,7 +348,7 @@ function lowAreas(c, term, lid){
    LEARNERS — roster + credentials checklist monitoring
    ===================================================================== */
 M.views.learners = function viewLearners(el){
-  const c = M.cls(); const items = M.checkItems();
+  const c = M.cls(); const items = M.checkItems(); M.autoChecklist(c);
   const q = (viewLearners.q||'').toLowerCase(), f = M.S.ui.lfilter;
   const dup = {}; c.learners.forEach(l => { if(l.lrn) dup[l.lrn]=(dup[l.lrn]||0)+1; });
   const all = M.sortedLearners(c);

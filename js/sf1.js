@@ -37,6 +37,7 @@ M.parseSF1 = function(wb){
     const cSex = find(h => /^SEX|\bSEX\b|GENDER/.test(h));
     const cBirth = find(h => /BIRTH/.test(h) && /DATE|DAY|\(MM/.test(h));
     const cAge = find(h => /^AGE|\bAGE\b/.test(h) && !/BIRTH/.test(h));
+    const cRem = find(h => /REMARK/.test(h));
     rows.slice(0, hr).forEach(r => (r||[]).forEach((v,i) => {
       const lab = txt(v).toLowerCase(); if(!lab) return;
       const next = () => { for(let j=i+1;j<(r||[]).length;j++) if(txt(r[j])) return txt(r[j]); return ''; };
@@ -59,7 +60,7 @@ M.parseSF1 = function(wb){
       name = name.replace(/\s*,\s*/, ', ').replace(/\s+/g,' ');
       const key = lrn || M.normName(name); if(seen.has(key)) continue; seen.add(key);
       const sx = up(cSex >= 0 ? r[cSex] : '');
-      out.rows.push({lrn, name, np, sex: sx.startsWith('F') ? 'F' : sx.startsWith('M') ? 'M' : '', birthday: cBirth >= 0 ? toISO(r[cBirth]) : '', age: cAge >= 0 ? txt(r[cAge]) : ''});
+      out.rows.push({lrn, name, np, sex: sx.startsWith('F') ? 'F' : sx.startsWith('M') ? 'M' : '', birthday: cBirth >= 0 ? toISO(r[cBirth]) : '', age: cAge >= 0 ? txt(r[cAge]) : '', rem: cRem >= 0 ? txt(r[cRem]) : ''});
     }
   });
   return out;
@@ -116,13 +117,13 @@ M.importSF1 = async function(file){
       matched.forEach(({r, l}) => {
         if(use){ l.name = r.name; if(r.lrn) l.lrn = r.lrn; if(r.sex) l.sex = r.sex; if(r.birthday) l.birthday = r.birthday; }
         if(r.np) l.np = Object.assign({}, r.np);
-        l.sf1 = stamp;
+        l.sf1 = stamp; l.sf1Rem = r.rem || '';
         const cl = c.checklist[l.id] = c.checklist[l.id] || {}; cl.lis = cl.lis || today;
       });
       const sec = M.sectionFor(c); let added = 0;
       $$('[data-add]:checked', b).forEach(x => {
         const r = extra[+x.dataset.add];
-        const l = {id:M.uid('L'), name:r.name, lrn:r.lrn, sex:r.sex, birthday:r.birthday, remarks:'', sf1:stamp}; if(r.np) l.np = Object.assign({}, r.np);
+        const l = {id:M.uid('L'), name:r.name, lrn:r.lrn, sex:r.sex, birthday:r.birthday, remarks:'', sf1:stamp, sf1Rem: r.rem || ''}; if(r.np) l.np = Object.assign({}, r.np);
         c.learners.push(l); c.checklist[l.id] = {lis: today}; added++;
       });
       if(sec && added){

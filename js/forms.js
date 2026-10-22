@@ -42,6 +42,7 @@ async function formPage(el, f){
   <div class="card"><div class="row"><a class="btn sm" href="#forms">${ico('left','width:16px;height:16px')} All forms</a><div class="sf-code" style="margin-left:6px">${f.code}</div><div><div class="title"><b>${esc(f.title)}</b></div><div class="small muted">${esc(f.desc)}</div></div>
     <span class="spacer"></span>${f.code==='SF1'?`<button class="btn primary" id="sf1Imp">${ico('upload')} Import SF1 → update learners & LIS</button>`:''}${f.gen==='attendance'?`<a class="btn primary" href="#attendance" id="goAtt">${ico('attendance')} Generate ${f.code} in Attendance</a>`:''}</div></div>
   ${f.code==='SF2'?'<div id="sf2Wrap" style="margin-top:20px"></div>':''}
+  ${f.code==='SF1'?'<div id="sf1X"></div>':''}
   <div id="tplWrap" style="margin-top:20px"></div>
   <div class="grid g-hero" style="margin-top:20px">
     <div class="card"><h2>${f.code} workspace</h2>
@@ -55,6 +56,7 @@ async function formPage(el, f){
   if($('#sf1Imp')) $('#sf1Imp').onclick = () => M.pickSF1();
   if(M.TPL_FORMS && M.TPL_FORMS.includes(f.code)) M.templateCard($('#tplWrap'), f); else $('#tplWrap').remove();
   if(f.code==='SF2') sf2Card();
+  if(f.code==='SF1' && M.sf1Extras) M.sf1Extras($('#sf1X'));
   if($('#goAtt')) $('#goAtt').onclick = () => { M.S.ui.attTab = 'reports'; M.save(); };
   M.dropZone($('#fDrop'), $('#fFile'), files => M.addFiles(files, 'School Forms', {formCode:f.code, tags:f.code}));
   const docs = (await M.docsAll().catch(()=>[])).filter(d=>d.formCode===f.code).sort((a,b)=>b.added.localeCompare(a.added));
@@ -194,8 +196,8 @@ function sf9Back(D){
 }
 // paper layouts: two panels side by side (landscape) or front/back on separate pages (portrait)
 M.SF9_LAYOUTS = {
-  duplex:   {label:'A4 portrait · front & back', cls:'a4p', fmt:'a4', orient:'portrait',  margin:12.7, w:184, h:254, both:false},
-  landscape:{label:'A4 landscape · both sides',  cls:'a4l', fmt:'a4', orient:'landscape', margin:12.7, w:254, h:184, both:true},
+  duplex:   {label:'A4 portrait · front & back', cls:'a4p', fmt:'a4', orient:'portrait',  margin:7.62, w:194, h:264, both:false},
+  landscape:{label:'A4 landscape · both sides',  cls:'a4l', fmt:'a4', orient:'landscape', margin:7.62, w:264, h:194, both:true},
   a5p:      {label:'A5 portrait · front & back', cls:'a5p', fmt:'a5', orient:'portrait',  margin:6, w:136, h:197, both:false},
   a5l:      {label:'A5 landscape · both sides',  cls:'a5l', fmt:'a5', orient:'landscape', margin:6, w:198, h:135, both:true}
 };

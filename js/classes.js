@@ -98,7 +98,7 @@ function manualParse(wb, o){
 /* ---------------- analysis ---------------- */
 M.ecrAnalyze = function(E, term){
   const T = E.terms[term]; if(!T) return null;
-  const L = T.learners; const g = (x) => isNum(x.tg) ? x.tg : x.ig;
+  const L = T.learners.filter(x => !x.tag); const g = (x) => isNum(x.tg) ? x.tg : x.ig;   // learners tagged NLS / T-O for this term are left out
   const st = M.stats(L.map(g));
   const comps = ['ww','pt','qa'].filter(k => T.comp && T.comp[k]).map(k => ({k, label:{ww:'Written Works', pt:'Performance Tasks', qa:'Examinations / Term Assessment'}[k], w:T.comp[k].w, s:M.stats(L.map(x=>x[k+'PS']))}));
   const weakest = comps.filter(c=>c.s.n).sort((a,b)=>a.s.mean-b.s.mean)[0];
@@ -325,7 +325,7 @@ function detail(el, id, mode, termArg){
   body.innerHTML = `<div class="card"><h2>Term ${term} · ${T.learners.length} learners <span class="tiny muted">(sheet “${esc(T.sheet)}”)</span></h2>
     <div class="table-wrap"><table><thead><tr><th>#</th><th class="sticky-col">Learner</th>${['ww','pt','qa'].filter(has).map(k=>`<th class="num">${k.toUpperCase()} PS${T.comp[k].w?` <span class="muted">(${T.comp[k].w}%)</span>`:''}</th>`).join('')}<th class="num">Initial</th><th class="num">Term grade</th><th>Descriptor</th></tr></thead>
     <tbody>${(() => { let last = null, i = 0; return T.learners.map(x => { const g = isNum(x.tg)?x.tg:x.ig; const d = M.descriptor(g); let pre = ''; if(x.sex && x.sex!==last){ last = x.sex; pre = `<tr class="group"><td colspan="2" class="sticky-col">${x.sex==='M'?'Male':'Female'}</td><td colspan="6"></td></tr>`; }
-      return pre + `<tr><td class="muted">${++i}</td><td class="sticky-col">${esc(x.name)}</td>${['ww','pt','qa'].filter(has).map(k=>`<td class="num">${fmt(x[k+'PS'],1)}</td>`).join('')}<td class="num">${fmt(x.ig,1)}</td><td class="num"><b class="${isNum(g)&&Math.round(g)<75?'low':''}">${isNum(x.tg)?x.tg:'—'}</b></td><td>${d?`<span class="desc d-${d}">${d}</span>`:''}</td></tr>`; }).join(''); })()}</tbody></table></div></div>`;
+      return pre + `<tr class="${x.tag ? 'ecr-tagged' : ''}"><td class="muted">${++i}</td><td class="sticky-col">${esc(x.name)}${x.tag ? ` <span class="ecr-tagb on">${esc(M.ECR_TAGS[x.tag] || x.tag)}</span>` : ''}</td>${['ww','pt','qa'].filter(has).map(k=>`<td class="num">${fmt(x[k+'PS'],1)}</td>`).join('')}<td class="num">${fmt(x.ig,1)}</td><td class="num"><b class="${isNum(g)&&Math.round(g)<75?'low':''}">${isNum(x.tg)?x.tg:'—'}</b></td><td>${d?`<span class="desc d-${d}">${d}</span>`:''}</td></tr>`; }).join(''); })()}</tbody></table></div></div>`;
 }
 function report(body, E, term){
   const A = M.ecrAnalyze(E, term); if(!A || !A.st.n){ body.innerHTML = '<div class="card"><div class="empty">No grades found for this term.</div></div>'; return; }

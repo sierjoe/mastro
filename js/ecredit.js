@@ -12,6 +12,8 @@ const num = (v) => { if(typeof v === 'number' && isFinite(v)) return v; const s 
 const cLet = (n) => { let s=''; n++; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s; };   // 0-based
 const cIdx = (L) => L.split('').reduce((a,ch)=>a*26+ch.charCodeAt(0)-64, 0) - 1;
 const SLOTS = 50;
+const ECR_TAGS = {NLS:'No longer in school', TO:'Transferred out'};
+M.ECR_TAGS = ECR_TAGS;
 const KEYS = ['ww','pt','ex'];
 const CLABEL = {ww:'Written Works', pt:'Performance Tasks', ex:'Examinations'};
 const DEF_TABLE = [[99.5,100],[98.32,99],[97.14,98],[95.96,97],[94.78,96],[93.6,95],[92.42,94],[91.24,93],[90.06,92],[88.88,91],[87.7,90],[86.52,89],[85.34,88],[84.16,87],[82.98,86],[81.8,85],[80.62,84],[79.44,83],[78.26,82],[77.08,81],[75.9,80],[74.72,79],[73.54,78],[72.36,77],[71.18,76],[70,75],[65.34,74],[60.67,73],[56.01,72],[51.34,71],[46.67,70],[42.01,69],[37.34,68],[32.68,67],[28.01,66],[23.35,65],[18.68,64],[14.01,63],[9.35,62],[4.68,61],[0,60]];
@@ -113,7 +115,7 @@ M.ecrTermsFromModel = function(model){
   Object.entries(model.terms).forEach(([t, T]) => {
     const learners = [];
     ['M','F'].forEach(sx => model.roster[sx].forEach((name, i) => { if(!name) return; const s = T.scores[sx][i]; const o = calc(model, T, s);
-      const rec = {name: name.replace(/\s*,\s*/, ', '), sex: sx, ww: s.ww.slice(), pt: s.pt.slice(), qa: s.ex.slice()};
+      const rec = {name: name.replace(/\s*,\s*/, ', '), sex: sx, ww: s.ww.slice(), pt: s.pt.slice(), qa: s.ex.slice(), tag: (T.tags || {})[sx + i] || ''};
       ['ww','pt'].forEach(k => { rec[k+'Total'] = o[k+'Total']; rec[k+'PS'] = isNum(o[k+'PS']) ? M.r2(o[k+'PS']) : null; rec[k+'WS'] = o[k+'WS']; });
       rec.qaPS = isNum(o.exPS) ? M.r2(o.exPS) : null; rec.qaWS = o.exWS; rec.ig = isNum(o.ig) ? M.r2(o.ig) : null; rec.tg = o.tg;
       rec.noScores = !cnt(s.ww) && !cnt(s.pt) && !cnt(s.ex); learners.push(rec); }));
@@ -305,7 +307,8 @@ function termTab(eb, E, model, t, ui, mark){
   const lowSc = (v, h) => isNum(v) && isNum(h) && h > 0 && v <= 0.75 * h;
   const cellTd = (sx, i, k, j, v) => { const n = T.notes[nk(sx,i,k,j)]; return `<td class="${n?'noted':''}" ${n?`title="${esc(n)}"`:''}><input class="sc ${lowSc(v, T.hps[k][j]) ? 'lowsc' : ''}" data-sx="${sx}" data-i="${i}" data-k="${k}" data-j="${j}" value="${f0(v)}" inputmode="decimal"></td>`; };
   const row = (sx, i) => { const s = T.scores[sx][i]; const o = calc(model, T, s); const name = model.roster[sx][i];
-    return `<tr data-r="${sx}${i}" class="${!name?'emptyslot':''}"><td class="sticky-col"><span class="muted tiny">${i+1}</span> ${esc(name||'—')}</td>
+    const tag = (T.tags || {})[sx + i] || '';
+    return `<tr data-r="${sx}${i}" class="${!name?'emptyslot':''} ${tag ? 'ecr-tagged' : ''}"><td class="sticky-col"><span class="muted tiny">${i+1}</span> ${esc(name||'—')}${name ? ` <button class="ecr-tagb ${tag ? 'on' : ''}" data-tag="${sx}${i}" title="Tag this learner for Term ${esc(t)}">${tag ? ECR_TAGS[tag] : '＋ tag'}</button>` : ''}</td>
       ${['ww','pt'].map(k => s[k].map((v, j) => cellTd(sx, i, k, j, v)).join('') + `<td class="cm" data-o="${k}Total">${f0(o[k+'Total'])}</td><td class="cm" data-o="${k}PS">${f2(o[k+'PS'])}</td><td class="cm" data-o="${k}WS">${f2(o[k+'WS'])}</td>`).join('')}
       ${s.ex.map((v, j) => cellTd(sx, i, 'ex', j, v)).join('')}<td class="cm" data-o="exPS">${f2(o.exPS)}</td><td class="cm" data-o="exWS">${f2(o.exWS)}</td>
       <td class="cm" data-o="ig">${f2(o.ig)}</td><td class="tg ${isNum(o.tg)&&o.tg<75?'low':''}" data-o="tg">${f0(o.tg)}</td><td class="ds" data-o="desc">${o.desc?`<span class="desc d-${o.desc}">${o.desc}</span>`:''}</td></tr>`; };
@@ -348,6 +351,14 @@ function termTab(eb, E, model, t, ui, mark){
       else td.textContent = /Total$/.test(k) ? f0(v) : f2(v); }); };
   const val = (x) => { const s = x.value.trim(); if(s === '') return null; const n = +s; return isFinite(n) ? n : NaN; };
   const grid = $('.ecr-grid', eb);
+  grid.addEventListener('click', e => { const b = e.target.closest('.ecr-tagb'); if(!b) return; e.preventDefault(); const key = b.dataset.tag; const sx = key[0], i = +key.slice(1); const cur = (T.tags || {})[key] || '';
+    M.modal(`Tag · ${model.roster[sx][i]}`, `<p class="small muted" style="margin-top:0">For <b>Term ${esc(t)}</b> only. A tagged learner's row is greyed out and left out of this term's class statistics.</p>
+      <div class="list">${[['','Enrolled (no tag)'],['NLS','No longer in school'],['TO','Transferred out']].map(([k, t]) => `<label class="item" style="cursor:pointer;gap:10px;padding:10px 12px"><input type="radio" name="etg" value="${k}" ${k === cur ? 'checked' : ''}> ${t}</label>`).join('')}</div>
+      <div class="row" style="margin-top:12px"><span class="spacer"></span><button class="btn primary" id="etgOk">Save</button></div>`, mb => {
+      $('#etgOk', mb).onclick = () => { const v = (mb.querySelector('input[name=etg]:checked') || {}).value || ''; T.tags = T.tags || {}; if(v) T.tags[key] = v; else delete T.tags[key];
+        commit(E); M.closeModal(); const tr = eb.querySelector(`tr[data-r="${key}"]`); if(tr){ tr.classList.toggle('ecr-tagged', !!v); const bb = tr.querySelector('.ecr-tagb'); bb.textContent = v ? ECR_TAGS[v] : '＋ tag'; bb.classList.toggle('on', !!v); }
+        M.toast(v ? `${model.roster[sx][i]} tagged ${ECR_TAGS[v]} (Term ${t})` : 'Tag removed'); };
+    }); });
   grid.oninput = e => { const x = e.target;
     if(x.classList.contains('sc')){ const v = val(x); if(Number.isNaN(v)){ x.classList.add('bad'); return; } x.classList.remove('bad');
       if(x.dataset.hk){ const k = x.dataset.hk; if(isNum(v) && v < 0){ x.classList.add('bad'); return; } T.hps[k][+x.dataset.j] = v; const ht = eb.querySelector(`[data-ht="${k}"]`); if(ht) ht.textContent = f0(cnt(T.hps[k])?sum(T.hps[k]):null);

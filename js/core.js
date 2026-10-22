@@ -11,7 +11,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.9', date:'2026-10-21', label:'October 21, 2026'};
+M.VERSION = {n:'6.10', date:'2026-10-22', label:'October 22, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -366,6 +366,13 @@ M.valuesFor = (c, term, key, sex='all') => M.sortedLearners(c).filter(l => M.cou
 
 /* ---------------- credentials checklist ---------------- */
 M.missingFor = (c, lid) => M.checkItems().filter(it => !((c.checklist[lid]||{})[it.id]));
+/* automatic ticks in the credentials checklist:
+   SF10 — Term 1–3 grades complete (they then show in the SF10 form); Old Form 137 — SF10 request marked Received (Forms → SF1) */
+M.checkItemId = (re) => { const it = (M.checkItems() || []).find(x => re.test(x.label) || re.test(x.short || '')); return it ? it.id : null; };
+M.autoChecklist = (c) => { if(!c) return 0; const sf10 = M.checkItemId(/sf\s*-?\s*10|form\s*137\s*\(sf/i); let n = 0; c.checklist = c.checklist || {};
+  if(sf10) c.learners.forEach(l => { if(!M.counted(l)) return; const cl = c.checklist[l.id] = c.checklist[l.id] || {};
+    if(!cl[sf10] && ['1','2','3'].every(t => M.termStatus(c, t, l.id) === 'done')){ cl[sf10] = M.today(); (c.autoTicks = c.autoTicks || {})[l.id + ':' + sf10] = 1; n++; } });
+  if(n) M.save(); return n; };
 M.checkSummary = (c) => {
   const items = M.checkItems();
   const per = items.map(it => ({it, done: c.learners.filter(l => (c.checklist[l.id]||{})[it.id]).length}));
@@ -457,18 +464,18 @@ M.printHeader = (title) => {
 };
 M.headTitle = () => { const t = (M.S.settings.headTitle||'').trim(); return !t || /^school head$/i.test(t) ? 'School Principal II' : t; };
 M.printSign = (c, left='Prepared by:', right='Noted by:') => { const s = M.S.settings; return `<div class="p-sign"><div>${left}<div class="nm">${M.esc(c.adviser)}</div><div>Class Adviser</div></div><div>${right}<div class="nm">${M.esc(c.head||s.head)}</div><div>${M.esc(M.headTitle())}</div></div></div>`; };
-/* ---------------- printing: every printout uses 0.5 in margins on all sides ---------------- */
-M.PRINT_MARGIN_MM = 12.7;
+/* ---------------- printing: every printout uses 0.3 in margins on all sides ---------------- */
+M.PRINT_MARGIN_IN = 0.3; M.PRINT_MARGIN_MM = 7.62;
 M.PAPERS = {A4:[210, 297], A5:[148, 210], FOLIO:[215.9, 330.2], LEGAL:[215.9, 355.6], LETTER:[215.9, 279.4]};
-// "@page{size:A4 landscape;margin:7mm}" → paper size in mm + orientation (margins are always 0.5 in)
+// "@page{size:A4 landscape;margin:7mm}" → paper size in mm + orientation (margins come from M.PRINT_MARGIN_IN)
 const parsePage = (pageCss) => { const m = String(pageCss || '').match(/size:\s*([^;}]+)/i); const sz = m ? m[1].trim() : 'A4';
   let w, h; const mm = sz.match(/([\d.]+)\s*(mm|in)\s+([\d.]+)\s*(mm|in)/i);
   if(mm){ w = +mm[1] * (mm[2] === 'in' ? 25.4 : 1); h = +mm[3] * (mm[4] === 'in' ? 25.4 : 1); }
   else { const key = (sz.match(/A4|A5|letter|legal|folio/i) || ['A4'])[0].toUpperCase(); [w, h] = M.PAPERS[key] || M.PAPERS.A4; if(/landscape/i.test(sz)) [w, h] = [h, w]; }
   return {w, h}; };
-M.pageCss = (paper = 'A4', landscape = false) => { let [w, h] = M.PAPERS[paper] || M.PAPERS.A4; if(landscape) [w, h] = [h, w]; return `@page{size:${w}mm ${h}mm;margin:0.5in}`; };
+M.pageCss = (paper = 'A4', landscape = false) => { let [w, h] = M.PAPERS[paper] || M.PAPERS.A4; if(landscape) [w, h] = [h, w]; return `@page{size:${w}mm ${h}mm;margin:0.3in}`; };
 // Safari (and some printers) print A4 layouts on US Letter, or add their own margins. Page boxes are therefore sized
-// to fit BOTH A4 and Letter inside 0.5 in margins — so a sheet never spills onto a blank second page.
+// to fit BOTH A4 and Letter inside the print margins — so a sheet never spills onto a blank second page.
 M.SAFE_LETTER = true;
 M.printableMm = (pageCss) => { const p = parsePage(pageCss); let w = p.w, h = p.h;
   if(M.SAFE_LETTER && Math.abs(Math.min(w, h) - 210) < 1 && Math.abs(Math.max(w, h) - 297) < 1){ const land = w > h; w = Math.min(w, land ? 279.4 : 215.9); h = Math.min(h, land ? 215.9 : 279.4); }
@@ -483,7 +490,7 @@ M.doPrintFit = (html, size = 'A4 landscape') => {
   const k = Math.min(1, (W*px) / sw, (H*px - 3) / m.h);
   M.doPrint(`<div class="fitbox" style="width:${W}mm;height:${H - 0.5}mm;overflow:hidden"><div style="width:${sw}px;transform:scale(${k.toFixed(4)});transform-origin:0 0">${html}</div></div>`, css, {noFit:true});
 };
-// A4 pages (inside the 0.5 in margins) holding 4 or 2 equal cells; each cell's content is designed at designW × designH mm and scaled to fit
+// A4 pages (inside the print margins) holding 4 or 2 equal cells; each cell's content is designed at designW × designH mm and scaled to fit
 M.quadPages = function(cells, designW, designH, per = 4, paper = 'A4', o = {}){
   const [PW, PH] = M.printableMm(M.pageCss(paper)); const pw = Math.floor(PW) - 0.5, ph = Math.floor(PH) - 0.5;
   const cw = per === 4 ? pw / 2 : pw, ch = ph / 2; const pad = o.pad != null ? o.pad : 1.2; const px = 96 / 25.4;
@@ -500,7 +507,7 @@ M.quadPages = function(cells, designW, designH, per = 4, paper = 'A4', o = {}){
   return pages.join('');
 };
 M.doPrint = (html, pageCss, opts = {}) => {
-  const mg = opts.margin != null ? opts.margin : 0.5;   // inches (0.5 in everywhere; SF4/SF5 use 0.3 in)
+  const mg = opts.margin != null ? opts.margin : M.PRINT_MARGIN_IN;   // inches (0.3 in on every printout)
   const p = parsePage(pageCss); const css = `@page{size:${p.w.toFixed(1)}mm ${p.h.toFixed(1)}mm;margin:${mg}in}`;
   // anything wider than the printable width is zoomed down so it never runs off the paper
   if(!opts.noFit){ const W = p.w - 2*mg*25.4; const m = M.measurePrint(html, W); const k = (W * 96 / 25.4) / m.w; if(k < 0.995) html = `<div class="pzoom" style="zoom:${Math.max(0.3, k).toFixed(4)}">${html}</div>`; }

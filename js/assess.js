@@ -1,7 +1,7 @@
 /* MASTRO — Assessments: AI-made test papers.
    Grade + term → the competencies, topics and subtopics in the Budget of Work → number of items and test types →
    MASTRO writes the request for Claude → you paste Claude's reply → a finished test with an answer key,
-   printable on A4 or 8.5 × 13 (0.5 in margins, 1, 2 or 4 copies per sheet) and downloadable as an editable Word file. */
+   printable on A4 or 8.5 × 13 (0.3 in margins, 1, 2 or 4 copies per sheet) and downloadable as an editable Word file. */
 (function () {
 'use strict';
 const M = window.M;
@@ -287,7 +287,7 @@ function detail(el, id, tab){
       ${a.lesson ? `<p class="small" style="margin-top:12px"><b>Lesson / text:</b> ${esc(a.lesson)}</p>` : ''}</div>`; }
 }
 /* =====================================================================
-   PRINT: A4 or 8.5 × 13 with 0.5 in margins; 1, 2 or 4 copies per sheet (never overflowing)
+   PRINT: A4 or 8.5 × 13 with 0.3 in margins; 1, 2 or 4 copies per sheet (never overflowing)
    ===================================================================== */
 const PAPER = {A4:{label:'A4 (210 × 297 mm)', key:'A4'}, FOLIO:{label:'8.5 × 13 in (long bond / folio)', key:'FOLIO'}};
 // largest scale k (≤ 1) at which the paper fits a cell of cw × ch mm
@@ -314,7 +314,7 @@ function printDialog(a){
     <div class="grid g-2" style="gap:14px">
       <label class="field">Paper<select class="input" id="ppP">${Object.entries(PAPER).map(([k, v]) => `<option value="${k}" ${k===ui.paper?'selected':''}>${v.label}</option>`).join('')}</select></label>
       <label class="field">Number of sheets to print<input class="input" id="ppN" inputmode="numeric" value="${ui.sheets}"></label></div>
-    <div class="field" style="margin-top:12px">Copies of the test on each sheet <span class="muted">(0.5 in margins on all sides)</span>
+    <div class="field" style="margin-top:12px">Copies of the test on each sheet <span class="muted">(0.3 in margins on all sides)</span>
       <div class="row" id="ppPer" style="margin-top:6px;gap:8px"></div></div>
     <label class="row small" style="cursor:pointer;gap:6px;margin-top:10px"><input type="checkbox" id="ppK" ${ui.key?'checked':''}> Add the answer key on a separate page</label>
     <div class="small muted" id="ppInfo" style="margin-top:10px"></div>
@@ -349,7 +349,7 @@ function para(content, o = {}){
 const TAB = '<w:r><w:tab/></w:r>';
 M.asmDocx = function(a){
   if(!a) return; const ui = printDialog.ui = printDialog.ui || {paper:'A4', per:1, sheets:1, key:true};
-  M.modal('Download as Word', `<p class="small muted" style="margin-top:0">An editable .docx (plain paragraphs — no tables) with the answer key on the last page, 0.5 in margins.</p>
+  M.modal('Download as Word', `<p class="small muted" style="margin-top:0">An editable .docx (plain paragraphs — no tables) with the answer key on the last page, 0.3 in margins.</p>
     <div class="row" style="gap:8px">${Object.entries(PAPER).map(([k, v]) => `<button class="btn ${k===ui.paper?'primary':''}" data-dp="${k}">${v.label}</button>`).join('')}</div>`, b => {
     $$('[data-dp]', b).forEach(x => x.onclick = () => { ui.paper = x.dataset.dp; M.closeModal(); makeDocx(a, ui.paper === 'FOLIO'); }); });
 };
@@ -406,6 +406,6 @@ async function makeDocx(a, folio){
   zip.file('word/document.xml', doc); zip.file('word/styles.xml', styles);
   zip.file('docProps/core.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xe(a.title)}</dc:title><dc:creator>MASTRO</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString().slice(0,19)}Z</dcterms:created></cp:coreProperties>`);
   const blob = await zip.generateAsync({type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', compression:'DEFLATE'});
-  M.downloadBlob(blob, `${a.title.replace(/[\\/:*?"<>|]/g, '').slice(0, 80)}.docx`); M.toast(`Word file downloaded (${folio ? '8.5 × 13' : 'A4'}, 0.5 in margins)`);
+  M.downloadBlob(blob, `${a.title.replace(/[\\/:*?"<>|]/g, '').slice(0, 80)}.docx`); M.toast(`Word file downloaded (${folio ? '8.5 × 13' : 'A4'}, 0.3 in margins)`);
 }
 })();

@@ -65,12 +65,12 @@ function consolidatedPages(c, groups){
 }
 const groupRecs = (c, recs) => { const g = {}; recs.forEach(r => (g[r.lid] = g[r.lid] || []).push(r)); return M.sortedLearners(c).filter(l => g[l.id]).map(l => [l.id, g[l.id]]); };
 const printCons = (c, recs) => M.doPrint(consolidatedPages(c, groupRecs(c, recs)), M.pageCss('A4'), {noFit: true});
-const viewCons = (c, recs) => { const G = groupRecs(c, recs); M.pagePreview(`Anecdotal records · consolidated · ${G.length} learner(s)`, consolidatedPages(c, G), {note:'A4 · one learner per half sheet (a long history gets a full page) · 0.5 in margins', onPrint: () => printCons(c, recs)}); };
+const viewCons = (c, recs) => { const G = groupRecs(c, recs); M.pagePreview(`Anecdotal records · consolidated · ${G.length} learner(s)`, consolidatedPages(c, G), {note:'A4 · one learner per half sheet (a long history gets a full page) · 0.3 in margins', onPrint: () => printCons(c, recs)}); };
 // half-A4 cells: 2 records per sheet; a single record keeps the same half size (top half, cut line)
 const pagesOf = (c, recs) => M.quadPages(recs.map(r => recordHtml(c, r)), 184, 128, 2, 'A4', {measure: true, top: true, pad: 2});
 const printRecs = (c, recs) => M.doPrint(pagesOf(c, recs), M.pageCss('A4'), {noFit: true});
 const viewRecs = (c, recs) => M.pagePreview(`Anecdotal record${recs.length > 1 ? 's' : ''} · ${recs.length}`, pagesOf(c, recs),
-  {note:`A4 · half a sheet per record · 0.5 in margins · ${Math.ceil(recs.length / 2)} sheet(s)`, onPrint: () => printRecs(c, recs)});
+  {note:`A4 · half a sheet per record · 0.3 in margins · ${Math.ceil(recs.length / 2)} sheet(s)`, onPrint: () => printRecs(c, recs)});
 
 /* ---------- editable Word copy (.docx) ---------- */
 const X = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -89,7 +89,7 @@ async function packDocx(doc, name){
   M.downloadBlob(blob, name); M.toast('Word file downloaded — open it to view or edit');
 }
 async function docx(c, recs){
-  await M.loadScript('vendor/jszip.min.js'); const s = M.S.settings; const W = 10466;   // A4 width minus 0.5 in margins, in twips
+  await M.loadScript('vendor/jszip.min.js'); const s = M.S.settings; const W = 10466;   // A4 width minus 0.3 in margins, in twips
   const body = recs.map((r, i) => { const l = c.learners.find(x => x.id === r.lid) || {name:'—'}; const kind = (KINDS.find(k => k[0] === r.kind) || [,''])[1];
     const g = [2000, 3233, 2000, 3233];
     const info = tbl([

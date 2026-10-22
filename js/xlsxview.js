@@ -148,8 +148,8 @@ M.xvRender = function(doc, sst, styles, area, opts = {}){
   let [pw, ph] = PAPER[+(ps?.getAttribute('paperSize')||9)] || PAPER[9];
   if((opts.orientation || ps?.getAttribute('orientation')) === 'landscape' && pw < ph) [pw, ph] = [ph, pw];
   if(opts.paper){ [pw, ph] = opts.paper; }
-  // MASTRO prints every page with 0.5 in margins on all sides (a form may ask for less, e.g. SF4/SF5 at 0.3 in)
-  const mg = opts.margin != null ? opts.margin : 0.5; const mL = mg, mR = mg, mT = mg, mB = mg;
+  // MASTRO prints every page with 0.3 in margins on all sides (a form may ask for less, e.g. SF4/SF5 at 0.3 in)
+  const mg = opts.margin != null ? opts.margin : (M.PRINT_MARGIN_IN || 0.3); const mL = mg, mR = mg, mT = mg, mB = mg;
   // A4 sheets are laid out to fit US Letter too (Safari / printers that fall back to Letter), so nothing spills over
   let fw = pw, fh = ph; if(Math.abs(Math.min(pw, ph) - 8.27) < 0.05 && Math.abs(Math.max(pw, ph) - 11.69) < 0.05){ const land = pw > ph; fw = Math.min(pw, land ? 11 : 8.5); fh = Math.min(ph, land ? 8.5 : 11); }
   const iw = (fw - mL - mR) * 96 - 3, ih = (fh - mT - mB) * 96 - 8;   // a few px of safety so rounding never pushes the bottom row onto a second sheet
