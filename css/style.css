@@ -1282,3 +1282,12 @@ b.p-nm{font-weight:800!important}
 .rtag.rt-TI{background:rgba(47,138,92,.16);color:#2f8a5c}.rtag.rt-TO,.rtag.rt-NLP,.rtag.rt-DO{background:rgba(194,77,77,.14);color:#b23a3a}
 .rt-row{gap:10px;padding:5px 2px;align-items:center}
 .fill-b{display:block;margin:4px auto 0;border:0;border-radius:8px;padding:2px 8px;font-size:10.5px;font-weight:700;cursor:pointer;background:rgba(31,107,74,.14);color:var(--green);text-transform:none;letter-spacing:0}
+/* v6.16 level × profile × sex table */
+.mf-box{margin-top:14px;padding:12px 14px;border-radius:16px;background:rgba(127,127,127,.06)}
+.mf-t{min-width:760px}
+.mf-t th,.mf-t td{text-align:center;padding:5px 7px;font-size:13px}
+.mf-t td.tt{background:rgba(127,127,127,.07)}
+.mf-t .z{opacity:.3}
+.mf-t tr.ft td{border-top:2px solid rgba(127,127,127,.35)}
+.mf-t th.pf-Frustration{color:#b23a3a}.mf-t th.pf-Instructional{color:#a36b00}.mf-t th.pf-Independent{color:#2f8a5c}
+.mf-t .lvchip{font-size:11px}

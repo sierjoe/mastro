@@ -100,8 +100,7 @@ M.views.readingBulig = function view(el, args){
       <label class="field mini">Tool<select class="input" id="bTool">${['PHIL-IRI','CRLA'].map(x => `<option ${x === d.tool ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
     </div></div>
     <div class="bul-ladder" style="margin-top:14px">${LV.map((x, i) => { const a = L.filter(l => curLevel(d, l.id) === x.k); return `<div class="bl-step lv-${x.k}" title="${esc(x.comp)}"><b>Level ${x.short}</b><span>${dist[i]}</span><i class="mf">♂ ${a.filter(l => l.sex === 'M').length} · ♀ ${a.filter(l => l.sex !== 'M').length}</i></div>`; }).join('')}</div>
-    ${(() => { const prof = KS[d.ks].profiles; const rows = prof.map(p => `<tr><td class="l">${esc(p)}</td>${PER.map(([k]) => { const a = L.filter(l => (d.L[l.id] || {})[k] === p); const m = a.filter(l => l.sex === 'M').length; return `<td>${m}</td><td>${a.length - m}</td><td><b>${a.length}</b></td>`; }).join('')}</tr>`).join('');
-      return `<details class="mf-box" ${M.S.ui.rdMF ? 'open' : ''}><summary>Reading profile by sex · BOSY · MOSY · EOSY</summary><div class="table-wrap" style="margin-top:8px"><table class="mf-t"><thead><tr><th class="l" rowspan="2">Profile</th>${PER.map(([, t]) => `<th colspan="3">${t}</th>`).join('')}</tr><tr>${PER.map(() => '<th>M</th><th>F</th><th>Total</th>').join('')}</tr></thead><tbody>${rows}</tbody></table></div></details>`; })()}
+    <div id="bMatrix"></div>
     <div class="chips" style="margin-top:10px"><span class="chip green">${esc(LANGS.find(x => x[0] === r.lang)[1])} · ${esc(d.tool)}</span><span class="chip">${L.length} learners assessed</span><span class="chip ${profiled < L.length ? 'gold' : 'green'}">${profiled}/${L.length} with pre-test level</span><span class="chip">${d.aps.length} assessment period(s)</span>${last ? `<span class="chip">${apName(d.aps.length)}: ${tagged}/${profiled} tagged</span>` : ''}</div>
     <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">${(() => { const T = ['TI','TO','NLP','DO'].map(k => [k, L.filter(l => M.readTag(c, l) === k).length]).filter(x => x[1]); return T.map(([k, n]) => `<span class="rtag rt-${k}">${k === 'TI' ? 'T/I' : k === 'TO' ? 'T/O' : k} ${n}</span>`).join(''); })()}<button class="btn sm" id="bTags">🏷️ Tag T/I · T/O · NLP</button>
       <button class="btn sm" id="bCopy" title="Copy every learner's pre-test level and BOSY / MOSY / EOSY from the other language">⧉ Same as ${r.lang === 'ENGLISH' ? 'Filipino' : 'English'}</button></div>
@@ -115,13 +114,47 @@ M.views.readingBulig = function view(el, args){
     if(Object.keys(d.L).length && !confirm(`Replace this language's pre-test levels and BOSY / MOSY / EOSY with the ${other === 'ENGLISH' ? 'English' : 'Filipino'} ones? You can still change any learner afterwards.`)) return;
     Object.entries(src).forEach(([lid, x]) => { const t = rec(d, lid); ['pre','bosy','mosy','eosy'].forEach(k => { if(x[k] !== undefined) t[k] = x[k]; }); });
     if(!d.preDate && r.langs[other].preDate) d.preDate = r.langs[other].preDate; M.save(); M.toast('Copied — adjust any learner as needed'); view(el, []); };
-  document.querySelector('.mf-box') && (document.querySelector('.mf-box').ontoggle = e => { M.S.ui.rdMF = e.target.open; });
+  drawMatrix($('#bMatrix'), c, d, L);
   $('#bKs').onchange = e => { r.ks = e.target.value; Object.values(r.langs).forEach(x => x.tool = KS[r.ks].tool); M.save(); view(el, []); };
   $('#bTool').onchange = e => { d.tool = e.target.value; M.save(); view(el, []); };
   $$('#bTabs button').forEach(b => b.onclick = () => { u.tab = b.dataset.t; view(el, []); });
   const rr = () => view(el, []);
   ({mon: monTab, ap: apTab, grp: grpTab, rep: repTab})[u.tab]($('#bBody'), c, d, L, rr);
 };
+
+/* ---------- Level × reading profile × sex (Frustration / Instructional / Independent, male vs female, per BULIG level) ---------- */
+function matrixData(d, L, per, basis){
+  const prof = KS[d.ks].profiles; const lvOfL = (l) => basis === 'cur' ? curLevel(d, l.id) : (d.L[l.id] || {}).pre || '';
+  const cell = (arr) => ({m: arr.filter(l => l.sex === 'M').length, f: arr.filter(l => l.sex !== 'M').length, t: arr.length});
+  const rows = LV.map(x => { const inLv = L.filter(l => lvOfL(l) === x.k); return {x, by: prof.map(p => cell(inLv.filter(l => (d.L[l.id] || {})[per] === p))), tot: cell(inLv.filter(l => (d.L[l.id] || {})[per]))}; });
+  const foot = {by: prof.map((p, i) => ({m: rows.reduce((a, r) => a + r.by[i].m, 0), f: rows.reduce((a, r) => a + r.by[i].f, 0), t: rows.reduce((a, r) => a + r.by[i].t, 0)})),
+    tot: {m: rows.reduce((a, r) => a + r.tot.m, 0), f: rows.reduce((a, r) => a + r.tot.f, 0), t: rows.reduce((a, r) => a + r.tot.t, 0)}};
+  return {prof, rows, foot};
+}
+function matrixTable(d, L, per, basis, forPrint){
+  const {prof, rows, foot} = matrixData(d, L, per, basis); const z = (v) => v || (forPrint ? '0' : '<span class="z">0</span>');
+  const tds = (c, strong) => `<td>${z(c.m)}</td><td>${z(c.f)}</td><td class="tt">${strong ? '<b>' : ''}${z(c.t)}${strong ? '</b>' : ''}</td>`;
+  return `<table class="${forPrint ? 'rd-t' : 'mf-t'}"><thead><tr><th class="l" rowspan="2">BULIG level</th>${prof.map(p => `<th colspan="3" class="pf pf-${p.split(' ')[0]}">${esc(p)}</th>`).join('')}<th colspan="3">Total</th></tr>
+    <tr>${[...prof, 'T'].map(() => '<th>M</th><th>F</th><th>Total</th>').join('')}</tr></thead>
+    <tbody>${rows.map(r => `<tr><td class="l"><span class="lvchip lv-${r.x.k}">${r.x.t}</span></td>${r.by.map(c => tds(c)).join('')}${tds(r.tot, true)}</tr>`).join('')}
+    <tr class="ft"><td class="l"><b>Total</b></td>${foot.by.map(c => tds(c, true)).join('')}${tds(foot.tot, true)}</tr></tbody></table>`;
+}
+function drawMatrix(box, c, d, L){
+  const u = M.S.ui; const has = (k) => L.some(l => (d.L[l.id] || {})[k]);
+  if(!u.rdPer) u.rdPer = has('eosy') ? 'eosy' : has('mosy') ? 'mosy' : 'bosy'; u.rdBasis = u.rdBasis || 'pre';
+  const lab = PER.find(x => x[0] === u.rdPer)[1];
+  box.innerHTML = `<div class="mf-box"><div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><b class="small">Reading profile per level · male &amp; female</b><span class="spacer"></span>
+      <div class="seg sm" id="mxP">${PER.map(([k, t]) => `<button data-p="${k}" class="${k === u.rdPer ? 'on' : ''}">${t}</button>`).join('')}</div>
+      <div class="seg sm" id="mxB"><button data-b="pre" class="${u.rdBasis === 'pre' ? 'on' : ''}">Pre-test level</button><button data-b="cur" class="${u.rdBasis === 'cur' ? 'on' : ''}">Current level</button></div>
+      <button class="btn sm" id="mxPr">${ico('print')} Print</button></div>
+    <div class="table-wrap" style="margin-top:8px">${matrixTable(d, L, u.rdPer, u.rdBasis)}</div>
+    <div class="tiny muted" style="margin-top:6px">${lab} reading profile of the learners in each BULIG level (${u.rdBasis === 'pre' ? 'pre-test level' : 'level after the latest assessment period'}). Learners with no ${lab} profile are not counted.</div></div>`;
+  $$('#mxP button', box).forEach(x => x.onclick = () => { u.rdPer = x.dataset.p; M.save(); drawMatrix(box, c, d, L); });
+  $$('#mxB button', box).forEach(x => x.onclick = () => { u.rdBasis = x.dataset.b; M.save(); drawMatrix(box, c, d, L); });
+  $('#mxPr', box).onclick = () => { const html = `<div class="rdp">${head(c, d, `READING PROFILE PER LEVEL · ${lab} · MALE AND FEMALE`, u.rdBasis === 'cur' ? d.aps.length : 0)}${matrixTable(d, L, u.rdPer, u.rdBasis, true)}
+      <div style="font-size:8.5pt;margin-top:6px">${lab} reading profile (${esc(d.tool)}) by ${u.rdBasis === 'pre' ? 'pre-test level' : 'current level'}. M = male, F = female.</div>${sign(c)}</div>`;
+    preview(`Reading profile per level · ${lab}`, [html], true); };
+}
 
 /* ---------- 1 · Pre-test level + BOSY/MOSY/EOSY profile (template: MONITORING columns F, H, I, J) ---------- */
 function monTab(el, c, d, L, rr){

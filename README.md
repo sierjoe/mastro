@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.15 · November 9, 2026)
+# MASTRO — Adviser's Workspace (v6.16 · November 9, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -19,6 +19,10 @@ Offline forms, documents and class management for the class adviser
 - **Learner status**: tag T/O, SARDO, NLP or Dropped Out; statistics and reports reflect it.
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
+
+### New in v6.16
+- **BULIG · reading profile per level, male & female:** for each BULIG level, the number of male and female learners who are
+  Frustration, Instructional and Independent (BOSY, MOSY or EOSY; by pre-test or current level), with totals — on screen and printable (A4).
 
 ### New in v6.15
 - **Reading (BULIG and Phil-IRI):** counts split by sex — every level / profile shows ♂ and ♀; BULIG adds a table of
