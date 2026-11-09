@@ -39,6 +39,7 @@ M.views.assess = function view(el, args){
     <div class="grow"><h2 style="margin:0">AI test maker ${M.newTag('asm-ai')}</h2>
       <div class="small muted" style="margin-top:4px">Pick the grade and term, choose competencies and topics from the Budget of Work, set the number of items and test types — Claude writes the test and the answer key. Print on A4 or 8.5 × 13, or download an editable Word file.</div></div>
     <a class="btn sparkle big" href="#assess/new" id="aNew">${ico('sparkle')} Create Assessment ${M.newTag('asm-create')}</a></div></div>
+  <div id="scBox"></div>
   <div id="asBox"></div>
   ${all.length ? Object.entries(groups).map(([g, arr]) => `<div class="card" style="margin-top:20px"><div class="row"><h2 style="margin:0">${esc(g)}</h2><span class="chip">${arr.length} assessment(s)</span></div>
     <div class="grid g-3" style="margin-top:12px">${arr.map(a => `<div class="card form-card asm-card" style="padding:16px">
@@ -51,6 +52,7 @@ M.views.assess = function view(el, args){
   $$('[data-pr]', el).forEach(b => b.onclick = () => printDialog(getA(b.dataset.pr)));
   $$('[data-dx]', el).forEach(b => b.onclick = () => M.asmDocx(getA(b.dataset.dx)));
   $$('[data-as]', el).forEach(b => b.onclick = () => M.asheetFromAsm(getA(b.dataset.as)));
+  if(M.scanSection) M.scanSection($('#scBox', el));
   if(M.asheetSection) M.asheetSection($('#asBox', el));
 };
 

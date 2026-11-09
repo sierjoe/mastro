@@ -88,61 +88,71 @@ M.views.home = async function(el){
     attHtml += `<div class="row" style="margin-top:14px"><a class="btn sm primary" href="#attendance">${ico('attendance')} Take attendance · ${esc(sec.name)}</a></div>`;
   }
   const fresh = !c.learners.length && !M.S.ecr.length && !(M.S.att && M.S.att.sections.length);
+  // ---- small facts for the tiles ----
+  let attVal = '—', attSub = sec ? 'Not taken yet' : 'No section linked', attTone = '';
+  if(sec && sec.att[today]){ const rec = sec.att[today]; const active = Object.entries(sec.students).filter(([,x]) => !x.outType).length;
+    const ab = Object.values(rec).filter(v => v==='A' || v==='E').length; attVal = `${active - ab}/${active}`; attSub = ab ? `${ab} absent today` : 'Everyone is here'; attTone = ab ? 'amber' : 'green'; }
+  const C = M.SY_CAL; let calVal = '', calSub = '';
+  if(C){ const T = C.terms.find(x => today >= x.from && today <= x.to); const nx = C.ev.find(e => e[0] > today);
+    const dd = (a, b) => Math.round((M.parse(b) - M.parse(a)) / 864e5);
+    calVal = T ? `Term ${T.t}` : 'Break'; calSub = nx ? `${nx[2]} · in ${dd(today, nx[0])} day${dd(today, nx[0]) === 1 ? '' : 's'}` : (T ? `${dd(today, T.to)} days left` : ''); }
+  const red = flags.filter(f => f.lvl === 'red').length;
+  const tiles = [
+    {id:'att', icon:'attendance', label:'Attendance', val:attVal, sub:attSub, tone:attTone,
+      body:`${attHtml}`},
+    {id:'grades', icon:'grades', label:`Grades · T${t}`, val: st.n ? M.fg(st.mean) : '—', sub: st.n ? `${Math.round(st.passRate)}% passing · ${st.n} learners` : 'No grades yet', tone: st.n && st.passRate < 75 ? 'amber' : '',
+      body:`<div class="grid g-4 keep" style="gap:12px">
+        <div class="stat neu-in hs"><div class="label">Class GA</div><div class="value">${M.fg(st.mean)}</div><div class="sub">median ${M.fg(st.median)}</div></div>
+        <div class="stat neu-in hs"><div class="label">Passing (≥75)</div><div class="value">${st.n?Math.round(st.passRate)+'%':'—'}</div><div class="sub">${st.n?st.passed+' of '+st.n:'no data'}</div></div>
+        <div class="stat neu-in hs"><div class="label">Below 75</div><div class="value" style="color:${below?'var(--red)':'inherit'}">${st.n?below:'—'}</div><div class="sub">learners</div></div>
+        <div class="stat neu-in hs"><div class="label">Highest GA</div><div class="value">${top?M.fg(top.v):'—'}</div><div class="sub">${top?esc(top.l.name.split(',').reverse().join(' ').trim()):''}</div></div></div>
+        <h3 style="margin:18px 0 8px">Descriptor distribution</h3>${st.n?descBar(ga.map(x=>M.descriptor(x.v))):'<div class="empty">No grades yet.</div>'}
+        <div class="row" style="margin-top:14px;gap:8px"><a class="btn sm" href="#grades">${ico('grades')} Open grades</a><a class="btn sm" href="#forms/SF9">${ico('forms')} SF9 report cards</a></div>`},
+    {id:'creds', icon:'learners', label:'Credentials', val: String(cs.missing.length), sub: cs.missing.length ? `learner(s) with missing documents` : 'All complete', tone: cs.missing.length ? 'amber' : 'green',
+      body:`<div class="grid g-2" style="gap:20px"><div>
+        ${['1','2','3'].map((tt,i)=>`<div class="bar-row"><span>Term ${tt} grades</span>${meter(gradeDone[i], cs.total, gradeDone[i]<cs.total)}<b class="num" style="text-align:right">${gradeDone[i]}/${cs.total}</b></div>`).join('')}
+        ${cs.per.map(({it,done})=>`<div class="bar-row"><span>${esc(it.label)}</span>${meter(done, cs.total, done<cs.total)}<b class="num" style="text-align:right">${done}/${cs.total}</b></div>`).join('')}</div>
+        <div class="list" style="max-height:300px;overflow:auto;padding:4px">${cs.missing.length ? cs.missing.map(({l,miss})=>`<div class="item" style="padding:9px 12px"><div class="avatar ${l.sex}" style="width:32px;height:32px;font-size:11px">${esc(M.initials(l.name))}</div><div class="grow"><div class="title small">${esc(l.name)}</div><div class="chips" style="gap:5px;margin-top:4px">${miss.map(x=>`<span class="chip gold" style="font-size:10.5px;padding:2px 8px">${esc(x)}</span>`).join('')}</div></div></div>`).join('') : '<div class="empty">Every learner is complete. 🎉</div>'}</div></div>
+        <div class="row" style="margin-top:14px"><a class="btn sm" href="#learners">${ico('learners')} Open checklist</a></div>`},
+    {id:'cal', icon:'calendar', label:'Calendar', val: calVal, sub: calSub, tone:'',
+      body: M.calendarCard ? `<div id="calWrap">${M.calendarCard()}</div>` : ''},
+    {id:'checks', icon:'analysis', label:'Data checks', val: flags.length ? String(flags.length) : '✓', sub: flags.length ? `${red ? red + ' need attention' : 'things to look at'}` : 'Everything looks clean', tone: red ? 'red' : flags.length ? 'amber' : 'green',
+      body: flags.length ? flags.map(f=>`<div class="flag"><span class="dot ${f.lvl==='red'?'red':''}"></span><div>${f.html}</div></div>`).join('') : '<div class="empty">Everything looks clean.</div>'},
+    {id:'docs', icon:'repo', label:'Docs & links', val: String((s.links||[]).length), sub: 'quick links · recent files', tone:'',
+      body:`<div class="grid g-2" style="gap:20px"><div><h3 style="margin:0 0 8px">Recent documents</h3><div class="list" id="recentDocs"></div><a class="btn sm" href="#repo" style="margin-top:10px">${ico('repo')} Repository</a></div>
+        <div><h3 style="margin:0 0 8px">Quick links</h3><div class="list">${(s.links||[]).map(l=>`<a class="item" href="${esc(l.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><div class="file-ico link">${ico('link')}</div><div class="grow"><div class="title">${esc(l.label)}</div><div class="tiny muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px">${esc(l.url)}</div></div></a>`).join('') || '<div class="empty">No links yet — add them in Settings.</div>'}</div></div></div>`},
+  ];
+  const open = (M.S.ui.homeOpen && tiles.some(x => x.id === M.S.ui.homeOpen)) ? M.S.ui.homeOpen : '';
   el.innerHTML = (fresh ? `
   <div class="card welcome" style="margin-bottom:20px"><div class="row"><img src="icons/brand.png" alt="" style="width:64px;height:64px;object-fit:contain">
     <div class="grow"><h2 style="margin:0">Welcome to MASTRO</h2><div class="small muted">This device has no class data yet. Restore your MASTRO data file (kept in your Google Drive), or start by uploading your SF1, gradesheet or ECRs.</div></div>
     <button class="btn primary" id="wRestore">${ico('upload')} Restore my data file</button><input type="file" id="wFile" accept=".json" hidden></div></div>` : (M.backupDue() ? `
-  <div class="card backup-nudge" style="margin-bottom:20px"><div class="row">${ico('save','width:26px;height:26px;color:var(--gold)')}<div class="grow"><b>${s.lastBackup ? 'Your last full backup was ' + Math.floor((Date.now() - new Date(s.lastBackup).getTime())/864e5) + ' days ago' : 'You have no full backup yet'}</b><div class="small muted">One file keeps everything: grades, attendance, seat plans, cleaning points, ECRs, tests, templates and documents. Save it to your private Drive folder.</div></div>
+  <div class="card backup-nudge" style="margin-bottom:20px"><div class="row">${ico('save','width:26px;height:26px;color:var(--gold)')}<div class="grow"><b>${s.lastBackup ? 'Your last full backup was ' + Math.floor((Date.now() - new Date(s.lastBackup).getTime())/864e5) + ' days ago' : 'You have no full backup yet'}</b><div class="small muted">Keep a copy in your private Google Drive folder.</div></div>
     <button class="btn gold" id="hBk">${ico('download')} Back up everything</button></div></div>` : '')) + `
-  <div class="grid g-hero">
-    <div class="card hero">
-      <div class="muted small">${esc(s.school)} · SY ${esc(c.sy)}</div>
-      <h2>${esc(M.className(c))}</h2>
-      <div class="muted small">Adviser: ${esc(c.adviser)}</div>
-      <div class="chips"><span class="chip">${c.learners.length} learners</span><span class="chip">${boys} boys</span><span class="chip">${girls} girls</span><span class="chip">Terms with grades: ${M.termsWithData(c).join(', ')||'none'}</span>${Object.entries(M.statusSummary(c)).filter(([,v])=>v.length).map(([k,v])=>`<span class="chip">${M.STATUS[k].short} ${v.length}</span>`).join('')}</div>
-    </div>
-    <div class="grid g-2 keep">
-      <div class="card stat accent"><div class="label">Class GA · T${t}</div><div class="value">${M.fg(st.mean)}</div><div class="sub">median ${M.fg(st.median)}</div></div>
-      <div class="card stat"><div class="label">Passing (≥75)</div><div class="value">${st.n?Math.round(st.passRate)+'%':'—'}</div><div class="sub">${st.n?st.passed+' of '+st.n:'no data'}</div></div>
-      <div class="card stat"><div class="label">Highest GA</div><div class="value">${top?M.fg(top.v):'—'}</div><div class="sub">${top?esc(top.l.name.split(',').reverse().join(' ').trim()):''}</div></div>
-      <div class="card stat"><div class="label">Missing credentials</div><div class="value" style="color:${cs.missing.length?'var(--amber)':'inherit'}">${cs.missing.length}</div><div class="sub">learners with gaps</div></div>
+  <div class="card hero home-hero">
+    <div class="row" style="gap:16px;flex-wrap:wrap;align-items:flex-end">
+      <div class="grow" style="min-width:220px"><div class="muted small">${esc(s.school)} · SY ${esc(c.sy)}</div>
+        <h2>${esc(M.className(c))}</h2>
+        <div class="chips"><span class="chip">${c.learners.length} learners</span><span class="chip">${boys} boys · ${girls} girls</span>${Object.entries(M.statusSummary(c)).filter(([,v])=>v.length).map(([k,v])=>`<span class="chip gold">${v.length} ${esc((M.STATUS[k]||{}).short||k)}</span>`).join('')}</div></div>
+      ${c.learners.length ? `<button class="btn hs-open" id="hsOpen">${ico('learners','width:18px;height:18px')} Search for a student</button>` : ''}
     </div>
   </div>
-
-  ${c.learners.length ? `<div class="hsearch-wrap" style="margin-top:20px"><button class="btn hs-open" id="hsOpen">${ico('learners','width:18px;height:18px')} Search for a Student ${M.newTag('home-search')}</button>
-    <div class="card hsearch" id="hsCard" hidden><div class="row" style="gap:10px">${ico('learners','width:22px;height:22px;color:var(--green)')}<div class="grow" style="position:relative;flex:1 1 auto;min-width:0"><input class="input" id="hsQ" style="width:100%" placeholder="Type a name or LRN to see everything about the learner" autocomplete="off"><div class="hs-sug" id="hsSug" hidden></div></div><button class="icon-btn" id="hsClose" title="Close search">✕</button></div><div id="hsOut"></div></div></div>` : ''}
-  ${M.calendarCard ? `<div style="margin-top:20px" id="calWrap">${M.calendarCard()}</div>` : ''}
-  <div class="grid g-2" style="margin-top:20px">
-    <div class="card">
-      <div class="row"><h2 style="margin:0">Credentials & requirements</h2><span class="spacer"></span><a class="btn sm" href="#learners">${ico('learners')} Open checklist</a></div>
-      <div style="margin-top:14px">
-        ${['1','2','3'].map((tt,i)=>`<div class="bar-row"><span>Term ${tt} grades</span>${meter(gradeDone[i], cs.total, gradeDone[i]<cs.total)}<b class="num" style="text-align:right">${gradeDone[i]}/${cs.total}</b></div>`).join('')}
-        ${cs.per.map(({it,done})=>`<div class="bar-row"><span>${esc(it.label)}</span>${meter(done, cs.total, done<cs.total)}<b class="num" style="text-align:right">${done}/${cs.total}</b></div>`).join('')}
-      </div>
-    </div>
-    <div class="card">
-      <div class="row"><h2 style="margin:0">Learners with missing documents</h2><span class="spacer"></span><span class="chip ${cs.missing.length?'gold':'green'}">${cs.missing.length} of ${cs.total}</span></div>
-      <div class="list" style="margin-top:14px;max-height:330px;overflow:auto;padding:4px">
-        ${cs.missing.length ? cs.missing.map(({l,miss})=>`<div class="item" style="padding:9px 12px"><div class="avatar ${l.sex}" style="width:32px;height:32px;font-size:11px">${esc(M.initials(l.name))}</div><div class="grow"><div class="title small">${esc(l.name)}</div><div class="chips" style="gap:5px;margin-top:4px">${miss.map(it=>`<span class="chip red" style="font-size:11px;padding:2px 8px">${esc(it.short||it.label)}</span>`).join('')}</div></div></div>`).join('') : '<div class="empty">All learners have complete credentials. 🎉</div>'}
-      </div>
-    </div>
-  </div>
-
-  <div class="grid g-2" style="margin-top:20px">
-    <div class="card"><h2>Attendance today · ${esc(M.longDate(today))}</h2>${attHtml}</div>
-    <div class="card"><h2>Descriptor distribution · Term ${t}</h2>${st.n?descBar(ga.map(x=>M.descriptor(x.v))):'<div class="empty">No grades yet.</div>'}
-      <div class="row" style="margin-top:16px"><a class="btn sm" href="#forms/SF9">${ico('forms')} SF9 report cards</a></div></div>
-  </div>
-
-  <div class="grid g-2" style="margin-top:20px">
-    <div class="card"><h2>Data checks</h2>${flags.length ? flags.map(f=>`<div class="flag"><span class="dot ${f.lvl==='red'?'red':''}"></span><div>${f.html}</div></div>`).join('') : '<div class="empty">Everything looks clean.</div>'}</div>
-    <div class="stack">
-      <div class="card"><div class="row"><h2 style="margin:0">Recent documents</h2><span class="spacer"></span><a class="btn sm" href="#repo">${ico('repo')} Repository</a></div><div class="list" id="recentDocs" style="margin-top:14px"></div></div>
-      <div class="card"><h2>Quick links</h2><div class="list">${(s.links||[]).map(l=>`<a class="item" href="${esc(l.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><div class="file-ico link">${ico('link')}</div><div class="grow"><div class="title">${esc(l.label)}</div><div class="tiny muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.url)}</div></div></a>`).join('') || '<div class="empty">Add links in Settings.</div>'}</div></div>
-    </div>
-  </div>`;
-  if($('#hsQ')) homeSearch(c);
-  if($('#calWrap')){ M.calendarBind($('#calWrap')); const lb = document.createElement('button'); lb.className = 'btn sm'; lb.textContent = '📝 What I did last time'; lb.onclick = () => M.welcomeBack(true); $('#calAll').before(lb); }
+    ${c.learners.length ? `<div class="card hsearch" id="hsCard" hidden style="margin-top:20px"><div class="row" style="gap:10px">${ico('learners','width:22px;height:22px;color:var(--green)')}<div class="grow" style="position:relative;flex:1 1 auto;min-width:0"><input class="input" id="hsQ" style="width:100%" placeholder="Type a name or LRN to see everything about the learner…" autocomplete="off"><div class="hs-sug" id="hsSug" hidden></div></div><button class="icon-btn" id="hsClose" title="Close search">✕</button></div><div id="hsOut"></div></div>` : ''}
+  <div class="htiles" id="hTiles">${tiles.map(x => `
+    <section class="htile ${x.id === open ? 'open' : ''} ${x.tone ? 't-' + x.tone : ''}" data-t="${x.id}" style="view-transition-name:ht-${x.id}">
+      <button class="ht-head" aria-expanded="${x.id === open}"><span class="ht-ico">${ico(x.icon,'width:20px;height:20px')}</span>
+        <span class="ht-txt"><span class="ht-l">${x.label}</span><span class="ht-v">${esc(x.val)}</span><span class="ht-s">${esc(x.sub)}</span></span>
+        <span class="ht-chev">${ico('chev','width:16px;height:16px')}</span></button>
+      <div class="ht-body"><div class="ht-in">${x.body}</div></div>
+    </section>`).join('')}</div>`;
+  // tiles: tap to morph open (one at a time); tap again to close
+  $('#hTiles').addEventListener('click', e => { const h = e.target.closest('.ht-head'); if(!h) return; const sec = h.parentElement; const id = sec.dataset.t;
+    const go = () => { $$('#hTiles .htile').forEach(x => { const on = x === sec && !x.classList.contains('open'); x.classList.toggle('open', on); x.querySelector('.ht-head').setAttribute('aria-expanded', on); });
+      M.S.ui.homeOpen = sec.classList.contains('open') ? id : ''; M.save(); };
+    if(document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(go).finished.then(() => { if(sec.classList.contains('open') && sec.getBoundingClientRect().top < 0) sec.scrollIntoView({behavior:'smooth', block:'start'}); });
+    else go(); });
+  if($('#hsQ')){ homeSearch(c); }
+  if($('#calWrap')){ M.calendarBind($('#calWrap')); const lb = document.createElement('button'); lb.className = 'btn sm'; lb.textContent = '📝 What I did last time'; lb.onclick = () => M.welcomeBack(true); const ca = $('#calAll'); if(ca) ca.before(lb); }
   if($('#hBk')) $('#hBk').onclick = () => M.backupAll();
   if($('#wRestore')){ $('#wRestore').onclick = () => $('#wFile').click(); $('#wFile').onchange = e => { const f = e.target.files[0]; e.target.value=''; if(f) M.restoreFile(f); }; }
   const docs = (await M.docsAll().catch(()=>[])).sort((a,b)=>b.added.localeCompare(a.added)).slice(0,4);

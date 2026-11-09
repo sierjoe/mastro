@@ -1144,3 +1144,77 @@ b.p-nm{font-weight:800!important}
 .as-pick{max-height:38vh;overflow:auto;margin-top:8px;padding:4px 2px}
 .as-pick-h{margin:8px 0 4px}
 .as-pick-r{display:flex;align-items:center;gap:8px;padding:5px 4px;cursor:pointer;font-size:14px}
+/* v6.13 Scannable half-sheet answer sheets (absolute mm layout — see js/omr.js) */
+.ash-blk{position:relative;width:200mm;box-sizing:border-box;padding-top:2.5mm;break-inside:avoid;page-break-inside:avoid;overflow:hidden;background:#fff}
+.ash-blk.b1{border-bottom:.25mm dashed #9a9a9a}
+.ash{position:relative;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#000;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ash > *{position:absolute}
+.ash-mk{background:#000;display:block}
+.ash-qr svg{display:block;width:100%;height:100%}
+.ash-h{left:8mm;right:34mm;top:1.2mm;text-align:center;line-height:1.2}
+.ash-h .s{font-size:8.5pt;font-weight:bold;letter-spacing:.3px}
+.ash-h .t{font-size:11.5pt;font-weight:bold}
+.ash-who{left:8mm;width:154mm;top:12.2mm;font-size:9pt}
+.ash-who .r{display:flex;align-items:flex-end;gap:1.6mm;height:6.3mm}
+.ash-who .v{flex:1;border-bottom:.25mm solid #000;height:4.6mm;font-size:10pt;font-weight:bold;font-style:normal;display:block;white-space:nowrap;overflow:hidden;padding-left:1mm}
+.ash-who .v.sm{flex:0 0 52mm}.ash-who .v.xs{flex:0 0 30mm}.ash-who .v.xxs{flex:0 0 13mm}
+.ash-ins{left:8mm;width:154mm;top:26.4mm;font-size:6.6pt;color:#333}
+.ash-n{font-size:8pt;text-align:right;display:block}
+.ash-b{display:block;box-sizing:border-box;border:.22mm solid #000;border-radius:50%;text-align:center;color:#8a8a8a;font-style:normal;font-family:Arial,Helvetica,sans-serif}
+.ash-ln{display:block;border-bottom:.25mm solid #000;height:0}
+.ash-pl{font-size:7.2pt;white-space:nowrap;display:block}
+.as-prow{padding:10px;border-radius:14px;margin-bottom:8px;background:rgba(127,127,127,.06)}
+.input.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+/* v6.13 scanning */
+.omr-cam{position:relative;margin-top:10px;border-radius:16px;overflow:hidden;background:#000}
+.omr-cam video{display:block;width:100%;height:auto;max-height:58vh;object-fit:contain}
+.omr-cam canvas{position:absolute;left:0;top:0;pointer-events:none}
+.qx-cam video{display:block;width:100%;max-height:60vh;object-fit:contain;background:#000;border-radius:16px}
+.qx-box{display:flex;flex-direction:column;align-items:center}
+.qx-qr{width:min(82vw,420px);aspect-ratio:1;background:#fff;padding:10px;border-radius:14px;box-sizing:border-box}
+.qx-qr svg{display:block;width:100%;height:100%}
+.seg.sm button{padding:6px 12px;font-size:13px}
+.sc-res{padding:12px;border-radius:16px;background:rgba(127,127,127,.07);text-align:center}
+.sc-score{display:flex;align-items:baseline;gap:4px}
+.sc-score b{font-size:34px;line-height:1;color:var(--green)}
+.sc-score span{font-size:14px;color:var(--muted)}
+.sc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:5px;max-height:30vh;overflow:auto;padding:2px}
+.sc-it{border:0;border-radius:9px;padding:4px 0;font-weight:700;font-size:13px;cursor:pointer;background:rgba(127,127,127,.12);color:inherit;display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.sc-it i{font-style:normal;font-weight:500;font-size:9.5px;opacity:.65}
+.sc-it.ok{background:rgba(43,180,110,.18);color:#1e8a52}
+.sc-it.no{background:rgba(214,72,72,.16);color:#b23a3a}
+.sc-it.mu{background:rgba(232,170,40,.2);color:#a36b00}
+.scan-wrap.omr-cam{aspect-ratio:auto}
+.scan-wrap.omr-cam video{width:100%;height:auto;max-height:58vh;object-fit:contain}
+.scan-wrap[hidden]{display:none!important}
+#scMoreBox[hidden]{display:none!important}
+/* v6.13 Home: calm tiles that morph open */
+.home-hero h2{margin:4px 0 8px;font-size:clamp(24px,3vw,32px)}
+.htiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;margin-top:20px}
+.htile{border-radius:24px;background:var(--glass);border:1px solid var(--glass-border);box-shadow:var(--neu-out);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);overflow:hidden;transition:box-shadow .25s ease, transform .25s ease;position:relative}
+.htile::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--tc,transparent);opacity:.9}
+.htile.t-green{--tc:var(--green)}.htile.t-amber{--tc:var(--amber,#d79a1c)}.htile.t-red{--tc:var(--red)}
+.htile:not(.open):hover{transform:translateY(-2px)}
+.htile.open{grid-column:1/-1}
+.ht-head{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:14px;width:100%;padding:18px 20px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ht-head:focus-visible{outline:2px solid var(--green);outline-offset:-4px;border-radius:24px}
+.ht-ico{flex:0 0 auto;width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:rgba(127,127,127,.1);color:var(--tc,var(--green))}
+.htile:not(.t-green):not(.t-amber):not(.t-red) .ht-ico{color:var(--green)}
+.ht-txt{display:flex;flex-direction:column;min-width:0;flex:1}
+.ht-l{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.62;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ht-v{font-size:28px;font-weight:800;line-height:1.15;margin-top:2px}
+.ht-s{font-size:13px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ht-chev{opacity:.45;transition:transform .3s ease}
+.htile.open .ht-chev{transform:rotate(180deg)}
+.htile.open .ht-v{font-size:24px}
+.ht-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s cubic-bezier(.2,.8,.2,1)}
+.ht-body > .ht-in{overflow:hidden;min-height:0;padding:0 20px;opacity:0;transition:opacity .25s ease, padding .35s ease}
+.htile.open .ht-body{grid-template-rows:1fr}
+.htile.open .ht-body > .ht-in{padding:2px 20px 20px;opacity:1}
+.ht-in .cal-card{box-shadow:none;background:transparent;padding:0}
+.ht-in .stat.hs{border-radius:16px}
+::view-transition-group(*){animation-duration:.38s;animation-timing-function:cubic-bezier(.2,.8,.2,1)}
+@media (max-width:640px){.htiles{grid-template-columns:1fr 1fr;gap:12px}.ht-head{padding:14px;gap:10px;flex-wrap:wrap}.ht-ico{width:34px;height:34px;border-radius:11px}.ht-v{font-size:22px}.ht-chev{display:none}.htile.open .ht-chev{display:block}}
+.home-hero .hs-open{margin-left:auto}
+.hero::after{pointer-events:none}.home-hero > *{position:relative;z-index:1}
+@media (max-width:640px){.ht-head{flex-direction:column;align-items:flex-start;gap:8px}.ht-txt{width:100%}.htile.open .ht-head{flex-direction:row;align-items:center}.htile.open .ht-chev{margin-left:auto}}

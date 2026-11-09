@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.12 · November 9, 2026)
+# MASTRO — Adviser's Workspace (v6.13 · November 9, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -19,6 +19,19 @@ Offline forms, documents and class management for the class adviser
 - **Learner status**: tag T/O, SARDO, NLP or Dropped Out; statistics and reports reflect it.
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
+
+### New in v6.13
+- **Home** is calmer: the class card plus six tiles (Attendance, Grades, Credentials, Calendar, Data checks, Docs & links).
+  Tap a tile and it opens out to show the details; tap it again to fold it back.
+- **Scannable answer sheets** (Assessments → Answer sheets): half of an 8.5 × 13 page each (landscape), **2 per page**.
+  Each sheet has 4 black corner squares and a QR code (sheet + learner). Type the answer key per part, or bring it from a test you made.
+- **Printing fixed:** answer sheets are no longer forced onto fixed-height pages, so no page is skipped or left blank.
+- **Scan & check** (Assessments): on the iPhone tap **Scan answer sheets**, choose the term and **ST1 / ST2 / TE**, and hold the phone over a sheet.
+  It reads the bubbles, shows the score (tap an item to correct a misread; add points for write-in items), and **Save & next** records it in that
+  exam column of the class's ECR.
+- **iPhone ↔ MacBook without internet:** MacBook → **📱 Key to iPhone** shows the answer key as QR codes for the phone to scan.
+  iPhone → **Send results to MacBook** shows the results as QR codes; on the MacBook tap **Receive from iPhone** and hold the phone up to the camera —
+  the scores go straight into the ECRs. (Or **Save results file** and AirDrop it, then **Open results file** on the Mac.)
 
 ### New in v6.12
 - **Analytics tab removed.** **Assessments** is now its own tab (Analysis and Item Analysis are hidden from the menu; their data is kept).
