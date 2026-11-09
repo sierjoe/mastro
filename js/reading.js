@@ -48,9 +48,22 @@ const data = (c, lang) => { const r = root(c); const k = lang || r.lang; const d
   Object.defineProperty(d, 'subject', {value: k, enumerable: false, configurable: true});
   return d; };
 const rec = (d, lid) => d.L[lid] = d.L[lid] || {};
-// participants = the class roster (updated by SF1 uploads) without Transferred Out, No Longer Participating and Dropped Out
-const learners = (c) => M.sortedLearners(c).filter(M.counted);
-const excluded = (c) => M.sortedLearners(c).filter(l => !M.counted(l));
+// v6.15: everyone on the class roster stays in the reading lists — T/O, NLP and DO learners took the BOSY assessment too.
+// Reading tags (shared by BULIG and Phil-IRI): T/I · T/O · NLP · DO — taken from the SF1 status unless you set them here.
+const RTAGS = [['', '—'], ['TI', 'T/I · Transferred in'], ['TO', 'T/O · Transferred out'], ['NLP', 'NLP · No longer participating'], ['DO', 'DO · Dropped out']];
+M.readTag = (c, l) => { const t = (c.readTags || {})[l.id]; return t !== undefined ? t : (['TI','TO','NLP','DO'].includes(l.status) ? l.status : ''); };
+M.readTagChip = (c, l) => { const t = M.readTag(c, l); return t ? ` <span class="rtag rt-${t}" title="${esc((RTAGS.find(x => x[0] === t) || ['', t])[1])}">${t === 'TI' ? 'T/I' : t === 'TO' ? 'T/O' : t}</span>` : ''; };
+M.readLearners = (c) => M.sortedLearners(c);
+M.readTagsEditor = (c, done) => { const L = M.readLearners(c);
+  M.modal('Reading roster · tags', `<p class="small muted" style="margin-top:0">Everyone on your class roster stays in the reading lists and reports (T/O and NLP learners took the BOSY assessment too). Tag who transferred in, transferred out or stopped participating. Tags are shared by BULIG and Phil-IRI. New learners are added in <b>Learners</b>.</p>
+    <div class="ps-list" style="max-height:56vh;overflow:auto">${[['M','MALE'],['F','FEMALE']].map(([sx, t]) => `<div class="tiny muted" style="margin:10px 0 4px">${t}</div>` + L.filter(l => sx === 'M' ? l.sex === 'M' : l.sex !== 'M').map(l => `<div class="row rt-row"><span class="grow">${esc(l.name)}${l.status && M.STATUS[l.status] ? ` <span class="tiny muted">(SF1: ${esc(M.STATUS[l.status].short)})</span>` : ''}</span><select class="input" data-rt="${l.id}" style="width:auto">${RTAGS.map(([k, n]) => `<option value="${k}" ${M.readTag(c, l) === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>`).join('')).join('')}</div>
+    <div class="row" style="margin-top:12px"><span class="spacer"></span><button class="btn primary" id="rtOk">Done</button></div>`, b => {
+    $$('[data-rt]', b).forEach(x => x.onchange = () => { c.readTags = c.readTags || {}; c.readTags[x.dataset.rt] = x.value; M.save(); });
+    $('#rtOk', b).onclick = () => { M.closeModal(); done && done(); }; }, true); };
+// counts split by sex: [{k, m, f}] for a list of learners and a key function
+M.readBySex = (L, keyOf, keys) => keys.map(k => { const a = L.filter(l => keyOf(l) === k); return {k, m: a.filter(l => l.sex === 'M').length, f: a.filter(l => l.sex !== 'M').length, t: a.length}; });
+const learners = (c) => M.readLearners(c);
+const excluded = () => [];
 const bySex = (L) => [['M','MALE', L.filter(l => l.sex === 'M')], ['F','FEMALE', L.filter(l => l.sex !== 'M')]];
 const lvOf = (k) => LV[LVI[k]] || null;
 // level after assessment period n (n = 0 → pre-assessment). PASSED moves one rung up; NOT READY / "–" / not tagged stays.
@@ -59,7 +72,7 @@ const levelAt = (d, lid, n) => { let k = (d.L[lid] || {}).pre || ''; if(!k) retu
   return k; };
 const curLevel = (d, lid) => levelAt(d, lid, d.aps.length);
 const profileOf = (d, k) => { const x = lvOf(k); return x ? (d.ks === 'KS1' ? x.ks1 : x.ks3) : ''; };
-const nm = (l) => l.name;
+const nm = (l) => { const t = M.readTag(M.cls(), l); return l.name + (t ? ` (${t === 'TI' ? 'T/I' : t === 'TO' ? 'T/O' : t})` : ''); };   // names carry their reading tag in lists and reports
 const apName = (n) => n === 0 ? 'PRE-TEST' : 'AP' + n;
 const ui = () => (M.bulUI = M.bulUI || {tab:'mon', ap:null, gp:null});
 const fdate = (iso) => iso ? M.parse(iso).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'}) : '';
@@ -86,13 +99,23 @@ M.views.readingBulig = function view(el, args){
       <label class="field mini">Key stage<select class="input" id="bKs">${Object.entries(KS).map(([k, v]) => `<option value="${k}" ${k === r.ks ? 'selected' : ''}>${v.label}</option>`).join('')}</select></label>
       <label class="field mini">Tool<select class="input" id="bTool">${['PHIL-IRI','CRLA'].map(x => `<option ${x === d.tool ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
     </div></div>
-    <div class="bul-ladder" style="margin-top:14px">${LV.map((x, i) => `<div class="bl-step lv-${x.k}" title="${esc(x.comp)}"><b>Level ${x.short}</b><span>${dist[i]}</span></div>`).join('')}</div>
+    <div class="bul-ladder" style="margin-top:14px">${LV.map((x, i) => { const a = L.filter(l => curLevel(d, l.id) === x.k); return `<div class="bl-step lv-${x.k}" title="${esc(x.comp)}"><b>Level ${x.short}</b><span>${dist[i]}</span><i class="mf">♂ ${a.filter(l => l.sex === 'M').length} · ♀ ${a.filter(l => l.sex !== 'M').length}</i></div>`; }).join('')}</div>
+    ${(() => { const prof = KS[d.ks].profiles; const rows = prof.map(p => `<tr><td class="l">${esc(p)}</td>${PER.map(([k]) => { const a = L.filter(l => (d.L[l.id] || {})[k] === p); const m = a.filter(l => l.sex === 'M').length; return `<td>${m}</td><td>${a.length - m}</td><td><b>${a.length}</b></td>`; }).join('')}</tr>`).join('');
+      return `<details class="mf-box" ${M.S.ui.rdMF ? 'open' : ''}><summary>Reading profile by sex · BOSY · MOSY · EOSY</summary><div class="table-wrap" style="margin-top:8px"><table class="mf-t"><thead><tr><th class="l" rowspan="2">Profile</th>${PER.map(([, t]) => `<th colspan="3">${t}</th>`).join('')}</tr><tr>${PER.map(() => '<th>M</th><th>F</th><th>Total</th>').join('')}</tr></thead><tbody>${rows}</tbody></table></div></details>`; })()}
     <div class="chips" style="margin-top:10px"><span class="chip green">${esc(LANGS.find(x => x[0] === r.lang)[1])} · ${esc(d.tool)}</span><span class="chip">${L.length} learners assessed</span><span class="chip ${profiled < L.length ? 'gold' : 'green'}">${profiled}/${L.length} with pre-test level</span><span class="chip">${d.aps.length} assessment period(s)</span>${last ? `<span class="chip">${apName(d.aps.length)}: ${tagged}/${profiled} tagged</span>` : ''}</div>
-    ${X.length ? `<div class="tiny muted" style="margin-top:8px">Not included (from your SF1 roster): ${X.map(l => `${esc(nm(l))} <b>(${esc((M.STATUS[l.status] || {}).short || l.status)})</b>`).join(', ')}</div>` : ''}
+    <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">${(() => { const T = ['TI','TO','NLP','DO'].map(k => [k, L.filter(l => M.readTag(c, l) === k).length]).filter(x => x[1]); return T.map(([k, n]) => `<span class="rtag rt-${k}">${k === 'TI' ? 'T/I' : k === 'TO' ? 'T/O' : k} ${n}</span>`).join(''); })()}<button class="btn sm" id="bTags">🏷️ Tag T/I · T/O · NLP</button>
+      <button class="btn sm" id="bCopy" title="Copy every learner's pre-test level and BOSY / MOSY / EOSY from the other language">⧉ Same as ${r.lang === 'ENGLISH' ? 'Filipino' : 'English'}</button></div>
   </div>
   <div class="row" style="margin:18px 0 14px"><div class="seg" id="bTabs">${[['mon','1 · Pre-test & profile'],['ap','2 · Assessment periods'],['grp','3 · Groupings'],['rep','4 · Reports']].map(([k, t]) => `<button data-t="${k}" class="${u.tab === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
   <div id="bBody"></div>`;
   $$('#bLang button').forEach(b => b.onclick = () => { r.lang = b.dataset.l; u.ap = null; u.gp = null; M.save(); view(el, []); });
+  $('#bTags').onclick = () => M.readTagsEditor(c, () => view(el, []));
+  $('#bCopy').onclick = () => { const other = r.lang === 'ENGLISH' ? 'FILIPINO' : 'ENGLISH'; const src = r.langs[other] && r.langs[other].L; const n = src ? Object.keys(src).length : 0;
+    if(!n) return M.toast(`Nothing recorded in ${other === 'ENGLISH' ? 'English' : 'Filipino'} yet`);
+    if(Object.keys(d.L).length && !confirm(`Replace this language's pre-test levels and BOSY / MOSY / EOSY with the ${other === 'ENGLISH' ? 'English' : 'Filipino'} ones? You can still change any learner afterwards.`)) return;
+    Object.entries(src).forEach(([lid, x]) => { const t = rec(d, lid); ['pre','bosy','mosy','eosy'].forEach(k => { if(x[k] !== undefined) t[k] = x[k]; }); });
+    if(!d.preDate && r.langs[other].preDate) d.preDate = r.langs[other].preDate; M.save(); M.toast('Copied — adjust any learner as needed'); view(el, []); };
+  document.querySelector('.mf-box') && (document.querySelector('.mf-box').ontoggle = e => { M.S.ui.rdMF = e.target.open; });
   $('#bKs').onchange = e => { r.ks = e.target.value; Object.values(r.langs).forEach(x => x.tool = KS[r.ks].tool); M.save(); view(el, []); };
   $('#bTool').onchange = e => { d.tool = e.target.value; M.save(); view(el, []); };
   $$('#bTabs button').forEach(b => b.onclick = () => { u.tab = b.dataset.t; view(el, []); });
@@ -106,7 +129,7 @@ function monTab(el, c, d, L, rr){
   const sel = (lid, k, opts, val, ph) => `<select class="input bsel" data-lid="${lid}" data-k="${k}"><option value="">${ph}</option>${opts.map(o => `<option value="${esc(o[0])}" ${o[0] === val ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select>`;
   const row = (l, i) => { const r = d.L[l.id] || {}; const ck = curLevel(d, l.id); const cx = lvOf(ck);
     const hist = d.aps.map((a, j) => { const m = r.pre ? (a.marks || {})[l.id] : ''; return `<span class="aph ${m || ''}" title="AP${j + 1}: ${m === 'P' ? 'PASSED' : m === 'N' ? 'NOT READY' : 'not assessed'}">${m === 'P' ? '✓' : m === 'N' ? '✕' : '·'}</span>`; }).join('');
-    return `<tr><td class="muted">${i + 1}</td><td class="sticky-col"><b>${esc(nm(l))}</b>${M.statusChip ? M.statusChip(l, 1) : ''}</td>
+    return `<tr><td class="muted">${i + 1}</td><td class="sticky-col"><b>${esc(l.name)}</b>${M.readTagChip(c, l)}</td>
       <td>${sel(l.id, 'pre', LV.map(x => [x.k, x.t]), r.pre, '— level —')}</td>
       <td class="tiny" style="max-width:170px;white-space:normal">${r.pre ? esc(lvOf(r.pre).comp) : ''}</td>
       ${PER.map(([k]) => `<td class="pcol">${sel(l.id, k, prof.map(p => [p, p]), r[k], '—')}</td>`).join('')}
@@ -177,13 +200,13 @@ const groupsAt = (d, L, n) => LV.map(x => ({x, arr: L.filter(l => levelAt(d, l.i
 function grpTab(el, c, d, L, rr){
   const u = ui(); if(u.gp == null || u.gp > d.aps.length) u.gp = d.aps.length; const n = u.gp;
   const G = groupsAt(d, L, n);
-  const cls = {}; G.forEach(g => { const p = profileOf(d, g.x.k); cls[p] = (cls[p] || 0) + g.arr.length; });
+  const cls = {}; G.forEach(g => { const p = profileOf(d, g.x.k); const o = cls[p] = cls[p] || {t: 0, m: 0, f: 0}; o.t += g.arr.length; o.m += g.arr.filter(l => l.sex === 'M').length; o.f += g.arr.filter(l => l.sex !== 'M').length; });
   el.innerHTML = `<div class="card">
     <div class="row" style="gap:10px;flex-wrap:wrap"><h2 style="margin:0">Intervention groupings</h2><span class="spacer"></span>
       <label class="field mini" style="flex-direction:row;align-items:center;gap:6px">Grouping after<select class="input" id="gpN">${[0, ...d.aps.map((a, i) => i + 1)].map(i => `<option value="${i}" ${i === n ? 'selected' : ''}>${i ? 'AP' + i + ' (regrouping)' : 'Pre-test'}</option>`).join('')}</select></label>
       <button class="btn sm" id="gpV">${ico('eye')} View</button><button class="btn sm primary" id="gpP">${ico('print')} Print A4</button></div>
     <p class="small muted" style="margin:6px 0 12px">One group per BULIG level — the class each learner attends in the next 2-week intervention. Classification follows the BULIG ${d.ks === 'KS1' ? 'Grades 1–3 (CRLA)' : 'Grades 4–10 (Phil-IRI)'} grouping.</p>
-    <div class="chips" style="margin-bottom:12px">${Object.entries(cls).map(([p, v]) => `<span class="chip">${esc(p)}: <b>${v}</b></span>`).join('')}</div>
+    <div class="chips" style="margin-bottom:12px">${Object.entries(cls).map(([p, v]) => `<span class="chip">${esc(p)}: <b>${v.t}</b> <span class="tiny">(♂ ${v.m} · ♀ ${v.f})</span></span>`).join('')}</div>
     ${G.length ? `<div class="grid g-3">${G.map(({x, arr}) => `<div class="bul-gcard"><div class="bg-h lv-${x.k}"><b>${x.t}</b><span class="tiny">${esc(profileOf(d, x.k))}</span></div>
       <div style="padding:10px 12px"><div class="small"><b>${esc(x.comp)}</b></div><div class="tiny muted" style="margin:2px 0 8px">${esc(x.skill)}</div>
       <div class="tiny muted">${arr.filter(l => l.sex === 'M').length} M · ${arr.filter(l => l.sex !== 'M').length} F</div>

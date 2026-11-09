@@ -1274,3 +1274,11 @@ b.p-nm{font-weight:800!important}
 .tt-sv.on{outline:2px solid var(--green)}
 .as-card > .row{flex-wrap:nowrap}
 .as-acts .btn{flex:1 1 auto;justify-content:center}
+/* v6.15 reading: sex split, tags, fill buttons */
+.bl-step i.mf,.piri-dist i.mf{font-style:normal;font-size:11px;opacity:.75;font-weight:600}
+.mf-box{margin-top:12px}.mf-box summary{cursor:pointer;font-weight:700;font-size:13px}
+.mf-t th,.mf-t td{text-align:center;padding:6px 8px}.mf-t .l{text-align:left}
+.rtag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:999px;vertical-align:1px;background:rgba(127,127,127,.14)}
+.rtag.rt-TI{background:rgba(47,138,92,.16);color:#2f8a5c}.rtag.rt-TO,.rtag.rt-NLP,.rtag.rt-DO{background:rgba(194,77,77,.14);color:#b23a3a}
+.rt-row{gap:10px;padding:5px 2px;align-items:center}
+.fill-b{display:block;margin:4px auto 0;border:0;border-radius:8px;padding:2px 8px;font-size:10.5px;font-weight:700;cursor:pointer;background:rgba(31,107,74,.14);color:var(--green);text-transform:none;letter-spacing:0}

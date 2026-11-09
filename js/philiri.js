@@ -22,7 +22,8 @@ const GST_MAX = 20, GST_CUT = 14;
 const root = (c) => { const r = c.philiri = c.philiri || {}; r.lang = r.lang || 'ENGLISH'; r.per = r.per || 'pre'; r.langs = r.langs || {}; return r; };
 const data = (c, lang, per) => { const r = root(c); const L = r.langs[lang || r.lang] = r.langs[lang || r.lang] || {}; const d = L[per || r.per] = L[per || r.per] || {};
   d.L = d.L || {}; d.gstMax = d.gstMax || GST_MAX; if(d.by == null) d.by = c.adviser || ''; return d; };
-const learners = (c) => M.sortedLearners(c).filter(M.counted);
+const learners = (c) => M.readLearners(c);   // everyone — T/O and NLP learners took the BOSY / pre-test too (tags shown)
+const tg = (c, l) => { const t = M.readTag(c, l); return t ? ` (${t === 'TI' ? 'T/I' : t === 'TO' ? 'T/O' : t})` : ''; };
 const bySex = (L) => [['M','MALE', L.filter(l => l.sex === 'M')], ['F','FEMALE', L.filter(l => l.sex !== 'M')]];
 const ui = () => (M.piriUI = M.piriUI || {tab:'gst'});
 const num = (v) => v === '' || v == null || isNaN(+v) ? null : +v;
@@ -60,7 +61,12 @@ M.views.readingPhiliri = function view(el, args){
     <div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end">
       <div class="seg" id="pLang">${LANGS.map(([k, t]) => `<button data-l="${k}" class="${k === r.lang ? 'on' : ''}">${t}</button>`).join('')}</div>
       <div class="seg" id="pPer">${PERS.map(([k, t]) => `<button data-p="${k}" class="${k === r.per ? 'on' : ''}">${t}</button>`).join('')}</div></div></div>
-    <div class="piri-dist" style="margin-top:14px">${[['GL','Passed GST','green'], ...PROF].map(([k, t]) => `<div class="pd p-${k}"><b>${cnt(k)}</b><span>${t}</span></div>`).join('')}</div>
+    <div class="piri-dist" style="margin-top:14px">${[['GL','Passed GST','green'], ...PROF].map(([k, t]) => { const a = L.filter((l, i) => C[i].prof === k); const m = a.filter(l => l.sex === 'M').length;
+      return `<div class="pd p-${k}"><b>${a.length}</b><span>${t}</span><i class="mf">♂ ${m} · ♀ ${a.length - m}</i></div>`; }).join('')}</div>
+    <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">${['TI','TO','NLP','DO'].map(k => [k, L.filter(l => M.readTag(c, l) === k).length]).filter(x => x[1]).map(([k, n]) => `<span class="rtag rt-${k}">${k === 'TI' ? 'T/I' : k === 'TO' ? 'T/O' : k} ${n}</span>`).join('')}
+      <button class="btn sm" id="pTags">🏷️ Tag T/I · T/O · NLP</button>
+      <button class="btn sm" id="pSameL" title="Copy every learner's GST and graded-passage entries from the other language (same test)">⧉ Same as ${r.lang === 'ENGLISH' ? 'Filipino' : 'English'}</button>
+      ${r.per === 'post' ? `<button class="btn sm" id="pSameP" title="Copy every learner's pre-test entries into the post-test, then change only what moved">⧉ Same as Pre-test</button>` : ''}</div>
     <div class="chips" style="margin-top:10px"><span class="chip green">${esc(LANGS.find(x => x[0] === r.lang)[1])} · ${esc(PERS.find(x => x[0] === r.per)[1])}</span><span class="chip">${L.length} learners</span>
       <span class="chip ${gstDone < L.length ? 'gold' : 'green'}">GST ${gstDone}/${L.length}</span>${below ? `<span class="chip gold">${below} below the cut-off → graded passage</span>` : ''}</div>
   </div>
@@ -69,6 +75,12 @@ M.views.readingPhiliri = function view(el, args){
   $$('#pLang button').forEach(b => b.onclick = () => { r.lang = b.dataset.l; M.save(); view(el, []); });
   $$('#pPer button').forEach(b => b.onclick = () => { r.per = b.dataset.p; M.save(); view(el, []); });
   $$('#pTabs button').forEach(b => b.onclick = () => { u.tab = b.dataset.t; view(el, []); });
+  $('#pTags').onclick = () => M.readTagsEditor(c, () => view(el, []));
+  const copyFrom = (src, what) => { if(!src || !Object.keys(src.L || {}).length) return M.toast(`Nothing recorded in the ${what} yet`);
+    if(Object.keys(d.L).length && !confirm(`Replace these entries with the ${what}? You can still change any learner afterwards.`)) return;
+    d.L = JSON.parse(JSON.stringify(src.L)); d.gstMax = src.gstMax || d.gstMax; if(!d.date && src.date) d.date = src.date; M.save(); M.toast('Copied — adjust any learner as needed'); view(el, []); };
+  $('#pSameL').onclick = () => { const o = r.lang === 'ENGLISH' ? 'FILIPINO' : 'ENGLISH'; copyFrom((r.langs[o] || {})[r.per], `${o === 'ENGLISH' ? 'English' : 'Filipino'} ${r.per === 'pre' ? 'pre-test' : 'post-test'}`); };
+  if($('#pSameP')) $('#pSameP').onclick = () => copyFrom((r.langs[r.lang] || {}).pre, 'pre-test');
   const rr = () => view(el, []);
   ({gst: gstTab, oral: oralTab, grp: grpTab, rep: repTab})[u.tab]($('#pBody'), c, d, L, rr);
 };
@@ -84,7 +96,7 @@ function gstTab(el, c, d, L, rr){
       <label class="field mini">Administered by<input class="input" id="pBy" value="${esc(d.by || '')}"></label></div>
     <div class="table-wrap" style="margin-top:14px"><table class="piri-t"><thead><tr><th>#</th><th class="sticky-col">Learner</th><th class="num">GST score</th><th>Result</th><th>Reading profile</th></tr></thead><tbody>
     ${bySex(L).map(([sx, lab, arr]) => arr.length ? `<tr class="sexrow"><td colspan="5">${lab}</td></tr>` + arr.map((l, i) => { const x = calc(d.L[l.id], d);
-      return `<tr><td class="muted">${i + 1}</td><td class="sticky-col"><b>${esc(l.name)}</b></td><td class="num"><input class="input gcell" data-lid="${l.id}" inputmode="numeric" value="${x.gst ?? ''}"></td>
+      return `<tr><td class="muted">${i + 1}</td><td class="sticky-col"><b>${esc(l.name)}</b>${M.readTagChip(c, l)}</td><td class="num"><input class="input gcell" data-lid="${l.id}" inputmode="numeric" value="${x.gst ?? ''}"></td>
         <td class="pr-res" data-res="${l.id}">${x.gst == null ? '' : x.below ? '<span class="low">Below cut-off · take the graded passage</span>' : '<span style="color:var(--green)">Passed</span>'}</td><td data-pf="${l.id}">${chip(x.prof)}</td></tr>`; }).join('') : '').join('')}
     </tbody></table></div></div>`;
   $('#pDate', el).onchange = e => { d.date = e.target.value; M.save(); };
@@ -100,15 +112,16 @@ function gstTab(el, c, d, L, rr){
 function oralTab(el, c, d, L, rr){
   const u = ui(); const showAll = !!u.oralAll;
   const list = L.filter(l => { const x = calc(d.L[l.id], d); return showAll || x.below || (d.L[l.id] || {}).words || (d.L[l.id] || {}).nr; });
+  const fillB = (k) => `<button class="fill-b" data-fill="${k}" title="Fill every row with the first value typed in this column">⤓ all</button>`;
   const cell = (l, k, ph, w) => `<input class="input ocell" data-lid="${l.id}" data-k="${k}" inputmode="numeric" placeholder="${ph}" value="${esc((d.L[l.id] || {})[k] ?? '')}" style="width:${w || 64}px">`;
   el.innerHTML = `<div class="card">
     <div class="row" style="gap:12px;flex-wrap:wrap"><div class="grow"><h2 style="margin:0">Graded passage · oral reading</h2>
       <div class="small muted" style="margin-top:4px">For each learner: the passage's grade level, number of words, miscues and reading time, then the comprehension questions. MASTRO computes the percentages, words per minute and the reading profile.</div></div>
       <label class="row small" style="gap:6px;cursor:pointer"><input type="checkbox" id="pAll" ${showAll ? 'checked' : ''}> Show all learners (not only those below the GST cut-off)</label></div>
     <div class="tiny muted" style="margin-top:8px">Word reading: Independent 97–100% · Instructional 90–96% · Frustration 89% and below &nbsp;|&nbsp; Comprehension: Independent 80–100% · Instructional 59–79% · Frustration 58% and below</div>
-    ${list.length ? `<div class="table-wrap" style="margin-top:12px"><table class="piri-t"><thead><tr><th class="sticky-col">Learner</th><th>Passage<br>grade</th><th>Words</th><th>Miscues</th><th>Time<br>(sec)</th><th>Word<br>reading</th><th>WPM</th><th>Questions</th><th>Correct</th><th>Compre-<br>hension</th><th>Non-<br>reader</th><th>Profile</th></tr></thead><tbody>
+    ${list.length ? `<div class="table-wrap" style="margin-top:12px"><table class="piri-t"><thead><tr><th class="sticky-col">Learner</th><th>Passage<br>grade${fillB('gl')}</th><th>Words${fillB('words')}</th><th>Miscues</th><th>Time<br>(sec)</th><th>Word<br>reading</th><th>WPM</th><th>Questions${fillB('items')}</th><th>Correct</th><th>Compre-<br>hension</th><th>Non-<br>reader</th><th>Profile</th></tr></thead><tbody>
       ${list.map(l => { const x = calc(d.L[l.id], d); const rec = d.L[l.id] || {};
-        return `<tr data-row="${l.id}"><td class="sticky-col"><b>${esc(l.name)}</b>${x.gst != null ? `<div class="tiny muted">GST ${x.gst}/${d.gstMax}</div>` : ''}</td>
+        return `<tr data-row="${l.id}"><td class="sticky-col"><b>${esc(l.name)}</b>${M.readTagChip(c, l)}${x.gst != null ? `<div class="tiny muted">GST ${x.gst}/${d.gstMax}</div>` : ''}</td>
           <td>${cell(l, 'gl', 'Gr', 50)}</td><td>${cell(l, 'words', 'no.')}</td><td>${cell(l, 'mis', 'no.')}</td><td>${cell(l, 'secs', 'sec')}</td>
           <td class="num" data-o="wr">${x.wr != null ? `${x.wr}%<div class="tiny">${esc(PN[x.wrL] || '')}</div>` : ''}</td><td class="num" data-o="wpm">${x.wpm ?? ''}</td>
           <td>${cell(l, 'items', 'no.', 56)}</td><td>${cell(l, 'ok', 'no.', 56)}</td>
@@ -116,6 +129,10 @@ function oralTab(el, c, d, L, rr){
           <td style="text-align:center"><input type="checkbox" class="onr" data-lid="${l.id}" ${rec.nr ? 'checked' : ''}></td><td data-o="pf">${chip(x.prof)}</td></tr>`; }).join('')}
     </tbody></table></div>` : `<div class="empty" style="margin-top:12px">${Object.keys(d.L).length ? 'No learner is below the GST cut-off. 🎉' : 'Enter the GST scores first (tab 1) — learners below the cut-off appear here.'}</div>`}</div>`;
   $('#pAll', el).onchange = e => { u.oralAll = e.target.checked; rr(); };
+  // same passage for everyone: copy the first typed value of the column to every learner listed
+  $$('[data-fill]', el).forEach(b => b.onclick = () => { const k = b.dataset.fill; const ins = $$(`.ocell[data-k="${k}"]`, el); const first = ins.find(i => i.value.trim() !== '');
+    let v = first ? first.value.trim() : prompt(k === 'gl' ? 'Passage grade level for everyone:' : k === 'words' ? 'Number of words in the passage:' : 'Number of comprehension questions:'); if(v == null || String(v).trim() === '') return;
+    ins.forEach(i => { i.value = v; i.dispatchEvent(new Event('input')); }); M.toast(`Filled ${ins.length} learner(s)`); });
   const upd = (lid) => { const tr = $(`[data-row="${lid}"]`, el); const x = calc(d.L[lid], d);
     $('[data-o="wr"]', tr).innerHTML = x.wr != null ? `${x.wr}%<div class="tiny">${esc(PN[x.wrL] || '')}</div>` : ''; $('[data-o="wpm"]', tr).textContent = x.wpm ?? '';
     $('[data-o="cm"]', tr).innerHTML = x.cm != null ? `${x.cm}%<div class="tiny">${esc(PN[x.cmL] || '')}</div>` : ''; $('[data-o="pf"]', tr).innerHTML = chip(x.prof); };
@@ -131,8 +148,8 @@ function grpTab(el, c, d, L){
   const none = L.filter(l => !calc(d.L[l.id], d).prof);
   el.innerHTML = `<div class="card"><h2 style="margin:0">Groupings by reading profile</h2>
     <p class="small muted" style="margin:6px 0 12px">Learners are grouped by their ${esc(PERS.find(x => x[0] === root(c).per)[1].toLowerCase())} reading profile.</p>
-    <div class="grid g-3" style="gap:14px">${G.map(g => `<div class="card piri-grp p-${g.k}" style="padding:14px"><div class="row"><b>${g.t}</b><span class="spacer"></span><span class="chip">${g.arr.length}</span></div>
-      <div class="tiny muted" style="margin:2px 0 8px">${g.note}</div>${g.arr.map(l => `<div class="small">${esc(l.name)}</div>`).join('') || '<div class="tiny muted">—</div>'}</div>`).join('')}</div>
+    <div class="grid g-3" style="gap:14px">${G.map(g => `<div class="card piri-grp p-${g.k}" style="padding:14px"><div class="row"><b>${g.t}</b><span class="spacer"></span><span class="tiny muted">♂ ${g.arr.filter(l => l.sex === 'M').length} · ♀ ${g.arr.filter(l => l.sex !== 'M').length}</span><span class="chip">${g.arr.length}</span></div>
+      <div class="tiny muted" style="margin:2px 0 8px">${g.note}</div>${g.arr.map(l => `<div class="small">${esc(l.name)}${M.readTagChip(c, l)}</div>`).join('') || '<div class="tiny muted">—</div>'}</div>`).join('')}</div>
     ${none.length ? `<div class="tiny muted" style="margin-top:12px">Not assessed yet: ${none.map(l => esc(l.name)).join(', ')}</div>` : ''}</div>`;
 }
 
@@ -157,7 +174,7 @@ const sign = (c) => M.printSign(c, 'Prepared by:', 'Noted by:');
 function crpPage(c, d, L){
   let n = 0;
   const rows = bySex(L).map(([sx, lab, arr]) => arr.length ? `<tr><td colspan="12" class="l sx">${lab}</td></tr>` + arr.map(l => { const x = calc(d.L[l.id], d), rec = d.L[l.id] || {};
-    return `<tr><td>${++n}</td><td class="l">${esc(l.name)}</td><td>${x.gst ?? ''}</td><td>${esc(rec.gl || '')}</td><td>${rec.words ?? ''}</td><td>${rec.mis ?? ''}</td><td>${x.wr != null ? x.wr + '%' : ''}</td><td>${esc(PN[x.wrL] || '')}</td><td>${x.cm != null ? x.cm + '%' : ''}</td><td>${esc(PN[x.cmL] || '')}</td><td>${x.wpm ?? ''}</td><td><b>${esc(profLabel(x.prof))}</b></td></tr>`; }).join('') : '').join('');
+    return `<tr><td>${++n}</td><td class="l">${esc(l.name + tg(c, l))}</td><td>${x.gst ?? ''}</td><td>${esc(rec.gl || '')}</td><td>${rec.words ?? ''}</td><td>${rec.mis ?? ''}</td><td>${x.wr != null ? x.wr + '%' : ''}</td><td>${esc(PN[x.wrL] || '')}</td><td>${x.cm != null ? x.cm + '%' : ''}</td><td>${esc(PN[x.cmL] || '')}</td><td>${x.wpm ?? ''}</td><td><b>${esc(profLabel(x.prof))}</b></td></tr>`; }).join('') : '').join('');
   return `<div class="rdp">${head(c, 'PHIL-IRI CLASS READING PROFILE')}
     <table class="rd-t"><thead><tr><th>No.</th><th class="l">Name of Learner</th><th>GST<br>(${d.gstMax})</th><th>Passage<br>grade</th><th>Words</th><th>Miscues</th><th>Word<br>reading</th><th>Level</th><th>Compre-<br>hension</th><th>Level</th><th>WPM</th><th>Reading profile</th></tr></thead><tbody>${rows}</tbody></table>
     ${sumTable(d, L)}${sign(c)}</div>`;
@@ -171,13 +188,13 @@ function sumTable(d, L){
 }
 function sumPage(c, d, L){
   return `<div class="rdp">${head(c, 'PHIL-IRI SUMMARY PER READING PROFILE')}${sumTable(d, L)}
-    ${GROUPS.map(([k, t]) => { const arr = L.filter(l => calc(d.L[l.id], d).prof === k); return arr.length ? `<div class="rd-sec">${t} (${arr.length})</div><div class="small">${arr.map((l, i) => `${i + 1}. ${esc(l.name)}`).join(' &nbsp; ')}</div>` : ''; }).join('')}
+    ${GROUPS.map(([k, t]) => { const arr = L.filter(l => calc(d.L[l.id], d).prof === k); return arr.length ? `<div class="rd-sec">${t} (${arr.length})</div><div class="small">${arr.map((l, i) => `${i + 1}. ${esc(l.name + tg(c, l))}`).join(' &nbsp; ')}</div>` : ''; }).join('')}
     ${sign(c)}</div>`;
 }
 function cmpPage(c, L){
   const r = root(c); const pre = data(c, r.lang, 'pre'), post = data(c, r.lang, 'post'); let n = 0;
   const rows = bySex(L).map(([sx, lab, arr]) => arr.length ? `<tr><td colspan="4" class="l sx">${lab}</td></tr>` + arr.map(l => { const a = calc(pre.L[l.id], pre).prof, b = calc(post.L[l.id], post).prof;
-    return `<tr><td>${++n}</td><td class="l">${esc(l.name)}</td><td>${esc(profLabel(a))}</td><td><b>${esc(profLabel(b))}</b></td></tr>`; }).join('') : '').join('');
+    return `<tr><td>${++n}</td><td class="l">${esc(l.name + tg(c, l))}</td><td>${esc(profLabel(a))}</td><td><b>${esc(profLabel(b))}</b></td></tr>`; }).join('') : '').join('');
   const keys = [['GL','Passed GST'], ...PROF.map(p => [p[0], p[1]])];
   return `<div class="rdp">${M.printHeader('PHIL-IRI PRE-TEST AND POST-TEST RESULTS')}<table class="rd-info"><tr><td>School:</td><td><b>${esc(M.S.settings.school || '')}</b></td><td>Grade &amp; Section:</td><td><b>${esc(M.className(c))}</b></td></tr><tr><td>Language:</td><td><b>${esc(LANGS.find(x => x[0] === r.lang)[1])}</b></td><td>School Year:</td><td><b>${esc(c.sy || '')}</b></td></tr></table>
     <table class="rd-t" style="width:70%"><thead><tr><th class="l">Reading profile</th><th>Pre-test</th><th>Post-test</th><th>Change</th></tr></thead><tbody>
