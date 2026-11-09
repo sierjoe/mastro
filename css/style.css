@@ -1118,3 +1118,29 @@ b.p-nm{font-weight:800!important}
 :root[data-theme="glass"] .card.hero{background:linear-gradient(125deg,rgba(255,138,42,.92) 0%,rgba(255,79,163,.9) 35%,rgba(161,61,240,.9) 68%,rgba(25,198,234,.88) 100%);border:1px solid rgba(255,255,255,.55);box-shadow:0 18px 40px rgba(161,61,240,.28)}
 :root[data-theme="glass"] .hero .chip{background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.55)}
 .hs-open[hidden],.hsearch[hidden]{display:none!important}
+/* v6.12 ECR tags: T/I chip */
+.ecr-tagchip.t-TI{background:#2f8a5c}
+.ecr-tagchip.t-NLP,.ecr-tagchip.t-NLS{background:#a65d5d}
+.ecr-tagb.ti{background:rgba(47,138,92,.15);color:#2f8a5c}
+/* v6.12 Answer sheets (print + measuring) */
+.as{font-family:Arial,Helvetica,sans-serif;color:#000;font-size:10pt;box-sizing:border-box}
+.as-h{text-align:center;line-height:1.25;margin-bottom:2.5mm}
+.as-school{font-size:9pt;font-weight:bold;letter-spacing:.3px}
+.as-title{font-size:11.5pt;font-weight:bold}
+.as-name{display:flex;flex-wrap:wrap;gap:1.5mm 5mm;font-size:9.5pt;border-top:.3mm solid #000;border-bottom:.3mm solid #000;padding:1.6mm 0;margin-bottom:2.5mm}
+.as-name > span{display:flex;align-items:flex-end;gap:1.5mm;white-space:nowrap}
+.as-name > span.w{flex:1 1 100%}
+.as-name b{font-weight:bold;font-size:10.5pt}
+.as-name i{display:inline-block;width:24mm;border-bottom:.25mm solid #000;height:3.6mm}
+.as-name i.s{width:12mm}
+.as-part{margin-bottom:2.6mm;break-inside:avoid}
+.as-pl{font-weight:bold;font-size:9.5pt;margin-bottom:1.2mm}
+.as-pl span{font-weight:normal;color:#333}
+.as-grid{display:grid;grid-auto-flow:column;gap:.9mm 3mm}
+.as-it{display:flex;align-items:center;gap:1.3mm;height:5.6mm}
+.as-it .n{display:inline-block;min-width:7.5mm;text-align:right;font-weight:bold;font-size:9.5pt}
+.as-it .bb{display:inline-flex;align-items:center;justify-content:center;width:4.8mm;height:4.8mm;border:.25mm solid #000;border-radius:50%;font-size:7pt;line-height:1}
+.as-it .ln{flex:1;border-bottom:.25mm solid #000;height:4.5mm;min-width:25mm}
+.as-pick{max-height:38vh;overflow:auto;margin-top:8px;padding:4px 2px}
+.as-pick-h{margin:8px 0 4px}
+.as-pick-r{display:flex;align-items:center;gap:8px;padding:5px 4px;cursor:pointer;font-size:14px}

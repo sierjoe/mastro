@@ -287,7 +287,7 @@ function cleanTab(el, s, rerender){
       <button class="btn sm" id="saveGrp">${ico('save')} Save grouping ${M.newTag('cg-save')}</button>
       ${(s.clean.saved||[]).length ? `<select class="input" id="useGrp" style="width:auto;max-width:220px;padding:6px 10px;font-size:13px"><option value="">Use a saved grouping…</option>${s.clean.saved.map(x => `<option value="${x.id}">${esc(x.name)} (${esc(x.date)})</option>`).join('')}</select><button class="btn sm danger" id="delGrp" title="Delete a saved grouping">Delete saved…</button>` : ''}
       <button class="btn sm" id="prtGrp">${ico('print')} Print groups ${M.newTag('cg-print')}</button>
-      <span class="spacer"></span><span class="tiny muted">Tap a name to award points or move them.</span>
+      <span class="spacer"></span><span class="tiny muted">Tap a name (or a leaderboard row) to award, add, edit or deduct points.</span>
     </div>
   </div>
   ${s.clean.tasks.length ? `<div class="grid g-3" style="margin-top:20px">${s.clean.tasks.map(t => { const mem = (g[t.id]||[]).filter(sid=>s.students[sid]);
@@ -298,8 +298,8 @@ function cleanTab(el, s, rerender){
   ${free.length?`<div class="card" style="margin-top:20px"><h2>Not in a group this week (${free.length})</h2><div class="chips">${free.map(sid=>`<button class="chip mem" data-sid="${sid}">${esc(nick(s,sid))}</button>`).join('')}</div></div>`:''}
   <div class="grid g-2" style="margin-top:20px">
     <div class="card"><h2>Leaderboard</h2><div class="table-wrap" style="max-height:420px"><table><thead><tr><th>#</th><th>Learner</th><th class="num">This week</th><th class="num">This month</th><th class="num">Total</th></tr></thead>
-      <tbody>${board.map((x,i)=>`<tr><td class="muted">${i+1}</td><td>${esc(nick(s,x.sid))}</td><td class="num"><b>${x.w}</b></td><td class="num">${x.m}</td><td class="num muted">${x.t}</td></tr>`).join('')}</tbody></table></div></div>
-    <div class="card"><h2>Today’s points (${todayLog.length})</h2><div class="list" style="max-height:420px;overflow:auto;padding:4px">${todayLog.map(x=>`<div class="item" style="padding:9px 12px"><div class="grow"><div class="title small">${esc(nick(s,x.sid))}</div><div class="tiny muted">${esc(x.task)} · ${Math.round((x.pct||1)*100)}% · ${new Date(x.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div></div><b>+${x.pts}</b><button class="icon-btn" data-undo="${x.id}" title="Undo">↺</button></div>`).join('')||'<div class="empty">No points yet today.</div>'}</div></div>
+      <tbody>${board.map((x,i)=>`<tr class="mem" data-sid="${x.sid}" style="cursor:pointer" title="Tap to add or edit points"><td class="muted">${i+1}</td><td>${esc(nick(s,x.sid))}</td><td class="num"><b>${x.w}</b></td><td class="num">${x.m}</td><td class="num muted">${x.t}</td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card"><h2>Today’s points (${todayLog.length})</h2><div class="list" style="max-height:420px;overflow:auto;padding:4px">${todayLog.map(x=>`<div class="item" style="padding:9px 12px"><div class="grow"><div class="title small">${esc(nick(s,x.sid))}</div><div class="tiny muted">${esc(x.task)} · ${x.kind==='manual' ? 'manual' : Math.round((x.pct||1)*100)+'%'} · ${new Date(x.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div></div><b>${x.pts>0?'+':''}${x.pts}</b><button class="icon-btn" data-undo="${x.id}" title="Undo">↺</button></div>`).join('')||'<div class="empty">No points yet today.</div>'}</div></div>
   </div>`;
   $('#wPrev').onclick = () => { u.week = M.addDays(wk,-7); rerender(); };
   $('#wNext').onclick = () => { u.week = M.addDays(wk,7); rerender(); };
@@ -347,11 +347,26 @@ function memberSheet(s, sid, rerender){
     <div class="row" style="margin-bottom:10px"><button class="btn sm" id="msQr">${ico('qr')} Print this QR card</button></div>
     <h3>Award points for today${t?` (${t.pts} pts)`:''}</h3>
     <div class="row">${[1,.75,.5].map(p=>`<button class="btn ${p===1?'primary':''}" data-p="${p}">${p*100}%</button>`).join('')}</div>
+    <h3 style="margin-top:18px">Add or deduct points manually ${M.newTag('clean-manual')}</h3>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><input class="input" id="mpPts" inputmode="decimal" placeholder="Points (e.g. 5 or -3)" style="width:150px"><input class="input" id="mpDate" type="date" value="${M.today()}" style="width:auto"><input class="input" id="mpWhy" placeholder="Reason (optional)" style="flex:1;min-width:140px"><button class="btn primary" id="mpAdd">${ico('plus')} Add</button></div>
+    <h3 style="margin-top:18px">Point history <span class="tiny muted" id="mpTot"></span></h3>
+    <div class="list" id="mpList" style="max-height:240px;overflow:auto;padding:4px"></div>
     <h3 style="margin-top:18px">Move to</h3>
     <div class="row"><select class="input" id="mvT" style="width:auto"><option value="">— no group —</option>${s.clean.tasks.map(x=>`<option value="${x.id}" ${t&&x.id===t.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select><button class="btn" id="mvB">Move</button></div>`,
   b => {
     $$('[data-p]', b).forEach(x => x.onclick = () => { const pts = award(s, sid, t, +x.dataset.p); M.closeModal(); rerender(); M.toast(`+${pts} pts for ${nick(s,sid)}`); });
     $('#msQr',b).onclick = () => { M.closeModal(); printQrCards(s, sid); };
+    // manual points: add, edit or delete any entry in this learner's history
+    const drawHist = () => { const L = s.clean.log.filter(x => x.sid === sid).sort((a,b2) => (b2.date||'').localeCompare(a.date||'') || (b2.ts||0) - (a.ts||0));
+      $('#mpTot',b).textContent = `· total ${M.r2(L.reduce((a,x) => a + (x.pts||0), 0))} pts`;
+      $('#mpList',b).innerHTML = L.map(x => `<div class="item" style="padding:7px 10px;gap:8px"><div class="grow"><div class="small">${esc(x.task||'')}</div><div class="tiny muted">${esc(x.date||'')} · ${x.kind==='manual' ? 'manual' : Math.round((x.pct||1)*100)+'%'}</div></div><input class="input" data-ed="${x.id}" inputmode="decimal" value="${x.pts}" style="width:70px;text-align:right" title="Edit points"><button class="icon-btn" data-rm="${x.id}" title="Delete this entry">✕</button></div>`).join('') || '<div class="empty small">No points yet.</div>';
+      $$('[data-ed]',b).forEach(i => i.onchange = () => { const x = s.clean.log.find(y => y.id === i.dataset.ed); const v = parseFloat(i.value); if(!x || !isFinite(v)) { M.toast('Type a number'); return drawHist(); } x.pts = M.r2(v); x.edited = Date.now(); M.save(); drawHist(); M.toast('Points updated'); });
+      $$('[data-rm]',b).forEach(i => i.onclick = () => { if(!confirm('Delete this points entry?')) return; s.clean.log = s.clean.log.filter(y => y.id !== i.dataset.rm); M.save(); drawHist(); }); };
+    drawHist();
+    $('#mpAdd',b).onclick = () => { const v = parseFloat($('#mpPts',b).value); if(!isFinite(v) || !v) return M.toast('Type the points to add (use a minus sign to deduct)');
+      s.clean.log.push({id:Math.random().toString(36).slice(2,13), sid, date:$('#mpDate',b).value||M.today(), kind:'manual', pts:M.r2(v), pct:null, task:$('#mpWhy',b).value.trim() || (v > 0 ? 'Manual points' : 'Manual deduction'), ts:Date.now()});
+      M.save(); $('#mpPts',b).value = ''; $('#mpWhy',b).value = ''; drawHist(); M.toast(`${v > 0 ? '+' : ''}${M.r2(v)} pts for ${nick(s,sid)}`); };
+    M.onModalClose = rerender;
     $('#mvB',b).onclick = () => { const g = s.clean.weeks[wk] = s.clean.weeks[wk] || {}; Object.keys(g).forEach(k => g[k] = g[k].filter(x=>x!==sid)); const to = $('#mvT',b).value; if(to){ g[to] = g[to]||[]; g[to].push(sid); } M.save(); M.closeModal(); rerender(); };
   });
 }

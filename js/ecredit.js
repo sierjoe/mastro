@@ -12,8 +12,14 @@ const num = (v) => { if(typeof v === 'number' && isFinite(v)) return v; const s 
 const cLet = (n) => { let s=''; n++; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s; };   // 0-based
 const cIdx = (L) => L.split('').reduce((a,ch)=>a*26+ch.charCodeAt(0)-64, 0) - 1;
 const SLOTS = 50;
-const ECR_TAGS = {NLS:'No longer in school', TO:'Transferred out'};
+const ECR_TAGS = {NLP:'No longer participating', TO:'Transferred out', TI:'Transferred in', NLS:'No longer participating'};
 M.ECR_TAGS = ECR_TAGS;
+M.ECR_TAG_SHORT = {NLP:'NLP', NLS:'NLP', TO:'T/O', TI:'T/I'};
+// older ECRs used NLS ("no longer in school") — read it as NLP
+const normTag = (t) => t === 'NLS' ? 'NLP' : (t || '');
+M.ecrNormTag = normTag;
+// NLP and T/O rows are left out of grades and statistics; T/I (transferred in) learners stay in
+M.ecrTagOut = (t) => !!t && normTag(t) !== 'TI';
 const KEYS = ['ww','pt','ex'];
 const CLABEL = {ww:'Written Works', pt:'Performance Tasks', ex:'Examinations'};
 const DEF_TABLE = [[99.5,100],[98.32,99],[97.14,98],[95.96,97],[94.78,96],[93.6,95],[92.42,94],[91.24,93],[90.06,92],[88.88,91],[87.7,90],[86.52,89],[85.34,88],[84.16,87],[82.98,86],[81.8,85],[80.62,84],[79.44,83],[78.26,82],[77.08,81],[75.9,80],[74.72,79],[73.54,78],[72.36,77],[71.18,76],[70,75],[65.34,74],[60.67,73],[56.01,72],[51.34,71],[46.67,70],[42.01,69],[37.34,68],[32.68,67],[28.01,66],[23.35,65],[18.68,64],[14.01,63],[9.35,62],[4.68,61],[0,60]];
@@ -115,7 +121,7 @@ M.ecrTermsFromModel = function(model){
   Object.entries(model.terms).forEach(([t, T]) => {
     const learners = [];
     ['M','F'].forEach(sx => model.roster[sx].forEach((name, i) => { if(!name) return; const s = T.scores[sx][i]; const o = calc(model, T, s);
-      const rec = {name: name.replace(/\s*,\s*/, ', '), sex: sx, ww: s.ww.slice(), pt: s.pt.slice(), qa: s.ex.slice(), tag: (T.tags || {})[sx + i] || ''};
+      const rec = {name: name.replace(/\s*,\s*/, ', '), sex: sx, ww: s.ww.slice(), pt: s.pt.slice(), qa: s.ex.slice(), tag: normTag((T.tags || {})[sx + i])};
       ['ww','pt'].forEach(k => { rec[k+'Total'] = o[k+'Total']; rec[k+'PS'] = isNum(o[k+'PS']) ? M.r2(o[k+'PS']) : null; rec[k+'WS'] = o[k+'WS']; });
       rec.qaPS = isNum(o.exPS) ? M.r2(o.exPS) : null; rec.qaWS = o.exWS; rec.ig = isNum(o.ig) ? M.r2(o.ig) : null; rec.tg = o.tg;
       rec.noScores = !cnt(s.ww) && !cnt(s.pt) && !cnt(s.ex); learners.push(rec); }));
@@ -307,21 +313,21 @@ function termTab(eb, E, model, t, ui, mark){
   const lowSc = (v, h) => isNum(v) && isNum(h) && h > 0 && v <= 0.75 * h;
   const cellTd = (sx, i, k, j, v) => { const n = T.notes[nk(sx,i,k,j)]; return `<td class="${n?'noted':''}" ${n?`title="${esc(n)}"`:''}><input class="sc ${lowSc(v, T.hps[k][j]) ? 'lowsc' : ''}" data-sx="${sx}" data-i="${i}" data-k="${k}" data-j="${j}" value="${f0(v)}" inputmode="decimal"></td>`; };
   const row = (sx, i) => { const s = T.scores[sx][i]; const o = calc(model, T, s); const name = model.roster[sx][i];
-    const tag = (T.tags || {})[sx + i] || '';
-    return `<tr data-r="${sx}${i}" class="${!name?'emptyslot':''} ${tag ? 'ecr-tagged' : ''}"><td class="sticky-col"><span class="muted tiny">${i+1}</span> ${tag ? `<span class="ecr-tagchip t-${tag}" title="${esc(ECR_TAGS[tag])} · Term ${esc(t)}">${tag}</span> ` : ''}${esc(name||'—')}</td>
+    const tag = normTag((T.tags || {})[sx + i]);
+    return `<tr data-r="${sx}${i}" class="${!name?'emptyslot':''} ${M.ecrTagOut(tag) ? 'ecr-tagged' : ''}"><td class="sticky-col"><span class="muted tiny">${i+1}</span> ${tag ? `<span class="ecr-tagchip t-${tag}" title="${esc(ECR_TAGS[tag])} · Term ${esc(t)}">${M.ECR_TAG_SHORT[tag] || tag}</span> ` : ''}${esc(name||'—')}</td>
       ${['ww','pt'].map(k => s[k].map((v, j) => cellTd(sx, i, k, j, v)).join('') + `<td class="cm" data-o="${k}Total">${f0(o[k+'Total'])}</td><td class="cm" data-o="${k}PS">${f2(o[k+'PS'])}</td><td class="cm" data-o="${k}WS">${f2(o[k+'WS'])}</td>`).join('')}
       ${s.ex.map((v, j) => cellTd(sx, i, 'ex', j, v)).join('')}<td class="cm" data-o="exPS">${f2(o.exPS)}</td><td class="cm" data-o="exWS">${f2(o.exWS)}</td>
       <td class="cm" data-o="ig">${f2(o.ig)}</td><td class="tg ${isNum(o.tg)&&o.tg<75?'low':''}" data-o="tg">${f0(o.tg)}</td><td class="ds" data-o="desc">${o.desc?`<span class="desc d-${o.desc}">${o.desc}</span>`:''}</td></tr>`; };
   const span = 1 + nItems.ww + 3 + nItems.pt + 3 + nItems.ex + 2 + 3;
   const body = ['M','F'].map(sx => `<tr class="group"><td class="sticky-col">${sx==='M'?'MALE':'FEMALE'}</td><td colspan="${span-1}"></td></tr>` +
     model.roster[sx].map((n, i) => (n || ui.empty) ? row(sx, i) : '').join('')).join('');
-  const A = M.ecrTermsFromModel(model)[t]; const st = A ? M.stats(A.learners.map(x => x.tg)) : null;
+  const A = M.ecrTermsFromModel(model)[t]; const st = A ? M.stats(A.learners.filter(x => !M.ecrTagOut(x.tag)).map(x => x.tg)) : null;
   const colName = (k, j) => `${CNAME[k]} ${T.labels[k][j] || j+1}${(T.titles[k]||[])[j] ? ' – ' + T.titles[k][j] : ''}`;
   const notesList = () => { const ents = Object.entries(T.notes).filter(([, v]) => v).map(([key, v]) => { const [slot, k, j] = key.split('|'); const sx = slot[0], i = +slot.slice(1); return {key, name: model.roster[sx][i] || '(empty row)', col: colName(k, +j), v}; }).sort((a, b) => a.name.localeCompare(b.name));
     return ents.length ? `<div class="list" style="max-height:260px;overflow:auto;padding:4px">${ents.map(n => `<div class="item" style="padding:7px 12px"><div class="grow"><div class="small"><b>${esc(n.name)}</b> · ${esc(n.col)}</div><div class="tiny">${esc(n.v)}</div></div><button class="icon-btn" data-delnote="${esc(n.key)}" title="Remove note">✕</button></div>`).join('')}</div>` : '<div class="empty small">No notes yet. Tap a score box, then type a note in the bar above the table.</div>'; };
   eb.innerHTML = `<div class="card"><div class="row"><h2 style="margin:0">Term ${t} <span class="tiny muted">sheet “${esc(T.sheet)}”</span></h2><span class="spacer"></span>
       ${st && st.n ? `<span class="chip">mean ${fmt(st.mean)}</span><span class="chip">${st.passed}/${st.n} reached 75</span>` : ''}
-      <button class="btn sm" id="tagBtn" title="Mark learners No longer in school / Transferred out for this term">${ico('learners','width:14px;height:14px')} Tag learners ${M.newTag('ecr-tagpanel')}${Object.keys(T.tags || {}).length ? ` <span class="chip" style="padding:1px 7px;font-size:11px">${Object.keys(T.tags).length}</span>` : ''}</button>
+      <button class="btn sm" id="tagBtn" title="Mark learners No longer participating / Transferred out / Transferred in for this term">${ico('learners','width:14px;height:14px')} Tag learners ${M.newTag('ecr-tagpanel')}${Object.keys(T.tags || {}).length ? ` <span class="chip" style="padding:1px 7px;font-size:11px">${Object.keys(T.tags).length}</span>` : ''}</button>
       <label class="row small" style="cursor:pointer;gap:6px"><input type="checkbox" id="edEmpty" ${ui.empty?'checked':''}> Show empty rows</label></div>
     <div class="note-bar" id="noteBar"><span class="nb-ico">📝</span><div class="nb-what small muted">Tap any score box to add a note (absent, excused, no output…). ${M.newTag('ecr-notes')} Notes never change scores or grades.</div></div>
     <div class="table-wrap ecr-grid-wrap"><table class="ecr-grid"><thead>${head1}${head2}</thead><tbody>${hpsRow}${body}</tbody></table></div></div>
@@ -352,9 +358,9 @@ function termTab(eb, E, model, t, ui, mark){
       else td.textContent = /Total$/.test(k) ? f0(v) : f2(v); }); };
   const val = (x) => { const s = x.value.trim(); if(s === '') return null; const n = +s; return isFinite(n) ? n : NaN; };
   const grid = $('.ecr-grid', eb);
-  const tagPanel = () => { const tg = Object.assign({}, T.tags || {}); const opts = [['','—'],['NLS','NLS'],['TO','TO']];
+  const tagPanel = () => { const tg = {}; Object.entries(T.tags || {}).forEach(([k, v]) => { if(v) tg[k] = normTag(v); }); const opts = [['','—'],['NLP','NLP'],['TO','T/O'],['TI','T/I']];
     const rows = sx => model.roster[sx].map((n, i) => n ? `<div class="tagp-row"><span class="tagp-n">${i+1}. ${esc(n)}</span><span class="seg tagp-seg">${opts.map(([k, l]) => `<button class="${(tg[sx+i]||'') === k ? 'on' : ''}" data-tk="${sx}${i}" data-tv="${k}">${l}</button>`).join('')}</span></div>` : '').join('');
-    M.modal(`Tag learners · Term ${t}`, `<p class="small muted" style="margin-top:0"><b>NLS</b> = No longer in school · <b>TO</b> = Transferred out. Tags apply to <b>Term ${esc(t)}</b> only; tagged rows are greyed out and left out of the class statistics.</p>
+    M.modal(`Tag learners · Term ${t}`, `<p class="small muted" style="margin-top:0"><b>NLP</b> = No longer participating · <b>T/O</b> = Transferred out · <b>T/I</b> = Transferred in. Tags apply to <b>Term ${esc(t)}</b> only. NLP and T/O rows are greyed out and left out of the class statistics; T/I learners stay in and are only marked.</p>
       <input class="input" id="tagQ" placeholder="Find a learner…" style="margin-bottom:8px">
       <div class="tagp"><div class="tagp-h">MALE</div>${rows('M')}<div class="tagp-h">FEMALE</div>${rows('F')}</div>
       <div class="row" style="margin-top:12px"><span class="small muted" id="tagCnt"></span><span class="spacer"></span><button class="btn primary" id="tagOk">Save tags</button></div>`, mb => {

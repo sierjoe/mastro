@@ -11,7 +11,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.11', date:'2026-10-22', label:'October 22, 2026'};
+M.VERSION = {n:'6.12', date:'2026-11-09', label:'November 9, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -123,9 +123,9 @@ M.NAV = [
   {id:'reading', label:'Reading', icon:'book', eyebrow:'BULIG reading monitoring · levels & assessment periods', title:'Reading'},
   {id:'classes', label:'Classes', icon:'classes', eyebrow:'Electronic class records (ECR)', title:'Classes'},
   {id:'forms', label:'Forms', icon:'forms', eyebrow:'DepEd School Forms SF1–SF10', title:'Forms'},
-  {id:'analysis', group:'analytics', label:'Analysis', icon:'analysis', eyebrow:'Class analysis tools', title:'Analysis'},
-  {id:'assess', group:'analytics', label:'Assessments', icon:'assess', eyebrow:'AI test maker · Budget of Work', title:'Assessments'},
-  {id:'items', group:'analytics', label:'Item Analysis', icon:'items', eyebrow:'Summative tests & term examinations', title:'Item Analysis'},
+  {id:'analysis', hidden:true, label:'Analysis', icon:'analysis', eyebrow:'Class analysis tools', title:'Analysis'},
+  {id:'assess', label:'Assessments', icon:'assess', eyebrow:'AI test maker · answer sheets', title:'Assessments'},
+  {id:'items', hidden:true, label:'Item Analysis', icon:'items', eyebrow:'Summative tests & term examinations', title:'Item Analysis'},
   {id:'repo', label:'Repository', icon:'repo', eyebrow:'Documents & files', title:'Repository'},
   {id:'settings', label:'Settings', icon:'settings', eyebrow:'School, backup & data', title:'Settings'}
 ];
@@ -560,7 +560,7 @@ M.applyTheme = () => { const t = M.S.settings.theme; if(t==='auto') document.doc
 M.renderNav = (active) => {
   const link = (v, sub) => `<a href="#${v.id}" class="${v.id===active?'active':''} ${sub?'sub':''}">${M.ico(v.icon)}<span>${v.label}</span>${M.NAV_NEW[v.id] ? M.newTag(M.NAV_NEW[v.id]) : ''}</a>`;
   const ui = M.S.ui || {}; const done = new Set(); let html = '';
-  M.NAV.forEach(v => { if(!v.group){ html += link(v); return; } if(done.has(v.group)) return; done.add(v.group);
+  M.NAV.forEach(v => { if(v.hidden) return; if(!v.group){ html += link(v); return; } if(done.has(v.group)) return; done.add(v.group);
     const G = M.NAV_GROUPS[v.group]; const kids = M.NAV.filter(x => x.group === v.group); const hasActive = kids.some(x => x.id === active);
     const open = hasActive || (ui.navOpen || {})[v.group];
     html += `<div class="nav-group ${open?'open':''} ${hasActive?'has-active':''}"><button type="button" class="nav-parent" data-group="${v.group}" aria-expanded="${open?'true':'false'}">${M.ico(G.icon)}<span>${G.label}</span>${M.newTag(G.newId)}<i class="chev">›</i></button><div class="nav-kids">${kids.map(x => link(x, true)).join('')}</div></div>`; });
@@ -571,7 +571,7 @@ M.renderNav = (active) => {
   $('#tabbar').innerHTML = M.TABBAR.map(id => { const v = M.NAV.find(x=>x.id===id); return `<a href="#${v.id}" class="${v.id===active?'active':''}">${M.ico(v.icon)}<span>${v.label}</span></a>`; }).join('') +
     `<a href="#" id="moreBtn" class="${inMore?'active':''}">${M.ico('more')}<span>More</span></a>`;
   $('#moreBtn').onclick = (e) => { e.preventDefault();
-    M.modal('More', `<div class="list">${M.NAV.filter(v=>!M.TABBAR.includes(v.id)).map(v=>`<a class="item" href="#${v.id}" style="text-decoration:none;color:inherit">${M.ico(v.icon,'width:22px;height:22px;color:var(--green)')}<div class="grow"><div class="title">${v.group ? M.NAV_GROUPS[v.group].label + ' · ' : ''}${v.label}</div><div class="tiny muted">${v.eyebrow}</div></div></a>`).join('')}</div>`,
+    M.modal('More', `<div class="list">${M.NAV.filter(v=>!v.hidden && !M.TABBAR.includes(v.id)).map(v=>`<a class="item" href="#${v.id}" style="text-decoration:none;color:inherit">${M.ico(v.icon,'width:22px;height:22px;color:var(--green)')}<div class="grow"><div class="title">${v.group ? M.NAV_GROUPS[v.group].label + ' · ' : ''}${v.label}</div><div class="tiny muted">${v.eyebrow}</div></div></a>`).join('')}</div>`,
       b => M.$$('a', b).forEach(a => a.addEventListener('click', () => M.closeModal()))); };
 };
 M.renderClassSelect = () => {

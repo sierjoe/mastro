@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.11 · October 22, 2026)
+# MASTRO — Adviser's Workspace (v6.12 · November 9, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -19,6 +19,17 @@ Offline forms, documents and class management for the class adviser
 - **Learner status**: tag T/O, SARDO, NLP or Dropped Out; statistics and reports reflect it.
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
+
+### New in v6.12
+- **Analytics tab removed.** **Assessments** is now its own tab (Analysis and Item Analysis are hidden from the menu; their data is kept).
+- **Answer sheets** (Assessments): set the number of items per part (A–D, A–E, A–C, True/False or write-in line), or start from a test you made.
+  Print on **8.5 × 13 in, 0.3 in margins**, 1, 2 or 4 per page — one per learner of a class from Classes (names printed; NLP / T/O skipped),
+  only the learners you tick (lost papers), or blank copies. Header: school name and assessment name only.
+- **Cleaning points** (Attendance → Cleaning): tap a name or a leaderboard row to add or deduct points manually (any date, with a reason),
+  and edit or delete any past entry.
+- **Learners**: the progress meters at the top are removed.
+- **ECR tags**: NLP (No longer participating), T/O (Transferred out) and **T/I (Transferred in)**. NLP and T/O are left out of grades and statistics;
+  T/I learners stay in and are marked. Old "NLS" tags read as NLP.
 
 ### New in v6.11
 - **Glass theme** (sunset gradient glassmorphism) — switch themes any time with the palette button in the top bar or Settings → Appearance.

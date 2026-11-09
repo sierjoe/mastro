@@ -39,16 +39,19 @@ M.views.assess = function view(el, args){
     <div class="grow"><h2 style="margin:0">AI test maker ${M.newTag('asm-ai')}</h2>
       <div class="small muted" style="margin-top:4px">Pick the grade and term, choose competencies and topics from the Budget of Work, set the number of items and test types — Claude writes the test and the answer key. Print on A4 or 8.5 × 13, or download an editable Word file.</div></div>
     <a class="btn sparkle big" href="#assess/new" id="aNew">${ico('sparkle')} Create Assessment ${M.newTag('asm-create')}</a></div></div>
+  <div id="asBox"></div>
   ${all.length ? Object.entries(groups).map(([g, arr]) => `<div class="card" style="margin-top:20px"><div class="row"><h2 style="margin:0">${esc(g)}</h2><span class="chip">${arr.length} assessment(s)</span></div>
     <div class="grid g-3" style="margin-top:12px">${arr.map(a => `<div class="card form-card asm-card" style="padding:16px">
       <div class="row"><span class="chip green">${esc(a.kind)}</span><span class="spacer"></span><span class="tiny muted">${esc(a.created.slice(0,10))}</span></div>
       <div class="title" style="margin-top:8px"><b>${esc(a.title)}</b></div>
       <div class="small muted">${a.total} items · ${a.parts.map(p => esc(TNAME[p.type] || p.type)).join(', ')}</div>
       <div class="tiny muted" style="margin-top:4px">${a.compNames.slice(0,2).map(esc).join(' · ')}${a.compNames.length > 2 ? ` · +${a.compNames.length-2} more` : ''}</div>
-      <div class="row" style="margin-top:12px"><a class="btn sm primary" href="#assess/${a.id}">Open</a><button class="btn sm" data-pr="${a.id}">${ico('print')} Print</button><button class="btn sm" data-dx="${a.id}">${ico('download')} Word</button></div></div>`).join('')}</div></div>`).join('')
+      <div class="row" style="margin-top:12px"><a class="btn sm primary" href="#assess/${a.id}">Open</a><button class="btn sm" data-pr="${a.id}">${ico('print')} Print</button><button class="btn sm" data-dx="${a.id}">${ico('download')} Word</button><button class="btn sm" data-as="${a.id}" title="Make an answer sheet for this test">${ico('assess')} Answer sheet</button></div></div>`).join('')}</div></div>`).join('')
     : `<div class="card" style="margin-top:20px"><div class="empty">No assessments yet. Tap <b>Create Assessment</b> to make your first test.</div></div>`}`;
   $$('[data-pr]', el).forEach(b => b.onclick = () => printDialog(getA(b.dataset.pr)));
   $$('[data-dx]', el).forEach(b => b.onclick = () => M.asmDocx(getA(b.dataset.dx)));
+  $$('[data-as]', el).forEach(b => b.onclick = () => M.asheetFromAsm(getA(b.dataset.as)));
+  if(M.asheetSection) M.asheetSection($('#asBox', el));
 };
 
 /* =====================================================================
@@ -263,13 +266,14 @@ function detail(el, id, tab){
     <a class="btn sm" href="#assess">${ico('left','width:16px;height:16px')} Assessments</a>
     <div><div class="title"><b>${esc(a.title)}</b></div><div class="small muted">${esc(a.kind)} · Grade ${esc(a.grade)} English · Term ${esc(a.term)} · ${a.total} points · ${a.parts.length} part(s)</div></div>
     <span class="spacer"></span>
-    <button class="btn primary" id="dPrint">${ico('print')} Print</button><button class="btn gold" id="dDocx">${ico('download')} Word (.docx)</button><button class="btn sm danger" id="dDel">Delete</button></div>
+    <button class="btn primary" id="dPrint">${ico('print')} Print</button><button class="btn gold" id="dDocx">${ico('download')} Word (.docx)</button><button class="btn" id="dAs">${ico('assess')} Answer sheet</button><button class="btn sm danger" id="dDel">Delete</button></div>
     <div class="seg" id="dTabs" style="margin-top:14px">${[['paper','Test paper'],['key','Answer key'],['cov','Competencies covered']].map(([k, l]) => `<button data-t="${k}" class="${k===tab?'on':''}">${l}</button>`).join('')}</div>
     ${tab === 'paper' ? '<p class="tiny muted" style="margin:10px 0 0">Tap any title, direction, passage, question or choice to edit it — words in [square brackets] print underlined. Changes are saved for printing and the Word file.</p>' : ''}</div>
   <div id="dBody" style="margin-top:20px"></div>`;
   $('#dTabs', el).onclick = e => { const b = e.target.closest('button'); if(b) location.hash = `#assess/${a.id}/${b.dataset.t}`; };
   $('#dPrint', el).onclick = () => printDialog(a);
   $('#dDocx', el).onclick = () => M.asmDocx(a);
+  $('#dAs', el).onclick = () => M.asheetFromAsm(a);
   $('#dDel', el).onclick = () => { if(!confirm(`Delete “${a.title}”?`)) return; M.S.asm = M.S.asm.filter(x => x !== a); M.save(); location.hash = '#assess'; };
   const body = $('#dBody', el);
   if(tab === 'paper'){ body.innerHTML = `<div class="tp-sheet">${M.asmPaperHtml(a, {edit: true})}</div>`;

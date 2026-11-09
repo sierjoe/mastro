@@ -254,13 +254,13 @@ function ecrRoster(E){ const terms = termsOf(E); const base = terms.length ? E.t
   return base.map(x => ({name: x.name, sex: x.sex || 'M', t: ['1','2','3'].map(t => find(t, x.name))})); }
 function ecrTermSummary(E, term, list){
   const rows = list.map((r, i) => { const x = r.t[+term - 1]; const g = x && isNum(x.tg) ? x.tg : null;
-    if(x && x.tag) return `<tr class="ecr-tagged"><td>${i + 1}</td><td class="l">${esc(r.name)}</td><td colspan="4"><i>${esc(M.ECR_TAGS[x.tag] || x.tag)}</i></td></tr>`;
-    return `<tr><td>${i + 1}</td><td class="l">${esc(r.name)}</td><td>${x && isNum(x.ig) ? fmt(x.ig, 2) : ''}</td><td><b>${g ?? ''}</b></td><td>${g !== null ? esc(M.descriptor(g)) : ''}</td><td>${g !== null ? (g >= 75 ? 'Passed' : '<b class="low">Failed</b>') : ''}</td></tr>`; }).join('');
+    if(x && M.ecrTagOut(x.tag)) return `<tr class="ecr-tagged"><td>${i + 1}</td><td class="l">${esc(r.name)}</td><td colspan="4"><i>${esc(M.ECR_TAGS[x.tag] || x.tag)}</i></td></tr>`;
+    return `<tr><td>${i + 1}</td><td class="l">${esc(r.name)}${x && x.tag === 'TI' ? ' <i class="tn">(T/I)</i>' : ''}</td><td>${x && isNum(x.ig) ? fmt(x.ig, 2) : ''}</td><td><b>${g ?? ''}</b></td><td>${g !== null ? esc(M.descriptor(g)) : ''}</td><td>${g !== null ? (g >= 75 ? 'Passed' : '<b class="low">Failed</b>') : ''}</td></tr>`; }).join('');
   return rows; }
 function ecrFinalRows(list){
-  return list.map((r, i) => { const g = r.t.map(x => x && !x.tag && isNum(x.tg) ? x.tg : null); const tag = r.t.map(x => x && x.tag ? x.tag : '');
+  return list.map((r, i) => { const g = r.t.map(x => x && !M.ecrTagOut(x.tag) && isNum(x.tg) ? x.tg : null); const tag = r.t.map(x => x && M.ecrTagOut(x.tag) ? M.ecrNormTag(x.tag) : ''); const ti = r.t.some(x => x && x.tag === 'TI');
     const fin = g.every(isNum) ? Math.round(g.reduce((a, b) => a + b, 0) / 3) : null; const anyTag = tag.find(Boolean);
-    return `<tr class="${anyTag ? 'ecr-tagged' : ''}"><td>${i + 1}</td><td class="l">${esc(r.name)}</td>${g.map((v, k) => `<td>${tag[k] ? `<i class="tn">${esc(tag[k] === 'TO' ? 'T/O' : 'NLS')}</i>` : v ?? ''}</td>`).join('')}
+    return `<tr class="${anyTag ? 'ecr-tagged' : ''}"><td>${i + 1}</td><td class="l">${esc(r.name)}${ti ? ' <i class="tn">(T/I)</i>' : ''}</td>${g.map((v, k) => `<td>${tag[k] ? `<i class="tn">${esc(M.ECR_TAG_SHORT[tag[k]] || tag[k])}</i>` : v ?? ''}</td>`).join('')}
       <td><b>${fin ?? ''}</b></td><td>${fin !== null ? esc(M.descriptor(fin)) : anyTag ? esc(M.ECR_TAGS[anyTag]) : ''}</td><td>${fin !== null ? (fin >= 75 ? 'Passed' : '<b class="low">Failed</b>') : ''}</td></tr>`; }).join(''); }
 function ecrSheet(E, kind, term){
   const R = ecrRoster(E); const S = [['M','MALE'], ['F','FEMALE']].map(([sx, t]) => [t, R.filter(r => r.sex === sx)]).filter(x => x[1].length);

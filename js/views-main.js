@@ -131,7 +131,7 @@ M.views.home = async function(el){
   <div class="grid g-2" style="margin-top:20px">
     <div class="card"><h2>Attendance today · ${esc(M.longDate(today))}</h2>${attHtml}</div>
     <div class="card"><h2>Descriptor distribution · Term ${t}</h2>${st.n?descBar(ga.map(x=>M.descriptor(x.v))):'<div class="empty">No grades yet.</div>'}
-      <div class="row" style="margin-top:16px"><a class="btn sm" href="#analysis">${ico('analysis')} Class analysis</a><a class="btn sm" href="#forms/SF9">${ico('forms')} SF9 report cards</a></div></div>
+      <div class="row" style="margin-top:16px"><a class="btn sm" href="#forms/SF9">${ico('forms')} SF9 report cards</a></div></div>
   </div>
 
   <div class="grid g-2" style="margin-top:20px">
@@ -372,10 +372,6 @@ M.views.learners = function viewLearners(el){
   });
   el.innerHTML = `
   <div class="card" style="padding:16px 18px">
-    <div class="ck-strip">
-    ${['1','2','3'].map(t=>{const d=termDone(t);return `<div class="ck-mini"><span class="lbl" title="Term ${t} grades complete">Term ${t}</span><b>${d}<span class="muted">/${c.learners.length}</span></b>${meter(d,c.learners.length,d<c.learners.length)}</div>`;}).join('')}
-    ${items.map(it=>{const d=colDone(it);return `<div class="ck-mini"><span class="lbl" title="${esc(it.label)}">${esc(it.short||it.label)}</span><b>${d}<span class="muted">/${c.learners.length}</span></b>${meter(d,c.learners.length,d<c.learners.length)}</div>`;}).join('')}
-    </div>
     <div class="row" style="margin-bottom:14px">
       <input class="input" id="lq" placeholder="Search name or LRN…" value="${esc(viewLearners.q||'')}" style="max-width:260px">
       <div class="seg" id="lf">${[['all','All'],['missing','With missing'],['complete','Complete'],['tagged','Tagged status']].map(([v,t])=>`<button data-f="${v}" class="${v===f?'on':''}">${t}</button>`).join('')}</div>
