@@ -225,7 +225,7 @@ function monthTab(el, s, rerender){
   el.innerHTML = `
   <div class="card">
     <div class="row" style="margin-bottom:12px">
-      <input type="month" class="input" id="mPick" value="${ym}" style="width:auto">
+      ${M.monthInput('mPick', ym)}
       <span class="chip green">${classDays} class day(s) so far</span><span class="chip">${schoolDays} school days this month</span>
       <span class="spacer"></span>
       <span class="tiny muted">Weekends are skipped. Tap a <b>date</b> to mark/unmark a holiday or class suspension. Tap a cell: absent → late → excused → clear. Unmarked = present.</span>
@@ -492,7 +492,7 @@ function reportsTab(el, s, rerender){
   <div class="grid g-2">
     <div class="card"><h2>SF2 · Daily Attendance Report of Learners</h2>
       <div class="grid g-2" style="gap:12px">
-        <label class="field">Month<input type="month" class="input" id="rM" value="${ym}"></label>
+        <label class="field">Month to preview &amp; print${M.monthInput('rM', ym)}</label>
         <label class="field">Grade level<input class="input" id="rG" value="${esc(sf.grade || (c?c.grade:''))}"></label>
         <label class="field">Enrolment 1st Friday of June · Male<input class="input" id="rEM" inputmode="numeric" placeholder="${D.sx.M.june}" value="${esc(sf.enrolM??'')}"></label>
         <label class="field">Enrolment 1st Friday of June · Female<input class="input" id="rEF" inputmode="numeric" placeholder="${D.sx.F.june}" value="${esc(sf.enrolF??'')}"></label>

@@ -1218,3 +1218,59 @@ b.p-nm{font-weight:800!important}
 .home-hero .hs-open{margin-left:auto}
 .hero::after{pointer-events:none}.home-hero > *{position:relative;z-index:1}
 @media (max-width:640px){.ht-head{flex-direction:column;align-items:flex-start;gap:8px}.ht-txt{width:100%}.htile.open .ht-head{flex-direction:row;align-items:center}.htile.open .ht-chev{margin-left:auto}}
+/* v6.14 A4 answer sheet (one per page) */
+.ash-blk{width:200mm;padding-top:1mm;border:0!important}
+.ash-blk.pb{break-after:page;page-break-after:always}
+.ash-h{left:10mm;right:40mm;top:2mm}
+.ash-h .s{font-size:10pt}.ash-h .t{font-size:14pt;margin-top:1mm}
+.ash-who{left:10mm;width:140mm;top:17mm;font-size:10.5pt}
+.ash-who .r{height:7.4mm;gap:2mm}
+.ash-who .v{height:5.4mm;font-size:11.5pt}
+.ash-who .v.sm{flex:0 0 62mm}.ash-who .v.xs{flex:0 0 34mm}.ash-who .v.xxs{flex:0 0 18mm}
+.ash-ins{left:10mm;width:140mm;top:41mm;font-size:8pt}
+.ash-n{font-size:9.5pt}
+.ash-pl{font-size:8.6pt}
+/* Assessments: answer sheet cards */
+.as-head{margin-bottom:4px}
+.as-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:18px}
+.as-card{padding:18px;display:flex;flex-direction:column;gap:14px}
+.as-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.as-menu{position:relative}
+.as-pop{position:absolute;right:0;top:100%;z-index:20;min-width:200px;padding:6px;border-radius:14px;background:var(--bg,#fff);box-shadow:0 10px 30px rgba(0,0,0,.18);display:flex;flex-direction:column}
+.as-pop[hidden]{display:none}
+.as-pop button{all:unset;cursor:pointer;padding:9px 12px;border-radius:10px;font-size:14px;display:flex;gap:8px;align-items:center}
+.as-pop button:hover{background:rgba(127,127,127,.12)}
+.rp-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:14px 0}
+.rp-stats div{padding:10px 12px;border-radius:14px;background:rgba(127,127,127,.08);display:flex;flex-direction:column}
+.rp-stats span{font-size:11px;text-transform:uppercase;letter-spacing:.05em;opacity:.65}
+.rp-stats b{font-size:20px}
+.rp-print{font-family:Arial,Helvetica,sans-serif;font-size:10.5pt;color:#000}
+.rp-print .c{text-align:center}.rp-print .t{font-size:13pt;font-weight:bold;margin:2mm 0}
+.rp-print table{width:100%;border-collapse:collapse;margin-top:4mm}
+.rp-print th,.rp-print td{border:.25mm solid #000;padding:1.2mm 2mm;text-align:center}
+.rp-print td.l{text-align:left}
+.rp-print .s{margin-top:4mm}
+.qx-cam video{display:block;width:100%;max-height:60vh;object-fit:contain;background:#000;border-radius:16px}
+.omr-cam video{max-height:62vh}
+/* v6.14 Phil-IRI */
+.rd-mode button{min-width:110px;font-weight:700}
+.piri-logo{width:78px;height:78px;border-radius:22px;display:grid;place-items:center;font-weight:800;font-size:17px;background:linear-gradient(135deg,#1f6b4a,#3c8f6a);color:#fff;letter-spacing:.02em;text-align:center;line-height:1}
+.piri-logo b{display:block;font-size:22px;color:#f0d77f}
+.piri-dist{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.piri-dist .pd{padding:10px 12px;border-radius:14px;background:rgba(127,127,127,.08);display:flex;flex-direction:column;border-left:4px solid var(--pc,transparent)}
+.piri-dist .pd b{font-size:22px}.piri-dist .pd span{font-size:12px;opacity:.7}
+.p-GL{--pc:#3c8f6a}.p-IND{--pc:#2f8a5c}.p-INS{--pc:#d7a32a}.p-FRU{--pc:#c24d4d}.p-NR{--pc:#8a3a7a}
+.pr-chip{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;background:color-mix(in srgb,var(--pc) 16%,transparent);color:var(--pc)}
+.piri-t .input{padding:5px 8px}
+.piri-t .gcell{width:70px;text-align:right}
+.piri-t tr.sexrow td{font-weight:700;font-size:11px;letter-spacing:.08em;opacity:.7;background:rgba(127,127,127,.06)}
+.piri-grp{border-top:4px solid var(--pc)}
+.rp-btn{text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px;border:0;font:inherit;color:inherit}
+.rdp .rd-t td.sx{font-weight:bold;background:#f3f3f3}
+.mpick{display:inline-flex;align-items:center;gap:4px}
+.mpick select{width:auto;min-width:150px}
+.field .mpick{margin-top:4px}
+.tt-sv{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:12px;background:rgba(127,127,127,.07);margin-bottom:6px}
+.tt-sv.on{outline:2px solid var(--green)}
+.as-card > .row{flex-wrap:nowrap}
+.as-acts .btn{flex:1 1 auto;justify-content:center}

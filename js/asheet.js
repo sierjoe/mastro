@@ -1,8 +1,7 @@
-/* MASTRO — Answer sheets (v6.13).
-   Scannable half-sheet answer sheets: 2 per 8.5 × 13 in page (each 8.5 × 6.5 in, landscape), 0.3 in margins.
-   Every sheet has 4 black corner squares and a QR code (sheet + learner) so the iPhone can check it (see scan.js).
-   Print one per learner of a class, only the learners you tick (lost papers), or blank copies.
-   Pages are not forced: each sheet is a block that never splits, so no page is ever skipped or left blank. */
+/* MASTRO — Answer sheets (v6.14).
+   One whole A4 page per answer sheet (portrait, 0.3 in margins — also fits Letter and 8.5 × 13).
+   Every sheet has 4 black corner squares and a QR code (sheet · learner · section) so the phone can check it (scan.js).
+   Print one per learner of a class, only the learners you tick (lost papers), or blank copies. */
 (function () {
 'use strict';
 const M = window.M;
@@ -17,8 +16,8 @@ const FMTS = {
   line:{label:'Write-in line (checked by you)', ch:null}
 };
 M.AS_FMTS = FMTS;
-const PAPER = 'FOLIO';                       // 8.5 × 13 in (long bond)
-const BLOCK_H = 156;                          // mm — two blocks fill the 314.96 mm printable height of 8.5 × 13
+const PAPER = 'A4';
+const BLOCK_H = 263;                          // mm — under the printable height of A4 and of Letter, so a sheet never spills onto a 2nd page
 const store = () => (M.S.asheets = Array.isArray(M.S.asheets) ? M.S.asheets : []);
 M.asStore = store;
 const total = (sh) => sh.parts.reduce((a, p) => a + (+p.n || 0), 0);
@@ -27,7 +26,7 @@ const keyed = (sh) => sh.parts.reduce((a, p) => a + (FMTS[p.fmt] && FMTS[p.fmt].
 // the full key, one entry per item number ('' for write-in items)
 M.asKey = (sh) => sh.parts.flatMap(p => { const ch = FMTS[p.fmt] && FMTS[p.fmt].ch; const k = String(p.key || '').toUpperCase().replace(/[^A-Z]/g, '');
   return Array.from({length: +p.n || 0}, (_, i) => ch && ch.includes(k[i]) ? k[i] : ''); });
-const ascii = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7e]/g, '').replace(/\|/g, '/');
+const ascii = (s) => String(s || '').replace(/[\u2013\u2014]/g, '-').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7e]/g, '').replace(/\|/g, '/');
 
 /* ---------------- class rosters (Classes → ECRs, plus the advisory roster) ---------------- */
 function latestTerm(model){ const ks = Object.keys(model.terms || {}).sort(); return ks.length ? model.terms[ks[ks.length - 1]] : null; }
@@ -52,12 +51,12 @@ async function rosterOf(src){
 const sortRoster = (L) => [...L].sort((a, b) => (a.sex === b.sex ? 0 : a.sex === 'M' ? -1 : 1) || a.name.localeCompare(b.name));
 
 /* ---------------- the sheet (absolute mm layout from omr.js, so the scanner knows where every bubble is) ---------------- */
-// QR on every sheet: MA1|sheet id|class id|learner key|name
-const qrText = (sh, who) => `MA1|${sh.id}|${who.src || ''}|${who.lk || ''}|${ascii(who.name).slice(0, 26)}`;
+// QR on every sheet: MA2|sheet id|learner key|name|section
+const qrText = (sh, who) => `MA2|${sh.id}|${who.lk || ''}|${ascii(who.name).slice(0, 24)}|${ascii(who.section).replace(/^Grade\s*/i, 'G').slice(0, 18)}`;
 function qrSvg(text){ const q = qrcode(0, 'L'); q.addData(text); q.make(); return q.createSvgTag({cellSize: 2, margin: 0, scalable: true}); }
 function sheetHtml(sh, who, L){
   const S = M.S.settings; const c = L.cfg; const mm = (v) => v.toFixed(2) + 'mm';
-  const fs = c.bubD >= 4 ? 6.2 : c.bubD >= 3.6 ? 5.6 : 5.2;
+  const fs = c.bubD >= 4.6 ? 7.4 : c.bubD >= 4.2 ? 6.8 : 6.2;
   const mk = O().MC.map(([x, y]) => `<i class="ash-mk" style="left:${mm(x - O().MK / 2)};top:${mm(y - O().MK / 2)};width:${O().MK}mm;height:${O().MK}mm"></i>`).join('');
   const Q = O().QR;
   const items = L.items.map(it => `<b class="ash-n" style="left:${mm(it.x)};top:${mm(it.y)};width:${mm(c.numW - 1.2)};height:${mm(c.rowP)};line-height:${mm(c.rowP)}">${it.no}.</b>` +
@@ -68,14 +67,15 @@ function sheetHtml(sh, who, L){
     <div class="ash-qr" style="left:${Q.x}mm;top:${Q.y}mm;width:${Q.s}mm;height:${Q.s}mm">${qrSvg(qrText(sh, who))}</div>
     <div class="ash-h"><div class="s">${esc(S.school || '')}</div><div class="t">${esc(sh.title || 'Answer Sheet')}</div></div>
     <div class="ash-who"><div class="r"><span>Name:</span><b class="v no-emph">${who.name ? esc(who.name) : ''}</b></div>
-      <div class="r"><span>Section:</span><b class="v sm no-emph">${who.section ? esc(who.section) : ''}</b><span>Date:</span><i class="v xs"></i><span>Score:</span><i class="v xxs"></i><span>/ ${total(sh)}</span></div></div>
+      <div class="r"><span>Section:</span><b class="v sm no-emph">${who.section ? esc(who.section) : ''}</b><span>Date:</span><i class="v xs"></i></div>
+      <div class="r"><span>Score:</span><i class="v xxs"></i><span>/ ${total(sh)}</span></div></div>
     <div class="ash-ins">Shade the circle of your answer completely with a dark pencil or pen. Do not fold, write on, or mark the black squares and the code.</div>
     ${labels}${items}</div>`;
 }
 async function sheetsHtml(sh, people){
   await M.loadScript('vendor/qrcode.js');
   const L = O().layout(sh.parts);
-  return people.map((w, i) => `<div class="ash-blk ${i % 2 ? 'b2' : 'b1'}" style="height:${BLOCK_H}mm">${sheetHtml(sh, w, L)}</div>`).join('');
+  return people.map((w, i) => `<div class="ash-blk${i < people.length - 1 ? ' pb' : ''}" style="height:${BLOCK_H}mm">${sheetHtml(sh, w, L)}</div>`).join('');
 }
 M.asSheetsHtml = sheetsHtml;
 
@@ -96,16 +96,16 @@ function editor(sh0){
   const asms = (M.S.asm || []).filter(a => a.v === 2);
   M.modal(sh.id ? 'Edit answer sheet' : 'New answer sheet', `
     <label class="field">Name of the assessment (printed on the sheet)<input class="input" id="asT" value="${esc(sh.title)}" placeholder="e.g. Summative Test 1 · Term 2"></label>
-    ${!sh.id && asms.length ? `<label class="field" style="margin-top:10px">Or start from a test you made in Assessments (brings its answer key)<select class="input" id="asFrom"><option value="">—</option>${asms.map(a => `<option value="${a.id}">${esc(a.title)} (${a.total} items)</option>`).join('')}</select></label>` : ''}
+
     <div class="row" style="margin-top:14px"><h3 style="margin:0">Items and answer key</h3><span class="spacer"></span><span class="small muted" id="asTot"></span></div>
     <div id="asParts" style="margin-top:8px"></div>
-    <div class="row" style="margin-top:8px"><button class="btn sm" id="asAdd">${ico('plus')} Add a part</button><span class="spacer"></span><span class="tiny muted">Numbering continues from part to part. Up to about 100 items fit on a half sheet.</span></div>
+    <div class="row" style="margin-top:8px"><button class="btn sm" id="asAdd">${ico('plus')} Add a part</button><span class="spacer"></span><span class="tiny muted">Numbering continues from part to part. Up to about 130 items fit on one A4 sheet.</span></div>
     <div class="small" id="asFit" style="margin-top:8px"></div>
     <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn" id="asX">Cancel</button><button class="btn" id="asSave">${ico('save')} Save</button><button class="btn primary" id="asPrint">${ico('print')} Save &amp; print…</button></div>`, b => {
     const keyHint = (p) => { const ch = FMTS[p.fmt].ch; const k = String(p.key || '').toUpperCase().replace(/[^A-Z]/g, ''); const bad = [...k.slice(0, +p.n)].filter(x => !ch.includes(x)).length;
       return `${Math.min(k.length, +p.n)} of ${p.n} keyed${bad ? ` · <span class="low">${bad} not ${ch.join('/')}</span>` : ''}${k.length > +p.n ? ` · <span class="low">${k.length - p.n} extra</span>` : ''}`; };
     const fit = () => { const L = O().layout(sh.parts); $('#asTot', b).textContent = `${total(sh)} item(s) · ${keyed(sh)} keyed`;
-      $('#asFit', b).innerHTML = !total(sh) ? '' : L.fits ? `<span class="muted">Fits on a half sheet${L.cfg.bubD < 4 ? ' (smaller bubbles)' : ''} · 2 answer sheets per 8.5 × 13 page.</span>` : `<span class="low">Too many items for a half sheet — split the test into two answer sheets.</span>`; };
+      $('#asFit', b).innerHTML = !total(sh) ? '' : L.fits ? `<span class="muted">Fits on one A4 sheet${L.cfg.bubD < 4.6 ? ' (smaller bubbles)' : ''}.</span>` : `<span class="low">Too many items for one sheet — split the test into two answer sheets.</span>`; };
     const draw = () => { $('#asParts', b).innerHTML = sh.parts.map((p, i) => `<div class="as-prow">
         <div class="row" style="gap:8px;flex-wrap:wrap">
         <input class="input" data-i="${i}" data-k="label" value="${esc(p.label || '')}" placeholder="Part label (e.g. Test I. Multiple Choice)" style="flex:2;min-width:140px">
@@ -121,11 +121,11 @@ function editor(sh0){
       if(k === 'fmt') return draw(); const kh = $(`[data-kh="${x.dataset.i}"]`, b); if(kh) kh.innerHTML = keyHint(p); fit(); });
     $('#asParts', b).addEventListener('change', e => { if(e.target.dataset.k === 'fmt'){ sh.parts[+e.target.dataset.i].fmt = e.target.value; draw(); } });
     $('#asAdd', b).onclick = () => { sh.parts.push({n: 10, fmt: 'abcd', label: '', key: ''}); draw(); };
-    if($('#asFrom', b)) $('#asFrom', b).onchange = e => { const a = asms.find(x => x.id === e.target.value); if(!a) return; M.closeModal(); M.asheetFromAsm(a); };
+
     $('#asX', b).onclick = M.closeModal;
     const save = () => { sh.title = $('#asT', b).value.trim(); if(!sh.title){ M.toast('Type the name of the assessment'); return null; }
       if(!total(sh)){ M.toast('Add at least one item'); return null; }
-      if(!O().layout(sh.parts).fits){ M.toast('Too many items for a half sheet'); return null; }
+      if(!O().layout(sh.parts).fits){ M.toast('Too many items for one sheet'); return null; }
       const L = store(); if(sh.id){ const i = L.findIndex(x => x.id === sh.id); if(i >= 0) L[i] = sh; else L.push(sh); } else { sh.id = M.uid('as'); sh.created = new Date().toISOString(); L.push(sh); }
       sh.edited = new Date().toISOString(); M.save(); return sh; };
     $('#asSave', b).onclick = () => { if(!save()) return; M.closeModal(); M.route(); M.toast('Answer sheet saved'); };
@@ -139,19 +139,19 @@ async function printDialog(sh){
   const SRC = sources(); if(!SRC.find(s => s.id === pui.src)) pui.src = (SRC[0] || {}).id || '';
   let roster = []; const picked = new Set();
   M.modal('Print answer sheets', `
-    <div class="small muted" style="margin-top:0"><b>${esc(sh.title)}</b> · ${total(sh)} items · 2 answer sheets per 8.5 × 13 in page (half sheet each), 0.3 in margins</div>
+    <div class="small muted" style="margin-top:0"><b>${esc(sh.title)}</b> · ${total(sh)} items · one A4 page per answer sheet, 0.3 in margins</div>
     <div class="seg" id="apMode" style="margin-top:12px">${[['class','Whole class'],['some','Selected learners'],['blank','Blank copies']].map(([k, l]) => `<button data-m="${k}" class="${k === pui.mode ? 'on' : ''}">${l}</button>`).join('')}</div>
     <div id="apSrcBox" style="margin-top:12px"><label class="field">Class (from Classes)<select class="input" id="apSrc">${SRC.map(s => `<option value="${s.id}" ${s.id === pui.src ? 'selected' : ''}>${esc(s.label)}</option>`).join('') || '<option value="">No classes yet</option>'}</select></label></div>
     <div id="apBody" style="margin-top:10px"></div>
     <div class="small muted" id="apInfo" style="margin-top:12px"></div>
-    <div class="tiny muted" style="margin-top:6px">In the print window choose paper <b>8.5 × 13 in (Long / Folio)</b> and scale <b>100%</b>. On smaller paper the sheets simply print one per page — none are skipped.</div>
+    <div class="tiny muted" style="margin-top:6px">In the print window choose paper <b>A4</b> and scale <b>100%</b>. Each sheet is one page — no page is ever skipped or left blank.</div>
     <div class="row" style="margin-top:14px"><span class="spacer"></span><button class="btn" id="apX">Cancel</button><button class="btn primary" id="apGo">${ico('print')} Print</button></div>`, async b => {
     const src = () => SRC.find(s => s.id === $('#apSrc', b).value);
     const people = () => { const s = src(); const sec = s ? s.section : '', sid = s ? s.id : '';
       if(pui.mode === 'blank') return Array.from({length: Math.max(1, Math.min(200, pui.copies))}, () => ({name: '', section: '', src: '', lk: ''}));
       const L = pui.mode === 'some' ? roster.filter(x => picked.has(x.name)) : roster.filter(x => !(pui.skipOut && (x.out || isOut(x))));
       return [...L.map(x => ({name: x.name, section: sec, src: sid, lk: x.lk})), ...Array.from({length: pui.blanks}, () => ({name: '', section: sec, src: sid, lk: ''}))]; };
-    const info = () => { const n = people().length; $('#apInfo', b).innerHTML = `<b>${n}</b> answer sheet(s) on <b>${Math.ceil(n / 2) || 0}</b> page(s) — cut each page in half along the dashed line.`; };
+    const info = () => { const n = people().length; $('#apInfo', b).innerHTML = `<b>${n}</b> answer sheet(s) · <b>${n}</b> page(s).`; };
     const body = () => { $('#apSrcBox', b).style.display = pui.mode === 'blank' ? 'none' : '';
       if(pui.mode === 'blank'){ $('#apBody', b).innerHTML = `<label class="field">Number of blank copies<input class="input" id="apCp" inputmode="numeric" value="${pui.copies}" style="max-width:120px"></label><div class="tiny muted" style="margin-top:6px">When you scan a blank sheet, MASTRO asks whose paper it is.</div>`;
         $('#apCp', b).oninput = e => { pui.copies = parseInt(e.target.value) || 1; info(); }; return info(); }
@@ -178,21 +178,33 @@ async function printDialog(sh){
 }
 M.asheetPrint = printDialog;
 
-/* ---------------- section on the Assessments page ---------------- */
+/* ---------------- the Assessments page: one card per answer sheet ---------------- */
 M.asheetSection = function(box){
   const L = [...store()].sort((a, b) => (b.edited || b.created || '').localeCompare(a.edited || a.created || ''));
-  box.innerHTML = `<div class="card" style="margin-top:20px"><div class="row"><div class="grow"><h2 style="margin:0">${ico('assess','width:20px;height:20px;vertical-align:-3px')} Answer sheets ${M.newTag('asheet2')}</h2>
-      <div class="small muted" style="margin-top:4px">Scannable half-sheet answer sheets — 2 per 8.5 × 13 page. Type the answer key, print for a whole class, a few learners or blank copies, then check them with your iPhone camera.</div></div>
-      <button class="btn primary" id="asNew">${ico('plus')} New answer sheet</button></div>
-    ${L.length ? `<div class="list" style="margin-top:12px">${L.map(s => { const k = keyed(s), bub = s.parts.reduce((a, p) => a + (FMTS[p.fmt] && FMTS[p.fmt].ch ? +p.n : 0), 0);
-      return `<div class="item as-row"><div class="grow"><div class="title"><b>${esc(s.title)}</b></div><div class="tiny muted">${total(s)} items · ${s.parts.filter(p => +p.n > 0).map(p => `${p.n} ${FMTS[p.fmt] ? FMTS[p.fmt].label.replace(/ \(.*/, '') : p.fmt}`).join(' + ')} · ${k < bub ? `<span class="low">key ${k}/${bub}</span>` : 'key complete'}</div></div>
-      <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn sm primary" data-asp="${s.id}">${ico('print')} Print</button><button class="btn sm" data-ask="${s.id}" title="Show this sheet's answer key as a QR code for your iPhone to scan">📱 Key to iPhone</button><button class="btn sm" data-ase="${s.id}">${ico('edit')} Edit</button><button class="icon-btn" data-asd="${s.id}" title="Delete">✕</button></div></div>`; }).join('')}</div>` : ''}</div>`;
+  const nScans = (id) => (M.S.scans || []).filter(r => r.sheet === id).length;
+  const phone = /iPhone|iPod|Android/i.test(navigator.userAgent);
+  box.innerHTML = `<div class="card as-head"><div class="row" style="gap:12px;flex-wrap:wrap"><div class="grow"><h2 style="margin:0">${ico('assess','width:22px;height:22px;vertical-align:-4px')} Answer sheets</h2>
+      <div class="small muted" style="margin-top:4px">1 · Make the sheet and its answer key &nbsp; 2 · Print (one A4 page per learner) &nbsp; 3 · Scan with your phone &nbsp; 4 · See the scores per section</div></div>
+      <button class="btn sm" id="asRx" title="${phone ? 'Take in an answer key shown on your MacBook' : 'Take in the scores scanned on your iPhone'}">📥 ${phone ? 'Receive key' : 'Receive scores from iPhone'}</button>
+      <button class="btn primary" id="asNew">${ico('plus')} New answer sheet</button></div></div>
+    ${L.length ? `<div class="as-cards">${L.map(s => { const k = keyed(s), bub = s.parts.reduce((a, p) => a + (FMTS[p.fmt] && FMTS[p.fmt].ch ? +p.n : 0), 0), n = nScans(s.id);
+      return `<div class="card as-card"><div class="row" style="align-items:flex-start"><div class="grow"><div class="title"><b>${esc(s.title)}</b></div>
+          <div class="tiny muted" style="margin-top:3px">${total(s)} items${k < bub ? ` · <span class="low">answer key ${k}/${bub}</span>` : ''}</div></div>
+          <div class="as-menu"><button class="icon-btn" data-asm="${s.id}" title="More">⋯</button><div class="as-pop" hidden><button data-ase="${s.id}">${ico('edit')} Edit</button><button data-ask="${s.id}">📱 Send key to iPhone</button><button data-asd="${s.id}" class="low">✕ Delete</button></div></div></div>
+        <div class="as-acts"><button class="btn sm" data-asp="${s.id}">${ico('print')} Print</button><button class="btn sm primary" data-ass="${s.id}">📷 Scan</button><button class="btn sm" data-asr="${s.id}">📊 Scores${n ? ` <span class="chip" style="margin-left:4px;padding:1px 7px">${n}</span>` : ''}</button></div></div>`; }).join('')}</div>`
+      : `<div class="card" style="margin-top:20px"><div class="empty">No answer sheets yet. Tap <b>New answer sheet</b>.</div></div>`}`;
   const get = (id) => store().find(x => x.id === id);
   $('#asNew', box).onclick = () => editor();
+  $('#asRx', box).onclick = () => M.scanReceive();
+  $$('[data-asm]', box).forEach(x => x.onclick = e => { e.stopPropagation(); const pop = x.nextElementSibling; const was = !pop.hidden; $$('.as-pop', box).forEach(p => p.hidden = true); pop.hidden = was; });
+  box.onclick = e => { if(!e.target.closest('.as-menu')) $$('.as-pop', box).forEach(p => p.hidden = true); };
   $$('[data-asp]', box).forEach(x => x.onclick = () => printDialog(get(x.dataset.asp)));
+  $$('[data-ass]', box).forEach(x => x.onclick = () => M.scanOpen(get(x.dataset.ass)));
+  $$('[data-asr]', box).forEach(x => x.onclick = () => M.scanReport(get(x.dataset.asr)));
   $$('[data-ase]', box).forEach(x => x.onclick = () => editor(get(x.dataset.ase)));
-  $$('[data-ask]', box).forEach(x => x.onclick = () => M.scanSendKey && M.scanSendKey(get(x.dataset.ask)));
-  $$('[data-asd]', box).forEach(x => x.onclick = () => { const s = get(x.dataset.asd); if(!s || !confirm(`Delete the answer sheet “${s.title}”?`)) return; M.S.asheets = store().filter(y => y !== s); M.save(); M.asheetSection(box); });
+  $$('[data-ask]', box).forEach(x => x.onclick = () => M.scanSendKey(get(x.dataset.ask)));
+  $$('[data-asd]', box).forEach(x => x.onclick = () => { const s = get(x.dataset.asd); if(!s || !confirm(`Delete the answer sheet “${s.title}” and its scanned scores?`)) return;
+    M.S.asheets = store().filter(y => y !== s); M.S.scans = (M.S.scans || []).filter(r => r.sheet !== s.id); M.save(); M.asheetSection(box); });
 };
 M.asheetEditor = editor;
 })();

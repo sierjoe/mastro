@@ -73,7 +73,7 @@ function sf2Card(){
   const absent = D.rows.reduce((a,r)=>a+r.abs,0), tardy = D.rows.reduce((a,r)=>a+r.tardy,0);
   const sf1 = c.learners.filter(l=>l.sf1).length;
   el.innerHTML = `<div class="card"><div class="row"><h2 style="margin:0">SF2 · ${esc(M.className(c))} (advisory)</h2><span class="spacer"></span>
-      <input type="month" class="input" id="s2M" value="${ui.month}" style="width:auto">
+      ${M.monthInput('s2M', ui.month)}
       <button class="btn" id="s2X">${ico('download')} Excel</button><button class="btn primary" id="s2P">${ico('print')} Print / Save PDF</button></div>
     <div class="chips" style="margin:12px 0"><span class="chip green">From the seat-chart attendance of ${esc(sec.name)}</span><span class="chip">${D.days.length} class days</span><span class="chip">${D.rows.length} learners</span><span class="chip">${absent} absences · ${tardy} tardy</span><span class="chip ${sf1?'green':'gold'}">${sf1?`${sf1} names from SF1`:'Upload SF1 for official names'}</span></div>
     <div class="sf-preview">${M.sf2Html(sec, ui.month)}</div></div>`;

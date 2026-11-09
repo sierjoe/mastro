@@ -11,7 +11,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.13', date:'2026-11-09', label:'November 9, 2026'};
+M.VERSION = {n:'6.14', date:'2026-11-09', label:'November 9, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -122,11 +122,11 @@ M.NAV = [
   {id:'attendance', label:'Attendance', icon:'attendance', eyebrow:'SeatCheck · seats, SF2, SF4, cleaning', title:'Attendance'},
   {id:'learners', label:'Learners', icon:'learners', eyebrow:'Roster & credentials checklist', title:'Learners'},
   {id:'grades', label:'Grades', icon:'grades', eyebrow:'Consolidated gradesheet', title:'Grades'},
-  {id:'reading', label:'Reading', icon:'book', eyebrow:'BULIG reading monitoring · levels & assessment periods', title:'Reading'},
+  {id:'reading', label:'Reading', icon:'book', eyebrow:'BULIG · Phil-IRI reading monitoring', title:'Reading'},
   {id:'classes', label:'Classes', icon:'classes', eyebrow:'Electronic class records (ECR)', title:'Classes'},
   {id:'forms', label:'Forms', icon:'forms', eyebrow:'DepEd School Forms SF1–SF10', title:'Forms'},
   {id:'analysis', hidden:true, label:'Analysis', icon:'analysis', eyebrow:'Class analysis tools', title:'Analysis'},
-  {id:'assess', label:'Assessments', icon:'assess', eyebrow:'AI test maker · answer sheets', title:'Assessments'},
+  {id:'assess', label:'Assessments', icon:'assess', eyebrow:'Answer sheets · scan · scores', title:'Assessments'},
   {id:'items', hidden:true, label:'Item Analysis', icon:'items', eyebrow:'Summative tests & term examinations', title:'Item Analysis'},
   {id:'repo', label:'Repository', icon:'repo', eyebrow:'Documents & files', title:'Repository'},
   {id:'settings', label:'Settings', icon:'settings', eyebrow:'School, backup & data', title:'Settings'}
@@ -475,6 +475,13 @@ const parsePage = (pageCss) => { const m = String(pageCss || '').match(/size:\s*
   if(mm){ w = +mm[1] * (mm[2] === 'in' ? 25.4 : 1); h = +mm[3] * (mm[4] === 'in' ? 25.4 : 1); }
   else { const key = (sz.match(/A4|A5|letter|legal|folio/i) || ['A4'])[0].toUpperCase(); [w, h] = M.PAPERS[key] || M.PAPERS.A4; if(/landscape/i.test(sz)) [w, h] = [h, w]; }
   return {w, h}; };
+// Month picker that works in every browser (Safari on Mac has no <input type="month">): ‹ [select] › — the select keeps the id and its value is YYYY-MM
+M.monthInput = (id, ym, style = '') => { ym = ym || M.today().slice(0, 7); const [ty, tm] = M.today().slice(0, 7).split('-').map(Number); const opts = [];
+  for(let k = -30; k <= 4; k++){ const d = new Date(ty, tm - 1 + k, 1); opts.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`); }
+  if(!opts.includes(ym)) opts.push(ym); opts.sort();
+  return `<span class="mpick" style="${style}"><button type="button" class="icon-btn" data-mstep="-1" title="Previous month">‹</button><select class="input" id="${id}">${opts.map(o => `<option value="${o}" ${o === ym ? 'selected' : ''}>${M.monthName(o)}</option>`).join('')}</select><button type="button" class="icon-btn" data-mstep="1" title="Next month">›</button></span>`; };
+document.addEventListener('click', e => { const b = e.target.closest('.mpick [data-mstep]'); if(!b) return; const sel = b.parentElement.querySelector('select'); const i = sel.selectedIndex + +b.dataset.mstep;
+  if(i < 0 || i >= sel.options.length) return; sel.selectedIndex = i; sel.dispatchEvent(new Event('change', {bubbles: true})); });
 M.pageCss = (paper = 'A4', landscape = false) => { let [w, h] = M.PAPERS[paper] || M.PAPERS.A4; if(landscape) [w, h] = [h, w]; return `@page{size:${w}mm ${h}mm;margin:0.3in}`; };
 // Safari (and some printers) print A4 layouts on US Letter, or add their own margins. Page boxes are therefore sized
 // to fit BOTH A4 and Letter inside the print margins — so a sheet never spills onto a blank second page.

@@ -69,7 +69,7 @@ M.buligLevel = (c, lid) => { if(!c.bulig) return []; return LANGS.map(([k, t]) =
   const pr = d.L[lid] || {}; return {lang: t, level: lvOf(lv), pre: lvOf(pr.pre), profile: pr.eosy || pr.mosy || pr.bosy || '', aps: d.aps.length}; }).filter(Boolean); };
 
 /* ---------- view ---------- */
-M.views.reading = function view(el, args){
+M.views.readingBulig = function view(el, args){
   const c = M.cls(); const r = root(c); const d = data(c); const u = ui(); if(args[0]) u.tab = args[0];
   const L = learners(c), X = excluded(c);
   if(!L.length){ el.innerHTML = `<div class="card"><div class="empty">Add your learners first (Learners → upload SF1). BULIG monitoring uses your class roster.</div></div>`; return; }
@@ -374,4 +374,5 @@ function preview(title, pages, land){
     $('#pvP', b).onclick = () => printPages(pages, land);
   }, true);
 }
+M.rdPreview = preview; M.rdPrint = printPages;
 })();

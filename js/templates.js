@@ -462,9 +462,10 @@ M.templatePages = async function(code, blob, opts, onStep){
     const show = B.F.perLearner ? filledHere : (filledHere.filter(x => x.sh.filled.length).length ? filledHere.filter(x => x.sh.filled.length) : filledHere.slice(0,1));
     for(const x of show){
       if(!x.src.drawings) x.src.drawings = await M.xvDrawings(B.T.zip, x.src.sht.path, x.doc);
-      const pp = (M.S.settings.tplPaper || {})[code];
+      // SF10 prints on 8.5 × 13 in long bond unless you pick another paper — a template set to Legal / A4 used to run past the bottom of the long paper
+      let pp = (M.S.settings.tplPaper || {})[code]; if(code === 'SF10' && !pp) pp = 'FOLIO'; if(pp === 'TEMPLATE') pp = '';
       const base = Object.assign({drawings: x.src.drawings}, /^SF2$/.test(code) ? {orientation:'landscape', fit:true} : /^SF[45]$/.test(code) ? {paper:[11.69, 8.27], margin:0.3, fit:true} : {},
-        pp === 'A4' ? {paper:[8.27, 11.69], fit:true} : pp === 'FOLIO' ? {paper:[8.5, 13], fit:true} : {});
+        pp === 'A4' ? {paper:[8.27, 11.69], fit:true} : pp === 'FOLIO' ? {paper:[8.5, 13], fit:true} : pp === 'LEGAL' ? {paper:[8.5, 14], fit:true} : {});
       // some forms print on more than one page (row ranges); unused learner rows can be hidden on screen/print
       const areas = (B.F.areas && B.F.areas(x.sh, p)) || [{area: x.src.area}];
       for(const ar of areas){
@@ -598,7 +599,7 @@ M.templateCard = async function(el, f){
     <div class="row"><b class="small">Your ${f.code} templates</b><span class="spacer"></span><button class="btn sm" id="tplUp">${ico('upload')} Upload template</button></div>
     ${M.tplListHtml(list, cur, M.TPL_BUILTIN[f.code] ? M.TPL_BUILTIN[f.code].name : null)}
     <div class="row">
-      ${F.needs && F.needs.includes('month') ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">Month<input type="month" class="input" id="tplM" value="${ui.month || M.today().slice(0,7)}" style="width:auto"></label>`:''}
+      ${F.needs && F.needs.includes('month') ? `<label class="field" style="flex-direction:row;align-items:center;gap:8px">Month${M.monthInput('tplM', ui.month || M.today().slice(0,7))}</label>`:''}
       ${f.code==='SF4' ? `<div class="chips">${secs.map(x=>`<label class="chip" style="cursor:pointer"><input type="checkbox" data-tsec="${x.id}" ${x.classId===c.id?'checked':''}> ${esc(x.name)}</label>`).join('')}</div>`:''}
       <span class="spacer"></span>
       <button class="btn primary" id="tplView" ${tpl?'':'disabled'}>${ico('eye')} View filled ${F.perLearner?'(per learner)':'form'}</button>
@@ -635,7 +636,7 @@ M.templateCard = async function(el, f){
           <button class="icon-btn" id="vNx" ${i<L.length-1?'':'disabled'}>${ico('right','width:18px;height:18px')}</button>
           <span class="small muted">${i+1} of ${L.length}</span><span class="spacer"></span>
           <button class="btn sm" id="vP1">${ico('print')} Print</button><button class="btn sm" id="vD1">${ico('pdf')} PDF</button><button class="btn sm" id="vX1">${ico('download')} Excel</button>
-          ${f.code === 'SF10' ? `<select class="input" id="vPaper" style="width:auto;padding:6px 10px;font-size:13px" title="Paper you print on">${[['','Paper: as in template'],['FOLIO','Paper: 8.5 × 13 in (long)'],['A4','Paper: A4']].map(([v, t]) => `<option value="${v}" ${((M.S.settings.tplPaper||{})[f.code]||'') === v ? 'selected' : ''}>${t}</option>`).join('')}</select>` : ''}
+          ${f.code === 'SF10' ? `<select class="input" id="vPaper" style="width:auto;padding:6px 10px;font-size:13px" title="Paper you print on">${[['FOLIO','Paper: 8.5 × 13 in (long)'],['A4','Paper: A4'],['LEGAL','Paper: 8.5 × 14 in (legal)'],['TEMPLATE','Paper: as in template']].map(([v, t]) => `<option value="${v}" ${(((M.S.settings.tplPaper||{})[f.code]||'FOLIO')) === v ? 'selected' : ''}>${t}</option>`).join('')}</select>` : ''}
           <button class="btn sm primary" id="vPA">${ico('print')} Print all (${L.length})</button><button class="btn sm primary" id="vDA">${ico('pdf')} Bulk PDF</button><button class="btn sm" id="vClose">✕</button></div>
         <div class="chips" id="vInfo" style="margin:10px 0"></div><div id="vPages"><div class="empty">Filling…</div></div>`;
       const go = (id) => { ui.lid = id; viewer(); };

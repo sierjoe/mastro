@@ -5,26 +5,26 @@
 (function (root) {
 'use strict';
 const FMT = {abcd:['A','B','C','D'], abcde:['A','B','C','D','E'], abc:['A','B','C'], tf:['T','F'], line:null};
-// the sheet: 196 × 150 mm (half of 8.5 × 13 in, landscape, inside the 0.3 in margins)
-const W = 196, H = 150, MK = 5;                                    // corner squares are 5 mm
+// the sheet: 190 × 262 mm, portrait — one whole A4 page (also fits Letter / 8.5 × 13) inside 0.3 in margins
+const W = 190, H = 262, MK = 6;                                    // corner squares are 6 mm
 const MC = [[MK/2, MK/2], [W - MK/2, MK/2], [W - MK/2, H - MK/2], [MK/2, H - MK/2]];   // TL TR BR BL centres
-const QR = {x: 167, y: 6.5, s: 19};
-const GRID = {x0: 8, x1: 188, y0: 33, y1: 143};
-const CFG = [{rowP:4.9, bubD:4.0, bubP:5.2, numW:7.2, gap:3.6}, {rowP:4.4, bubD:3.6, bubP:4.7, numW:6.6, gap:3}, {rowP:4.0, bubD:3.3, bubP:4.3, numW:6.2, gap:2.6}];
+const QR = {x: 157, y: 9, s: 26};
+const GRID = {x0: 10, x1: 180, y0: 48, y1: 254};
+const CFG = [{rowP:6.2, bubD:4.8, bubP:6.4, numW:9, gap:6}, {rowP:5.4, bubD:4.3, bubP:5.6, numW:8, gap:4.5}, {rowP:4.8, bubD:3.9, bubP:5.0, numW:7.4, gap:3.5}];
 
 function layout(parts){
   parts = (parts || []).filter(p => +p.n > 0);
   const multi = parts.length > 1;
   for(const c of CFG){
     const R = Math.floor((GRID.y1 - GRID.y0) / c.rowP);
-    const lineW = 30 * (c.bubP / 5.2);
+    const lineW = 36 * (c.bubP / 6.4);
     const ent = []; let no = 0;
     parts.forEach((p, pi) => { const ch = FMT[p.fmt] === undefined ? FMT.abcd : FMT[p.fmt];
-      if(multi) ent.push({lab: (p.label || ('Part ' + (pi + 1))).trim(), w: Math.min(46, 1.3 * ((p.label || 'Part 1').trim().length) + 2), part: pi});
+      if(multi) ent.push({lab: (p.label || ('Part ' + (pi + 1))).trim(), w: Math.min(46, 1.3 * ((p.label || 'Part 1').trim().length) + 2), part: pi, n: +p.n});
       for(let k = 0; k < +p.n; k++){ no++; ent.push({no, part: pi, fmt: FMT[p.fmt] === undefined ? 'abcd' : p.fmt, ch, w: c.numW + (ch ? ch.length * c.bubP : lineW)}); } });
     // fill columns top to bottom
     const cols = []; let col = null;
-    ent.forEach(e => { if(!col || col.rows.length >= R || (e.lab && col.rows.length >= R - 1)){ col = {rows: [], w: 0}; cols.push(col); }
+    ent.forEach(e => { if(!col || col.rows.length >= R || (e.lab && col.rows.length && R - col.rows.length < Math.min(e.n + 1, 6))){ col = {rows: [], w: 0}; cols.push(col); }
       col.rows.push(e); col.w = Math.max(col.w, e.w); });
     const total = cols.reduce((a, cl) => a + cl.w, 0) + c.gap * Math.max(0, cols.length - 1);
     if(total > GRID.x1 - GRID.x0 + 0.01 && c !== CFG[CFG.length - 1]) continue;
@@ -76,8 +76,8 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 // the four corner squares: big, solid, square blobs that make the largest sheet-shaped quadrilateral
 function findMarkers(G){
   const {w, h} = G; const b = binarize(G); const all = blobs(b, w, h);
-  const minS = Math.max(4, Math.max(w, h) / 160), maxS = Math.max(w, h) / 9;
-  const cand = all.filter(o => o.bw >= minS && o.bh >= minS && o.bw <= maxS && o.bh <= maxS && Math.max(o.bw, o.bh) / Math.min(o.bw, o.bh) <= 1.6 && o.a / (o.bw * o.bh) >= 0.8)
+  const minS = Math.max(4, Math.max(w, h) / 200), maxS = Math.max(w, h) / 10;
+  const cand = all.filter(o => o.bw >= minS && o.bh >= minS && o.bw <= maxS && o.bh <= maxS && Math.max(o.bw, o.bh) / Math.min(o.bw, o.bh) <= 1.6 && o.a / (o.bw * o.bh) >= 0.72)
     .sort((p, q) => q.a - p.a).slice(0, 16);
   const found = [];
   const n = cand.length;
@@ -87,15 +87,15 @@ function findMarkers(G){
     q.sort((p, r) => Math.atan2(p.y - cy, p.x - cx) - Math.atan2(r.y - cy, r.x - cx));
     let sg = 0, ok = true; for(let t = 0; t < 4; t++){ const c = cross(q[t], q[(t+1)%4], q[(t+2)%4]); if(!sg) sg = Math.sign(c); else if(Math.sign(c) !== sg){ ok = false; break; } } if(!ok) continue;
     const area = Math.abs((q[0].x*q[1].y - q[1].x*q[0].y) + (q[1].x*q[2].y - q[2].x*q[1].y) + (q[2].x*q[3].y - q[3].x*q[2].y) + (q[3].x*q[0].y - q[0].x*q[3].y)) / 2;
-    if(area < w * h * 0.12) continue;
+    if(area < w * h * 0.1) continue;
     const e = [dist(q[0], q[1]), dist(q[1], q[2]), dist(q[2], q[3]), dist(q[3], q[0])];
     const L1 = (e[0] + e[2]) / 2, L2 = (e[1] + e[3]) / 2, ratio = Math.max(L1, L2) / Math.min(L1, L2);
-    if(ratio < 1.06 || ratio > 1.58) continue;
+    const R = Math.max(W - MK, H - MK) / Math.min(W - MK, H - MK); if(ratio < R * 0.8 || ratio > R * 1.25) continue;
     if(Math.min(e[0], e[2]) / Math.max(e[0], e[2]) < 0.6 || Math.min(e[1], e[3]) / Math.max(e[1], e[3]) < 0.6) continue;
     // marker size should match the quad size (5 mm squares on a 191 mm wide frame)
-    const side = Math.sqrt(as.reduce((a, v) => a + v, 0) / 4); const expect = Math.max(L1, L2) * MK / (W - MK);
+    const side = Math.sqrt(as.reduce((a, v) => a + v, 0) / 4); const expect = Math.max(L1, L2) * MK / (Math.max(W, H) - MK);
     if(side < expect * 0.45 || side > expect * 2.2) continue;
-    const sc = area * (1 - Math.abs(ratio - (W - MK) / (H - MK)) * 0.5);
+    const sc = area * (1 - Math.abs(ratio - R) * 0.5);
     found.push({sc, q: q.map(o => ({x: o.x / G.k, y: o.y / G.k})), long01: e[0] + e[2] > e[1] + e[3]});
   }
   found.sort((a, b) => b.sc - a.sc);
@@ -121,13 +121,19 @@ function meanAt(G, H, cx, cy, r){ let s = 0, n = 0; for(let dy = -2; dy <= 2; dy
 function pct(a, p){ const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.max(0, Math.round(p * (s.length - 1))))]; }
 // mm → image homography for each of the 2 possible orientations; the QR corner decides which is right
 function orient(G, best){
-  const q = best.q; const sets = best.long01 ? [[0,1,2,3],[2,3,0,1]] : [[1,2,3,0],[3,0,1,2]];
+  const q = best.q; const top01 = best.long01 === (W > H);   // is edge p0→p1 the sheet's top edge?
+  const sets = top01 ? [[0,1,2,3],[2,3,0,1]] : [[1,2,3,0],[3,0,1,2]];
   let out = null;
   sets.forEach(s => { const Hm = homography(MC, s.map(i => [q[i].x * G.k, q[i].y * G.k]));
     // the QR square is about half black; the same spot on the other end is mostly white paper
     let dark = 0, n = 0; for(let y = QR.y + 1; y < QR.y + QR.s - 1; y += 0.9) for(let x = QR.x + 1; x < QR.x + QR.s - 1; x += 0.9){ const [u, v] = proj(Hm, x, y); if(px(G, u, v) < 110) dark++; n++; }
-    const r = dark / n; if(!out || r > out.r) out = {H: Hm, r}; });
-  return out && out.r >= 0.22 ? out : null;   // no QR-like corner → these 4 squares are not the sheet
+    const r = dark / n;
+    // the QR's three finder squares must be solid dark where expected, and the paper just outside each corner square light
+    const dk = (x, y) => { const [u, v] = proj(Hm, x, y); return px(G, u, v) < 110; };
+    const f = 2.8, finders = dk(QR.x + f, QR.y + f) && dk(QR.x + QR.s - f, QR.y + f) && dk(QR.x + f, QR.y + QR.s - f);
+    const outside = [[-2.5, -2.5], [W + 2.5, -2.5], [W + 2.5, H + 2.5], [-2.5, H + 2.5]].filter(([x, y]) => !dk(x, y)).length >= 3;
+    if(finders && outside && (!out || r > out.r)) out = {H: Hm, r}; });
+  return out && out.r >= 0.3 ? out : null;   // no QR-like corner → these 4 squares are not the sheet
 }
 // read every item. G: gray of the photo (any scale, G.k = its scale); best from findMarkers (in photo pixels)
 function read(G, Hm, L){

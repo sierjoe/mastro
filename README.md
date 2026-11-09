@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.13 · November 9, 2026)
+# MASTRO — Adviser's Workspace (v6.14 · November 9, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -19,6 +19,19 @@ Offline forms, documents and class management for the class adviser
 - **Learner status**: tag T/O, SARDO, NLP or Dropped Out; statistics and reports reflect it.
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
+
+### New in v6.14
+- **Assessments = answer sheets only** (the AI test maker is set aside; old tests stay in your data).
+  Each answer sheet card: **Print · 📷 Scan · 📊 Scores** (⋯ for Edit, Send key to iPhone, Delete).
+- **Answer sheets are one whole A4 page** (portrait, 0.3 in margins; also fits Letter), one page per learner.
+- **Scanning is simpler:** tap 📷 Scan, hold the phone over each paper, check the score, **Save & next**.
+  **📊 Scores** groups the scores **per section** (mean, MPS, highest, lowest) — print it or **Download Excel** (one sheet per section).
+  From the iPhone, **Send to MacBook** shows the scores as QR codes; on the Mac tap **Receive scores from iPhone**.
+- **Reading → BULIG | Phil-IRI.** Phil-IRI: Group Screening Test (cut-off 14/20) → graded passage (word reading %, comprehension %, WPM)
+  → Independent / Instructional / Frustration / Non-reader, pre-test and post-test, English and Filipino, groupings and A4 reports.
+- **Attendance:** a month picker with ‹ › that works in Safari too — preview and print SF2 / SF4 for any earlier month.
+- **SF10** prints on 8.5 × 13 in by default (fitted, nothing cut at the bottom); A4, Legal or the template's own paper can still be chosen.
+- **Teacher tools → Make groups:** name and save a grouping, open it again later, rename or delete it.
 
 ### New in v6.13
 - **Home** is calmer: the class card plus six tiles (Attendance, Grades, Credentials, Calendar, Data checks, Docs & links).

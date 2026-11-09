@@ -30,30 +30,11 @@ const getA = (id) => M.S.asm.find(a => a.id === id && a.v === 2);
    LIST (history grouped by grade and term)
    ===================================================================== */
 M.views.assess = function view(el, args){
-  if(args[0] === 'new') return wizard(el);
-  if(args[0]) return detail(el, args[0], args[1]);
-  const all = list().sort((a, b) => b.created.localeCompare(a.created));
-  const groups = {}; all.forEach(a => { const k = `Grade ${a.grade} · Term ${a.term}`; (groups[k] = groups[k] || []).push(a); });
-  el.innerHTML = `
-  <div class="card asm-hero"><div class="row">
-    <div class="grow"><h2 style="margin:0">AI test maker ${M.newTag('asm-ai')}</h2>
-      <div class="small muted" style="margin-top:4px">Pick the grade and term, choose competencies and topics from the Budget of Work, set the number of items and test types — Claude writes the test and the answer key. Print on A4 or 8.5 × 13, or download an editable Word file.</div></div>
-    <a class="btn sparkle big" href="#assess/new" id="aNew">${ico('sparkle')} Create Assessment ${M.newTag('asm-create')}</a></div></div>
-  <div id="scBox"></div>
-  <div id="asBox"></div>
-  ${all.length ? Object.entries(groups).map(([g, arr]) => `<div class="card" style="margin-top:20px"><div class="row"><h2 style="margin:0">${esc(g)}</h2><span class="chip">${arr.length} assessment(s)</span></div>
-    <div class="grid g-3" style="margin-top:12px">${arr.map(a => `<div class="card form-card asm-card" style="padding:16px">
-      <div class="row"><span class="chip green">${esc(a.kind)}</span><span class="spacer"></span><span class="tiny muted">${esc(a.created.slice(0,10))}</span></div>
-      <div class="title" style="margin-top:8px"><b>${esc(a.title)}</b></div>
-      <div class="small muted">${a.total} items · ${a.parts.map(p => esc(TNAME[p.type] || p.type)).join(', ')}</div>
-      <div class="tiny muted" style="margin-top:4px">${a.compNames.slice(0,2).map(esc).join(' · ')}${a.compNames.length > 2 ? ` · +${a.compNames.length-2} more` : ''}</div>
-      <div class="row" style="margin-top:12px"><a class="btn sm primary" href="#assess/${a.id}">Open</a><button class="btn sm" data-pr="${a.id}">${ico('print')} Print</button><button class="btn sm" data-dx="${a.id}">${ico('download')} Word</button><button class="btn sm" data-as="${a.id}" title="Make an answer sheet for this test">${ico('assess')} Answer sheet</button></div></div>`).join('')}</div></div>`).join('')
-    : `<div class="card" style="margin-top:20px"><div class="empty">No assessments yet. Tap <b>Create Assessment</b> to make your first test.</div></div>`}`;
-  $$('[data-pr]', el).forEach(b => b.onclick = () => printDialog(getA(b.dataset.pr)));
-  $$('[data-dx]', el).forEach(b => b.onclick = () => M.asmDocx(getA(b.dataset.dx)));
-  $$('[data-as]', el).forEach(b => b.onclick = () => M.asheetFromAsm(getA(b.dataset.as)));
-  if(M.scanSection) M.scanSection($('#scBox', el));
-  if(M.asheetSection) M.asheetSection($('#asBox', el));
+  // v6.14: the AI test maker is set aside — Assessments is answer sheets only (old tests stay saved in the data)
+  if(args[0] === 'new'){ location.hash = '#assess'; return; }
+  if(args[0] && list().some(a => a.id === args[0])) return detail(el, args[0], args[1]);
+  el.innerHTML = `<div id="asBox"></div>`;
+  M.asheetSection($('#asBox', el));
 };
 
 /* =====================================================================
