@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.17 · November 10, 2026)
+# MASTRO — Adviser's Workspace (v6.18 · November 10, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -19,6 +19,10 @@ Offline forms, documents and class management for the class adviser
 - **Learner status**: tag T/O, SARDO, NLP or Dropped Out; statistics and reports reflect it.
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
+
+### New in v6.18
+- Scanner works in dim light (judges dark marks against the paper's own brightness).
+- Live hints while scanning, plus **📸 Take photo** to grade from a still photo.
 
 ### New in v6.17
 - **⬆ Upload scores to ECR** (Assessments → 📊 Scores): pick the class record, the term and the column (ST1 · ST2 · TE).

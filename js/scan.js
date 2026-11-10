@@ -113,11 +113,11 @@ async function scanner(sheet0){
   M.modal(`Scan · ${sheet0 ? sheet0.title : 'answer sheets'}`, `
     <div class="omr-cam" id="scWrap"><video id="scV" playsinline muted></video><canvas id="scO"></canvas></div>
     <div id="scOut" class="small" style="margin-top:10px;text-align:center">Lay one answer sheet flat in good light. Hold the phone above it so all <b>4 black squares</b> are on the screen — it scans by itself.</div>
-    <div class="row" style="justify-content:center;gap:8px;margin-top:10px"><span class="tiny muted" id="scCount"></span><button class="btn sm" id="scDone">Done</button></div>`, async b => {
+    <div class="row" style="justify-content:center;gap:8px;margin-top:10px"><span class="tiny muted" id="scCount"></span><label class="btn sm" id="scPhB">📸 Take photo<input type="file" id="scPh" accept="image/*" capture="environment" hidden></label><button class="btn sm" id="scDone">Done</button></div>`, async b => {
     const v = $('#scV', b), ov = $('#scO', b), out = $('#scOut', b); const cv = document.createElement('canvas'), cx = cv.getContext('2d', {willReadFrequently: true});
     const count = () => { $('#scCount', b).textContent = saved ? `${saved} saved this session` : ''; };
     $('#scDone', b).onclick = () => { M.closeModal(); if(sheet0 && saved) setTimeout(() => report(sheet0), 50); };
-    try { stream = await openCam(v); } catch(e){ out.innerHTML = camErr(e); return; }
+    try { stream = await openCam(v); } catch(e){ out.innerHTML = camErr(e) + '<div class="tiny" style="margin-top:6px">You can still use <b>📸 Take photo</b>.</div>'; $('#scWrap', b).hidden = true; }
     const drawQuad = (q, ok) => { const r = v.getBoundingClientRect(); ov.width = r.width; ov.height = r.height; const g = ov.getContext('2d'); g.clearRect(0, 0, ov.width, ov.height); if(!q) return;
       const k = Math.min(r.width / v.videoWidth, r.height / v.videoHeight), ox = (r.width - v.videoWidth * k) / 2, oy = (r.height - v.videoHeight * k) / 2;
       g.strokeStyle = ok ? '#2bd47d' : '#f5c242'; g.lineWidth = 4; g.beginPath(); q.forEach((p, i) => i ? g.lineTo(ox + p.x * k, oy + p.y * k) : g.moveTo(ox + p.x * k, oy + p.y * k)); g.closePath(); g.stroke(); };
@@ -125,28 +125,39 @@ async function scanner(sheet0){
       const w = v.videoWidth, h = v.videoHeight; cv.width = w; cv.height = h; cx.drawImage(v, 0, 0, w, h);
       const img = cx.getImageData(0, 0, w, h); const g0 = O().toGray(img.data, w, h, 1000); const best = O().findMarkers(g0);
       if(!best){ stable = 0; prevQ = null; drawQuad(null);
+        if(idle === 25) out.innerHTML = `Looking for the <b>4 black squares</b>… Keep the whole sheet on screen, flat, with no shadow on the corners. Still nothing? Tap <b>📸 Take photo</b>.`;
         if(++idle % 4 === 0){ const k = Math.min(1, 900 / Math.max(w, h)), sw = Math.round(w * k), shh = Math.round(h * k); const c2 = document.createElement('canvas'); c2.width = sw; c2.height = shh; const x2 = c2.getContext('2d'); x2.drawImage(v, 0, 0, sw, shh);
           const r = jsQR(x2.getImageData(0, 0, sw, shh).data, sw, shh, {inversionAttempts: 'dontInvert'});
           if(r && r.data.startsWith('MX1|')){ const c = takeChunk(r.data); if(c && c.obj && c.type === 'K'){ importSheets(c.obj.sheets || []); out.innerHTML = `✅ Answer key received: <b>${esc((c.obj.sheets || []).map(x => x.title).join(', '))}</b>. Now scan the papers.`; }
             else if(c && !c.obj && !c.err) out.innerHTML = `Receiving the answer key… ${c.got} of ${c.n}`; } }
         return; }
+      if(idle >= 25){ idle = 0; out.innerHTML = 'Squares found — hold steady…'; }
       const moved = prevQ ? Math.max(...best.q.map((p, i) => Math.hypot(p.x - prevQ[i].x, p.y - prevQ[i].y))) / Math.max(w, h) : 1; prevQ = best.q;
       stable = moved < 0.01 ? stable + 1 : 0; drawQuad(best.q, stable >= 2);
       if(stable < 2) return;
       busy = true; try { grade(img, w, h, best); } catch(e){ console.error(e); out.innerHTML = `<span class="low">Could not read that sheet — try again.</span>`; } busy = false; };
     const grade = (img, w, h, best) => {
-      const G = O().toGray(img.data, w, h); const or = O().locate(G, best); if(!or){ stable = 0; return; }
+      const G = O().toGray(img.data, w, h); const or = O().locate(G, best); if(!or){ stable = 0; out.innerHTML = 'Squares found but the sheet is not clear yet — move so the whole sheet fills the screen, avoid glare and shadows.'; return false; }
       let qr = null; for(const p of [8, 10, 6]){ const q = O().qrCrop(G, or.H, p); qr = jsQR(q.data, q.w, q.h, {inversionAttempts: 'dontInvert'}); if(qr) break; }
       if(!qr) qr = jsQR(img.data, w, h, {inversionAttempts: 'dontInvert'});
-      if(!qr){ out.innerHTML = `Paper found — move a little closer so the code can be read.`; stable = 0; return; }
-      const m = qr.data.split('|'); if(m[0] !== 'MA2'){ out.innerHTML = `<span class="low">This is not a MASTRO answer sheet${m[0] === 'MA1' ? ' of the new kind — reprint it' : ''}.</span>`; return; }
+      if(!qr){ out.innerHTML = `Paper found — move a little closer so the code can be read.`; stable = 0; return false; }
+      const m = qr.data.split('|'); if(m[0] !== 'MA2'){ out.innerHTML = `<span class="low">This is not a MASTRO answer sheet${m[0] === 'MA1' ? ' of the new kind — reprint it' : ''}.</span>`; return false; }
       if(qr.data === skipQR && Date.now() < skipUntil) return;
       const sh = sheets().find(s => s.id === m[1]);
       if(!sh){ out.innerHTML = `<span class="low">This sheet's answer key is not on this phone.</span> On your MacBook tap ⋯ → <b>📱 Send key to iPhone</b> on that answer sheet, then point this camera at the MacBook screen.`; return; }
       const L = O().layout(sh.parts); const res = O().read(G, or.H, L); const key = M.asKey(sh); const sc = O().score(res, key);
       paused = true; if(navigator.vibrate) navigator.vibrate(40); $('#scWrap', b).hidden = true;
-      showResult(sh, {lk: m[2] || '', name: m[3] || '', section: m[4] || ''}, sc, key, L, qr.data);
+      showResult(sh, {lk: m[2] || '', name: m[3] || '', section: m[4] || ''}, sc, key, L, qr.data); return true;
     };
+    // still-photo fallback: full camera resolution, no need to hold steady
+    $('#scPh', b).onchange = e => { const f = e.target.files[0]; e.target.value = ''; if(!f) return; out.innerHTML = 'Reading the photo…';
+      const url = URL.createObjectURL(f), im = new Image();
+      im.onload = () => { URL.revokeObjectURL(url); const k = Math.min(1, 2400 / Math.max(im.naturalWidth, im.naturalHeight)), w = Math.round(im.naturalWidth * k), h = Math.round(im.naturalHeight * k);
+        cv.width = w; cv.height = h; cx.drawImage(im, 0, 0, w, h); const img = cx.getImageData(0, 0, w, h);
+        const best = O().findMarkers(O().toGray(img.data, w, h, 1000));
+        if(!best){ out.innerHTML = '<span class="low">Could not find the 4 black squares in that photo.</span> Take it from straight above, whole sheet in the picture, no shadow on the corners.'; return; }
+        busy = true; try { grade(img, w, h, best); } catch(er){ console.error(er); out.innerHTML = '<span class="low">Could not read that photo — try again.</span>'; } busy = false; };
+      im.onerror = () => { URL.revokeObjectURL(url); out.innerHTML = '<span class="low">Could not open that photo.</span>'; }; im.src = url; };
     const showResult = (sh, who, sc, key, L, qrText) => {
       const lines = L.items.filter(it => it.line).length; const marks = sc.marks; let manual = 0;
       let name = who.name, section = who.section || (M.S.ui.scanSec || '');
@@ -178,9 +189,9 @@ async function scanner(sheet0){
       };
       draw();
     };
-    raf = requestAnimationFrame(tick);
+    if(stream) raf = requestAnimationFrame(tick);
   }, true);
-  M.onModalClose = () => { cancelAnimationFrame(raf); stopCam(stream); M.route(); };
+  M.onModalClose = () => { cancelAnimationFrame(raf); if(stream) stopCam(stream); M.route(); };
 }
 M.scanOpen = scanner;
 function knownNames(){ const out = new Set();

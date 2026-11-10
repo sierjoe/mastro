@@ -70,7 +70,7 @@ function binarize(G){
   for(let y = 0; y < h; y++){ const y0 = Math.max(0, y - r), y1 = Math.min(h - 1, y + r);
     for(let x = 0; x < w; x++){ const x0 = Math.max(0, x - r), x1 = Math.min(w - 1, x + r);
       const cnt = (x1 - x0 + 1) * (y1 - y0 + 1); const sum = I[(y1 + 1) * (w + 1) + x1 + 1] - I[y0 * (w + 1) + x1 + 1] - I[(y1 + 1) * (w + 1) + x0] + I[y0 * (w + 1) + x0];
-      b[y * w + x] = g[y * w + x] * cnt < sum * 0.78 && g[y * w + x] < 150 ? 1 : 0; } }
+      b[y * w + x] = g[y * w + x] * cnt < sum * 0.78 && g[y * w + x] < 170 ? 1 : 0; } }
   return b;
 }
 function blobs(b, w, h){
@@ -136,12 +136,16 @@ function orient(G, best){
   const q = best.q; const top01 = best.long01 === (W > H);   // is edge p0→p1 the sheet's top edge?
   const sets = top01 ? [[0,1,2,3],[2,3,0,1]] : [[1,2,3,0],[3,0,1,2]];
   let out = null;
+  // "dark" is judged against this photo's own paper brightness (dim rooms and shadows make white paper grey)
+  const H0 = homography(MC, sets[0].map(i => [q[i].x * G.k, q[i].y * G.k])); const ws = [];
+  for(let y = 8; y < H - 8; y += 9) for(let x = 8; x < W - 8; x += 9){ const [u, v] = proj(H0, x, y); ws.push(px(G, u, v)); }
+  ws.sort((a, b) => a - b); const white = Math.max(40, ws[Math.floor(ws.length * 0.85)] || 200); const DK = Math.min(150, white * 0.58);
   sets.forEach(s => { const Hm = homography(MC, s.map(i => [q[i].x * G.k, q[i].y * G.k]));
     // the QR square is about half black; the same spot on the other end is mostly white paper
-    let dark = 0, n = 0; for(let y = QR.y + 1; y < QR.y + QR.s - 1; y += 0.9) for(let x = QR.x + 1; x < QR.x + QR.s - 1; x += 0.9){ const [u, v] = proj(Hm, x, y); if(px(G, u, v) < 110) dark++; n++; }
+    let dark = 0, n = 0; for(let y = QR.y + 1; y < QR.y + QR.s - 1; y += 0.9) for(let x = QR.x + 1; x < QR.x + QR.s - 1; x += 0.9){ const [u, v] = proj(Hm, x, y); if(px(G, u, v) < DK) dark++; n++; }
     const r = dark / n;
     // the QR's three finder squares must be solid dark where expected, and the paper just outside each corner square light
-    const dk = (x, y) => { const [u, v] = proj(Hm, x, y); return px(G, u, v) < 110; };
+    const dk = (x, y) => { const [u, v] = proj(Hm, x, y); return px(G, u, v) < DK; };
     const f = QR.s * 0.105, finders = dk(QR.x + f, QR.y + f) && dk(QR.x + QR.s - f, QR.y + f) && dk(QR.x + f, QR.y + QR.s - f);
     const outside = [[-2.5, -2.5], [W + 2.5, -2.5], [W + 2.5, H + 2.5], [-2.5, H + 2.5]].filter(([x, y]) => !dk(x, y)).length >= 3;
     if(finders && outside && (!out || r > out.r)) out = {H: Hm, r}; });
