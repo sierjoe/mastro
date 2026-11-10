@@ -1,44 +1,56 @@
-/* MASTRO — OMR engine for scannable answer sheets (v6.13). No DOM needed.
+/* MASTRO — OMR engine for scannable answer sheets (v6.17: half-A4 landscape, columns of 10). No DOM needed.
    layout(parts)          → where every bubble sits on the half-sheet (mm), shared by printing and scanning
    findMarkers(gray)      → the 4 black corner squares in a photo
    read(gray, quad, L)    → which bubble is shaded in every item */
 (function (root) {
 'use strict';
 const FMT = {abcd:['A','B','C','D'], abcde:['A','B','C','D','E'], abc:['A','B','C'], tf:['T','F'], line:null};
-// the sheet: 190 × 262 mm, portrait — one whole A4 page (also fits Letter / 8.5 × 13) inside 0.3 in margins
-const W = 190, H = 262, MK = 6;                                    // corner squares are 6 mm
+// the sheet: 190 × 125 mm, landscape — half of an A4 page (2 answer sheets per page; also fits Letter), inside 0.3 in margins
+const W = 190, H = 125, MK = 5;                                    // corner squares are 5 mm
 const MC = [[MK/2, MK/2], [W - MK/2, MK/2], [W - MK/2, H - MK/2], [MK/2, H - MK/2]];   // TL TR BR BL centres
-const QR = {x: 157, y: 9, s: 26};
-const GRID = {x0: 10, x1: 180, y0: 48, y1: 254};
-const CFG = [{rowP:6.2, bubD:4.8, bubP:6.4, numW:9, gap:6}, {rowP:5.4, bubD:4.3, bubP:5.6, numW:8, gap:4.5}, {rowP:4.8, bubD:3.9, bubP:5.0, numW:7.4, gap:3.5}];
+const QR = {x: 162, y: 1.5, s: 20};
+const GRID = {x0: 8, x1: 182, y0: 32, y1: 121};
+// items come in columns of 10 (1–10, 11–20, …); columns sit side by side, a second row of columns only when needed
+const CFG = [{rowP:4.6, bubD:3.6, bubP:4.7, numW:6.8, gap:4, hdr:3.6}, {rowP:3.95, bubD:3.25, bubP:4.15, numW:6.2, gap:3, hdr:3.4}, {rowP:3.6, bubD:3.0, bubP:3.85, numW:5.8, gap:2.4, hdr:3.2}];
+const PER_COL = 10;
 
 function layout(parts){
   parts = (parts || []).filter(p => +p.n > 0);
-  const multi = parts.length > 1;
+  const multi = parts.length > 1; let fitted = null;
   for(const c of CFG){
-    const R = Math.floor((GRID.y1 - GRID.y0) / c.rowP);
-    const lineW = 36 * (c.bubP / 6.4);
-    const ent = []; let no = 0;
-    parts.forEach((p, pi) => { const ch = FMT[p.fmt] === undefined ? FMT.abcd : FMT[p.fmt];
-      if(multi) ent.push({lab: (p.label || ('Part ' + (pi + 1))).trim(), w: Math.min(46, 1.3 * ((p.label || 'Part 1').trim().length) + 2), part: pi, n: +p.n});
-      for(let k = 0; k < +p.n; k++){ no++; ent.push({no, part: pi, fmt: FMT[p.fmt] === undefined ? 'abcd' : p.fmt, ch, w: c.numW + (ch ? ch.length * c.bubP : lineW)}); } });
-    // fill columns top to bottom
-    const cols = []; let col = null;
-    ent.forEach(e => { if(!col || col.rows.length >= R || (e.lab && col.rows.length && R - col.rows.length < Math.min(e.n + 1, 6))){ col = {rows: [], w: 0}; cols.push(col); }
-      col.rows.push(e); col.w = Math.max(col.w, e.w); });
-    const total = cols.reduce((a, cl) => a + cl.w, 0) + c.gap * Math.max(0, cols.length - 1);
-    if(total > GRID.x1 - GRID.x0 + 0.01 && c !== CFG[CFG.length - 1]) continue;
-    let x = GRID.x0 + Math.max(0, (GRID.x1 - GRID.x0 - total) / 2);
+    const lineW = 26 * (c.bubP / 4.7);
+    // columns of up to 10 items; a new part always starts a new column
+    const cols = []; let no = 0;
+    parts.forEach((p, pi) => { const fmt = FMT[p.fmt] === undefined ? 'abcd' : p.fmt; const ch = FMT[fmt]; const w = c.numW + (ch ? ch.length * c.bubP : lineW);
+      for(let k = 0; k < +p.n; k += PER_COL){ const its = []; for(let j = k; j < Math.min(+p.n, k + PER_COL); j++) its.push(++no);
+        cols.push({part: pi, fmt, ch, w, its, first: k === 0, label: multi && k === 0 ? (p.label || ('Part ' + (pi + 1))).trim() : ''}); } });
+    // a part that fits in one column gets enough width for its label
+    cols.forEach(cl => { if(cl.label && cols.filter(x => x.part === cl.part).length === 1) cl.w = Math.max(cl.w, Math.min(48, 1.22 * cl.label.length + 1)); });
+    // pack columns into bands (rows of columns)
+    const avail = GRID.x1 - GRID.x0, bands = []; let band = null;
+    cols.forEach(cl => { if(!band || band.w + (band.cols.length ? c.gap : 0) + cl.w > avail + 0.01){ band = {cols: [], w: 0}; bands.push(band); }
+      band.w += (band.cols.length ? c.gap : 0) + cl.w; band.cols.push(cl); });
+    const bandH = c.hdr + PER_COL * c.rowP, bandGap = 1.2;
+    const totalH = bands.length * bandH + Math.max(0, bands.length - 1) * bandGap;
+    const fits = totalH <= GRID.y1 - GRID.y0 + 0.01;
+    if(!fits && c !== CFG[CFG.length - 1]) continue;
     const items = [], labels = [];
-    cols.forEach(cl => { cl.rows.forEach((e, r) => { const y = GRID.y0 + r * c.rowP;
-        if(e.lab){ labels.push({text: e.lab, x, y, part: e.part}); return; }
-        const it = {no: e.no, part: e.part, fmt: e.fmt, x, y, cy: y + c.rowP / 2, bub: []};
-        if(e.ch) e.ch.forEach((L, k) => it.bub.push({L, x: x + c.numW + c.bubP / 2 + k * c.bubP, y: y + c.rowP / 2}));
-        else it.line = {x0: x + c.numW, x1: x + c.numW + lineW - 1.5, y: y + c.rowP - 0.9};
-        items.push(it); });
-      x += cl.w + c.gap; });
-    return {W, H, MK, MC, QR, GRID, cfg: c, items, labels, n: no, fits: total <= GRID.x1 - GRID.x0 + 0.01, cols: cols.length};
+    bands.forEach((bd, bi) => { const y0 = GRID.y0 + bi * (bandH + bandGap) + (bands.length === 1 ? Math.min(6, (GRID.y1 - GRID.y0 - bandH) / 3) : 0);
+      // spread the columns across the width (wider gaps, at most 12 mm) and centre them
+      const extra = bd.cols.length > 1 ? Math.min((avail - bd.w) / (bd.cols.length - 1), 12 - c.gap) : 0; const gap = c.gap + Math.max(0, extra);
+      const used = bd.cols.reduce((a, cl) => a + cl.w, 0) + gap * (bd.cols.length - 1); let x = GRID.x0 + Math.max(0, (avail - used) / 2);
+      bd.cols.forEach((cl, ci) => {
+        if(cl.label){ let span = cl.w; for(let j = ci + 1; j < bd.cols.length && bd.cols[j].part === cl.part; j++) span += gap + bd.cols[j].w; labels.push({text: cl.label, x, y: y0, w: span, part: cl.part}); }
+        cl.its.forEach((no, r) => { const y = y0 + c.hdr + r * c.rowP; const it = {no, part: cl.part, fmt: cl.fmt, x, y, cy: y + c.rowP / 2, bub: []};
+          if(cl.ch) cl.ch.forEach((L, k) => it.bub.push({L, x: x + c.numW + c.bubP / 2 + k * c.bubP, y: y + c.rowP / 2}));
+          else it.line = {x0: x + c.numW, x1: x + c.numW + lineW - 1.5, y: y + c.rowP - 0.7};
+          items.push(it); });
+        x += cl.w + gap; }); });
+    items.sort((a, b) => a.no - b.no);
+    fitted = {W, H, MK, MC, QR, GRID, cfg: c, items, labels, n: no, fits, cols: cols.length, bands: bands.length};
+    break;
   }
+  return fitted;
 }
 
 /* ---------- image helpers ---------- */
@@ -130,7 +142,7 @@ function orient(G, best){
     const r = dark / n;
     // the QR's three finder squares must be solid dark where expected, and the paper just outside each corner square light
     const dk = (x, y) => { const [u, v] = proj(Hm, x, y); return px(G, u, v) < 110; };
-    const f = 2.8, finders = dk(QR.x + f, QR.y + f) && dk(QR.x + QR.s - f, QR.y + f) && dk(QR.x + f, QR.y + QR.s - f);
+    const f = QR.s * 0.105, finders = dk(QR.x + f, QR.y + f) && dk(QR.x + QR.s - f, QR.y + f) && dk(QR.x + f, QR.y + QR.s - f);
     const outside = [[-2.5, -2.5], [W + 2.5, -2.5], [W + 2.5, H + 2.5], [-2.5, H + 2.5]].filter(([x, y]) => !dk(x, y)).length >= 3;
     if(finders && outside && (!out || r > out.r)) out = {H: Hm, r}; });
   return out && out.r >= 0.3 ? out : null;   // no QR-like corner → these 4 squares are not the sheet

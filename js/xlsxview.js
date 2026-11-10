@@ -149,6 +149,7 @@ M.xvRender = function(doc, sst, styles, area, opts = {}){
   const ps = g('pageSetup'), pm = g('pageMargins'), spr = g('pageSetUpPr');
   let [pw, ph] = PAPER[+(ps?.getAttribute('paperSize')||9)] || PAPER[9];
   if((opts.orientation || ps?.getAttribute('orientation')) === 'landscape' && pw < ph) [pw, ph] = [ph, pw];
+  if(opts.orientation === 'portrait' && pw > ph) [pw, ph] = [ph, pw];
   if(opts.paper){ [pw, ph] = opts.paper; }
   // MASTRO prints every page with 0.3 in margins on all sides (a form may ask for less, e.g. SF4/SF5 at 0.3 in)
   const mg = opts.margin != null ? opts.margin : (M.PRINT_MARGIN_IN || 0.3); const mL = mg, mR = mg, mT = mg, mB = mg;
@@ -197,6 +198,18 @@ M.xvDrawings = async function(zip, sheetPath, sheetDoc){
 M.xvPrintArea = function(wbDoc, sheetIndex){
   const dn = [...wbDoc.getElementsByTagNameNS(NS,'definedName')].find(d => d.getAttribute('name')==='_xlnm.Print_Area' && +d.getAttribute('localSheetId')===sheetIndex);
   return dn ? dn.textContent.split(',')[0].split('!').pop() : null;
+};
+// The page size above comes from the template's row heights. Text that wraps or a taller font makes the real table taller than that,
+// and the bottom rows (e.g. SF10's certification) were cut off. Measure the real size off-screen and shrink the page to fit it.
+M.xvTrueFit = function(html){
+  const box = document.createElement('div'); box.style.cssText = 'position:absolute;left:-40000px;top:0;visibility:hidden;pointer-events:none'; box.innerHTML = html; document.body.appendChild(box);
+  box.querySelectorAll('.xv-fit').forEach(fit => { const sc = fit.querySelector('.xv-scale'); const inner = sc && sc.firstElementChild; if(!inner) return;
+    const k = parseFloat(((sc.style.transform || '').match(/scale\(([\d.]+)/) || [])[1] || 1); const W0 = parseFloat(fit.style.width) / k, H0 = parseFloat(fit.style.height) / k;
+    let rw = inner.scrollWidth, rh = inner.scrollHeight; inner.querySelectorAll('table').forEach(t => { rw = Math.max(rw, t.offsetLeft + t.offsetWidth); rh = Math.max(rh, t.offsetTop + t.offsetHeight); });
+    if(rh <= H0 + 1 && rw <= W0 + 1) return;
+    const k2 = k * Math.min(1, H0 / rh, W0 / rw); sc.style.transform = `scale(${k2.toFixed(4)})`; fit.style.height = (Math.max(H0, rh) * k2).toFixed(1) + 'px'; fit.style.width = (Math.max(W0, rw) * k2).toFixed(1) + 'px';
+    if(inner.style.height) inner.style.height = Math.max(H0, rh) + 'px'; });
+  const out = box.innerHTML; box.remove(); return out;
 };
 M.xvPageCss = (paper) => `@page{size:${paper[0]}in ${paper[1]}in}`;
 })();

@@ -11,7 +11,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.16', date:'2026-11-09', label:'November 9, 2026'};
+M.VERSION = {n:'6.17', date:'2026-11-10', label:'November 10, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -627,7 +627,7 @@ M.backupReminder = () => {
 };
 /* ---------------- live day · date · time (top right, always visible) ---------------- */
 // themes: switch any time from the palette button (top bar) or Settings → Appearance
-M.THEMES = [['light','Light · forest & gold'],['glass','Glass · sunset gradient'],['dark','Dark'],['auto','Match device']];
+M.THEMES = [['light','Light · forest & gold'],['glass','Glass · sunset gradient'],['aurora','Aurora · indigo & pink glass'],['fluent','Fluent · soft sky glass'],['dark','Dark'],['auto','Match device']];
 M.themeMenu = () => { const cur = M.S.settings.theme || 'auto';
   M.modal('Theme', `<div class="theme-pick">${M.THEMES.map(([k, t]) => `<button class="theme-opt ${k === cur ? 'on' : ''}" data-th="${k}"><span class="th-sw th-${k}"></span><span>${t}</span></button>`).join('')}</div>`, b => {
     M.$$('[data-th]', b).forEach(x => x.onclick = () => { M.S.settings.theme = x.dataset.th; M.save(); M.applyTheme(); M.closeModal(); const sel = document.querySelector('[data-s="theme"]'); if(sel) sel.value = x.dataset.th; M.toast('Theme: ' + x.textContent.trim()); }); }); };

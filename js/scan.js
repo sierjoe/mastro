@@ -80,7 +80,7 @@ async function receive(){
 M.scanReceive = receive;
 function incoming(type, obj){
   if(type === 'K'){ const n = importSheets(obj.sheets || []); return `✅ Answer key received: <b>${esc((obj.sheets || []).map(s => s.title).join(', '))}</b>. You can scan these sheets now.`; }
-  if(type === 'R'){ importSheets(obj.sheets || []); const r = importResults(obj); return `✅ <b>${r.added}</b> new and <b>${r.updated}</b> updated score(s) received. Open <b>📊 Scores</b> on the answer sheet to see them.`; }
+  if(type === 'R'){ importSheets(obj.sheets || []); const r = importResults(obj); return `✅ <b>${r.added}</b> new and <b>${r.updated}</b> updated score(s) received. Open <b>📊 Scores</b> on the answer sheet, then <b>⬆ Upload scores to ECR</b>.`; }
   return 'Unknown code.';
 }
 
@@ -202,13 +202,14 @@ function report(sh){
         <div class="seg" id="rpSec" style="flex-wrap:wrap">${secs.map(s => `<button data-s="${esc(s)}" class="${s === sel ? 'on' : ''}">${esc(s)} <span class="tiny muted">${G[s].length}</span></button>`).join('')}</div>
         <div class="rp-stats">${[['Papers', st.n], ['Mean', M.r2(st.mean)], ['MPS', M.r2(st.mps) + '%'], ['Highest', st.hi], ['Lowest', st.lo], ['75% and up', st.pass]].map(([l, v]) => `<div><span>${l}</span><b>${v}</b></div>`).join('')}</div>
         <div class="table-wrap" style="max-height:50vh"><table><thead><tr><th>#</th><th>Learner</th><th class="num">Score</th><th class="num">%</th><th></th></tr></thead><tbody>
-          ${L.map((r, i) => `<tr><td class="muted">${i + 1}</td><td>${esc(r.name)}</td><td class="num"><b>${r.score}</b> / ${r.max}</td><td class="num">${Math.round(r.score / (r.max || max) * 100)}</td><td><button class="icon-btn" data-del="${r.id}" title="Delete this score">✕</button></td></tr>`).join('')}
+          ${L.map((r, i) => `<tr><td class="muted">${i + 1}</td><td>${esc(r.name)}</td><td class="num"><b>${r.score}</b> / ${r.max}</td><td class="num">${Math.round(r.score / (r.max || max) * 100)}${r.ecr ? ` <span class="tiny" title="Uploaded to the ECR · Term ${r.ecr.term} · ${r.ecr.comp.toUpperCase()}" style="color:var(--green)">✓ ECR</span>` : ''}</td><td><button class="icon-btn" data-del="${r.id}" title="Delete this score">✕</button></td></tr>`).join('')}
         </tbody></table></div>
-        <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap"><button class="btn primary" id="rpX">${ico('download')} Download Excel</button><button class="btn" id="rpP">${ico('print')} Print</button>
+        <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap"><button class="btn primary" id="rpE">⬆ Upload scores to ECR</button><button class="btn" id="rpX">${ico('download')} Download Excel</button><button class="btn" id="rpP">${ico('print')} Print</button>
           ${isPhone() ? `<button class="btn" id="rpSend">📤 Send to MacBook</button>` : ''}<span class="spacer"></span><button class="btn" id="rpC">Close</button></div>`;
       $('#rpSec', b).onclick = e => { const x = e.target.closest('button'); if(!x) return; sel = x.dataset.s; draw(); };
       $$('[data-del]', b).forEach(x => x.onclick = () => { if(!confirm('Delete this score?')) return; M.S.scans = scans().filter(r => r.id !== x.dataset.del); M.save(); draw(); });
-      $('#rpX', b).onclick = () => downloadXlsx(sh, G); $('#rpP', b).onclick = () => printReport(sh, sel, L, st);
+      $('#rpX', b).onclick = () => downloadXlsx(sh, G);
+      $('#rpE', b).onclick = () => { M.closeModal(); setTimeout(() => toEcr(sh, sel, G[sel]), 60); }; $('#rpP', b).onclick = () => printReport(sh, sel, L, st);
       if($('#rpSend', b)) $('#rpSend', b).onclick = () => sendScores(sh);
       $('#rpC', b).onclick = M.closeModal; };
     draw();
@@ -216,6 +217,54 @@ function report(sh){
   M.onModalClose = () => M.route();
 }
 M.scanReport = report;
+/* ---------- upload one section's scores into an ECR column (ST1 · ST2 · TE of a term) ---------- */
+const COMPS = [['st1','ST1 · Summative Test 1'], ['st2','ST2 · Summative Test 2'], ['te','TE · Term Examination']];
+const rosterOf = (E) => ['M','F'].flatMap(sx => ((E.model && E.model.roster && E.model.roster[sx]) || []).map((n, i) => n ? {slot: sx + i, name: String(n).replace(/\s*,\s*/, ', '), sex: sx} : null).filter(Boolean));
+const fold = (s) => nm(String(s || '').replace(/[–—]/g, '-').normalize('NFD').replace(/[̀-ͯ]/g, ''));
+function matchSlot(R, name){ const want = fold(name); if(!want) return '';
+  const hit = R.find(x => fold(x.name) === want) || (want.length >= 8 && R.find(x => fold(x.name).startsWith(want) || want.startsWith(fold(x.name)))); return hit ? hit.slot : ''; }
+async function toEcr(sh, sec, list){
+  const ECR = M.S.ecr || []; const u = M.S.ui.toEcr = M.S.ui.toEcr || {term: '1', comp: 'st1'};
+  if(!ECR.length){ M.modal('Upload scores to ECR', `<div class="empty">No class records yet. Add your ECRs in <b>Classes</b> first.</div>`); return; }
+  const secU = String(sec || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const guess = ECR.find(E => secU && String(E.section || '').toUpperCase().replace(/[^A-Z0-9]/g, '') && secU.endsWith(String(E.section).toUpperCase().replace(/[^A-Z0-9]/g, ''))) || ECR[0];
+  let E = guess, R = [], map = {};
+  M.modal(`Upload scores to ECR · ${sec}`, `
+    <div class="small muted" style="margin-top:0"><b>${esc(sh.title)}</b> · ${list.length} paper(s) · ${M.asTotal(sh)} items</div>
+    <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:12px;align-items:flex-end">
+      <label class="field" style="flex:1;min-width:200px">Class record (section)<select class="input" id="teE">${ECR.map(x => `<option value="${x.id}" ${x === guess ? 'selected' : ''}>${esc(x.title || ('Grade ' + x.grade + ' – ' + x.section))}${x.subject ? ' · ' + esc(x.subject) : ''}</option>`).join('')}</select></label>
+      <label class="field">Term<div class="seg" id="teT">${['1','2','3'].map(t => `<button data-t="${t}" class="${t === u.term ? 'on' : ''}">Term ${t}</button>`).join('')}</div></label></div>
+    <label class="field" style="margin-top:10px">Column<div class="seg" id="teC" style="flex-wrap:wrap">${COMPS.map(([k, t]) => `<button data-c="${k}" class="${k === u.comp ? 'on' : ''}">${t}</button>`).join('')}</div></label>
+    <label class="row small" style="gap:6px;margin-top:10px;cursor:pointer"><input type="checkbox" id="teH" checked> Set the highest possible score of this column to <b>${M.asTotal(sh)}</b></label>
+    <div id="teBody" style="margin-top:12px"><div class="empty">Opening the ECR…</div></div>
+    <div class="row" style="margin-top:14px"><span class="small muted" id="teInfo"></span><span class="spacer"></span><button class="btn" id="teX">Cancel</button><button class="btn primary" id="teGo">⬆ Upload to ECR</button></div>`, async b => {
+    const draw = () => { const ok = list.filter(r => map[r.id]).length;
+      $('#teBody', b).innerHTML = !R.length ? `<div class="empty">This ECR has no learner list yet.</div>` : `<div class="table-wrap" style="max-height:42vh"><table><thead><tr><th>Scanned name</th><th class="num">Score</th><th>Row in the ECR</th><th class="num">Now in ECR</th></tr></thead><tbody>
+        ${list.map(r => { const cur = map[r.id] ? M.ecrGetScore(E, u.term, u.comp, map[r.id]) : null;
+          return `<tr><td>${esc(r.name)}</td><td class="num"><b>${r.score}</b></td><td><select class="input" data-m="${r.id}" style="width:100%;padding:5px 8px">${`<option value="">— not uploaded —</option>`}${R.map(x => `<option value="${x.slot}" ${map[r.id] === x.slot ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></td><td class="num ${cur != null && cur !== '' && map[r.id] ? 'low' : 'muted'}">${cur != null && cur !== '' ? cur : '—'}</td></tr>`; }).join('')}
+        </tbody></table></div>`;
+      $('#teInfo', b).innerHTML = `${ok} of ${list.length} matched${list.length - ok ? ` · <span class="low">${list.length - ok} not matched — pick the row or leave it</span>` : ''}`;
+      $$('[data-m]', b).forEach(x => x.onchange = () => { map[x.dataset.m] = x.value; draw(); }); };
+    const load = async () => { $('#teBody', b).innerHTML = '<div class="empty">Opening the ECR…</div>';
+      try { await M.ecrEnsureModel(E); } catch(e){}
+      if(!E.model){ $('#teBody', b).innerHTML = `<div class="empty"><span class="low">The ECR file of ${esc(E.title)} is not on this device.</span></div>`; R = []; return; }
+      if(!E.model.terms[u.term]){ $('#teBody', b).innerHTML = `<div class="empty"><span class="low">${esc(E.title)} has no Term ${u.term} sheet.</span></div>`; R = []; return; }
+      R = rosterOf(E); map = {}; list.forEach(r => { map[r.id] = matchSlot(R, r.name); }); draw(); };
+    $('#teE', b).onchange = e => { E = ECR.find(x => x.id === e.target.value); load(); };
+    $('#teT', b).onclick = e => { const x = e.target.closest('button'); if(!x) return; u.term = x.dataset.t; $$('#teT button', b).forEach(y => y.classList.toggle('on', y === x)); M.save(); load(); };
+    $('#teC', b).onclick = e => { const x = e.target.closest('button'); if(!x) return; u.comp = x.dataset.c; $$('#teC button', b).forEach(y => y.classList.toggle('on', y === x)); M.save(); if(R.length) draw(); };
+    $('#teX', b).onclick = M.closeModal;
+    $('#teGo', b).onclick = () => { const sc = {}; list.forEach(r => { if(map[r.id]) sc[map[r.id]] = r.score; }); const n = Object.keys(sc).length;
+      if(!n) return M.toast('No learner is matched to an ECR row');
+      const over = list.filter(r => { const c = map[r.id] && M.ecrGetScore(E, u.term, u.comp, map[r.id]); return c != null && c !== '' && +c !== r.score; }).length;
+      if(over && !confirm(`${over} learner(s) already have a different ${u.comp.toUpperCase()} score in this ECR. Replace them?`)) return;
+      try { M.ecrPutScores(E, u.term, u.comp, sc, $('#teH', b).checked ? M.asTotal(sh) : null); }
+      catch(e){ alert(e.message); return; }
+      list.forEach(r => { if(map[r.id]) { r.ecr = {id: E.id, term: u.term, comp: u.comp, at: Date.now()}; } }); M.save();
+      M.closeModal(); M.toast(`✓ ${n} score(s) uploaded to ${E.title} · Term ${u.term} · ${u.comp.toUpperCase()}`); };
+    await load();
+  }, true);
+}
 function downloadXlsx(sh, G){
   const max = M.asTotal(sh); const wb = XLSX.utils.book_new(); const school = M.S.settings.school || '';
   Object.keys(G).sort().forEach(sec => { const L = G[sec], st = stats(L, max);

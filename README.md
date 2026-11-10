@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.16 · November 9, 2026)
+# MASTRO — Adviser's Workspace (v6.17 · November 10, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -19,6 +19,15 @@ Offline forms, documents and class management for the class adviser
 - **Learner status**: tag T/O, SARDO, NLP or Dropped Out; statistics and reports reflect it.
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
+
+### New in v6.17
+- **⬆ Upload scores to ECR** (Assessments → 📊 Scores): pick the class record, the term and the column (ST1 · ST2 · TE).
+  Names are matched to the ECR rows (fix any unmatched one), the highest possible score can be set, and existing scores are only replaced after you confirm.
+- **Answer sheets: 2 per A4 page**, each a landscape half page, with the bubbles in **columns of 10** (50 items = 5 columns of 10).
+- **SF10 / any Excel form:** the page is now measured as it really prints, so wrapped text no longer pushes the bottom rows (e.g. the certification) off the page.
+- **SF8:** choose **Portrait** or **Landscape** in the viewer.
+- **Home** reorganised: greeting + class card, Today's attendance, four at-a-glance cards, Coming up, Needs your attention, app shortcuts, recent documents and links.
+- **New themes** from the reference pictures: **Aurora** (indigo → pink glass) and **Fluent** (soft sky-blue glass) — palette button or Settings → Appearance.
 
 ### New in v6.16
 - **BULIG · reading profile per level, male & female:** for each BULIG level, the number of male and female learners who are

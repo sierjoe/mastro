@@ -466,6 +466,8 @@ M.templatePages = async function(code, blob, opts, onStep){
       let pp = (M.S.settings.tplPaper || {})[code]; if(code === 'SF10' && !pp) pp = 'FOLIO'; if(pp === 'TEMPLATE') pp = '';
       const base = Object.assign({drawings: x.src.drawings}, /^SF2$/.test(code) ? {orientation:'landscape', fit:true} : /^SF[45]$/.test(code) ? {paper:[11.69, 8.27], margin:0.3, fit:true} : {},
         pp === 'A4' ? {paper:[8.27, 11.69], fit:true} : pp === 'FOLIO' ? {paper:[8.5, 13], fit:true} : pp === 'LEGAL' ? {paper:[8.5, 14], fit:true} : {});
+      // portrait / landscape choice (e.g. SF8 in portrait): the form is scaled to fit the chosen direction
+      const ori = (M.S.settings.tplOrient || {})[code]; if(ori){ base.orientation = ori; base.fit = true; if(base.paper){ const [a, b2] = base.paper; base.paper = ori === 'portrait' ? [Math.min(a, b2), Math.max(a, b2)] : [Math.max(a, b2), Math.min(a, b2)]; } }
       // some forms print on more than one page (row ranges); unused learner rows can be hidden on screen/print
       const areas = (B.F.areas && B.F.areas(x.sh, p)) || [{area: x.src.area}];
       for(const ar of areas){
@@ -552,7 +554,7 @@ function progress(text){
 M.xvProgress = progress;
 const paperName = (pp) => { const k = pp.map(x => +x.toFixed(2)).join('×'); return ({'8.5×13':'8.5 × 13 in (folio)','8.5×14':'8.5 × 14 in (legal)','8.5×11':'8.5 × 11 in (letter)','8.27×11.69':'A4','11.69×8.27':'A4 landscape','13×8.5':'13 × 8.5 in (folio, landscape)','14×8.5':'8.5 × 14 in landscape'})[k] || `${pp[0]} × ${pp[1]} in`; };
 M.xvPaperName = paperName;
-M.xvPrintPages = (pages) => M.doPrint(pages.map(p => p.html).join(''), M.xvPageCss(pages[0].paper), {margin: pages[0].margins ? pages[0].margins[0] : 0.5, noFit: true});
+M.xvPrintPages = (pages) => M.doPrint(M.xvTrueFit(pages.map(p => p.html).join('')), M.xvPageCss(pages[0].paper), {margin: pages[0].margins ? pages[0].margins[0] : 0.5, noFit: true});
 M.xvPdf = async function(pages, filename){
   const pr = progress('Preparing PDF…');
   try {
@@ -564,10 +566,13 @@ M.xvPdf = async function(pages, filename){
       // capture the sheet at full size (no CSS scaling), then place it on the page at the template's scale
       const pg = pages[i]; stage.innerHTML = pg.html; const sc = $('.xv-scale', stage); sc.style.transform = 'none'; sc.style.position = 'static';
       const target = sc.firstElementChild;
-      const canvas = await html2canvas(target, {scale: Math.max(1.5, Math.min(3, 2.4 * pg.k)), backgroundColor:'#ffffff', logging:false, useCORS:true, width: pg.W, height: pg.H, windowWidth: pg.W + 50});
+      // the real sheet can be taller than the template's row heights say (wrapped text) — capture all of it and shrink to fit
+      const rw = Math.max(pg.W, target.scrollWidth), rh = Math.max(pg.H, target.scrollHeight); const kk = pg.k * Math.min(1, pg.H / rh, pg.W / rw);
+      if(target.style.height) target.style.height = rh + 'px';
+      const canvas = await html2canvas(target, {scale: Math.max(1.5, Math.min(3, 2.4 * pg.k)), backgroundColor:'#ffffff', logging:false, useCORS:true, width: rw, height: rh, windowWidth: rw + 50});
       if(i) pdf.addPage([Math.min(pw,ph), Math.max(pw,ph)], pw > ph ? 'landscape' : 'portrait');
       const [mT, , , mL] = pg.margins;
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', mL, mT, pg.W * pg.k / 96, pg.H * pg.k / 96, undefined, 'FAST');
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', mL, mT, rw * kk / 96, rh * kk / 96, undefined, 'FAST');
       pr.set(`Rendering page ${i+1} of ${pages.length}…`, (i+1)/pages.length);
     }
     stage.innerHTML = ''; pr.set('Saving PDF…', 1);
@@ -581,7 +586,7 @@ M.xvFit = (wrap) => {
     w.style.width = (pw*k)+'px'; w.style.height = (ph*k)+'px'; p.style.transform = `scale(${k})`; }); };
   fit(); window.addEventListener('resize', fit); const prev = M.onLeave; M.onLeave = () => { window.removeEventListener('resize', fit); if(prev) prev(); };
 };
-M.xvShow = (wrap, pages) => { wrap.innerHTML = `<div class="xv-stage">${pages.map(p => `<div class="xvw">${p.html}</div>`).join('')}</div>`; M.xvFit($('.xv-stage', wrap)); };
+M.xvShow = (wrap, pages) => { wrap.innerHTML = `<div class="xv-stage">${pages.map(p => `<div class="xvw">${M.xvTrueFit(p.html)}</div>`).join('')}</div>`; M.xvFit($('.xv-stage', wrap)); };
 
 /* ---------------- UI card used on the Forms pages ---------------- */
 const repHtml = (report) => { const total = report.reduce((a,r)=>a+r.filled.length, 0);
@@ -655,9 +660,11 @@ M.templateCard = async function(el, f){
       $('#vDA', V).onclick = async () => { const pg = await allPages(); M.xvPdf(pg, `${T0} (${L.length} learners).pdf`); };
     } else {
       V.innerHTML = `<div class="row" style="margin-top:16px"><b>${esc(T0)}${opts({}).month && F.needs?' · '+esc(M.monthName(opts({}).month)):''}</b><span class="spacer"></span>
+        ${f.code === 'SF8' ? `<select class="input" id="vOri" style="width:auto;padding:6px 10px;font-size:13px" title="Page direction">${[['','As in template'],['portrait','Portrait'],['landscape','Landscape']].map(([v, t]) => `<option value="${v}" ${(((M.S.settings.tplOrient||{})[f.code]||'')) === v ? 'selected' : ''}>${t}</option>`).join('')}</select>` : ''}
         <button class="btn sm" id="vP1">${ico('print')} Print</button><button class="btn sm" id="vD1">${ico('pdf')} PDF</button><button class="btn sm" id="vClose">✕</button></div>
         <div class="chips" id="vInfo" style="margin:10px 0"></div><div id="vPages"><div class="empty">Filling…</div></div>`;
       $('#vClose', V).onclick = () => { ui.view = false; V.innerHTML = ''; };
+      if($('#vOri', V)) $('#vOri', V).onchange = (e) => { M.S.settings.tplOrient = Object.assign({}, M.S.settings.tplOrient, {[f.code]: e.target.value}); M.save(); viewer(); };
       const r = await M.templatePages(f.code, tpl.blob, opts({}));
       $('#tplRep', el).innerHTML = repHtml(r.report);
       if(!r.pages.length){ $('#vPages', V).innerHTML = '<div class="empty">Nothing to show.</div>'; return; }

@@ -1,5 +1,5 @@
 /* MASTRO — Answer sheets (v6.14).
-   One whole A4 page per answer sheet (portrait, 0.3 in margins — also fits Letter and 8.5 × 13).
+   Two answer sheets per A4 page (each a landscape half page, 0.3 in margins — also fits Letter); bubbles in columns of 10.
    Every sheet has 4 black corner squares and a QR code (sheet · learner · section) so the phone can check it (scan.js).
    Print one per learner of a class, only the learners you tick (lost papers), or blank copies. */
 (function () {
@@ -17,7 +17,7 @@ const FMTS = {
 };
 M.AS_FMTS = FMTS;
 const PAPER = 'A4';
-const BLOCK_H = 263;                          // mm — under the printable height of A4 and of Letter, so a sheet never spills onto a 2nd page
+const BLOCK_H = 131;                          // mm — 2 blocks stay under the printable height of A4 and of Letter, so nothing spills onto another page
 const store = () => (M.S.asheets = Array.isArray(M.S.asheets) ? M.S.asheets : []);
 M.asStore = store;
 const total = (sh) => sh.parts.reduce((a, p) => a + (+p.n || 0), 0);
@@ -62,20 +62,20 @@ function sheetHtml(sh, who, L){
   const items = L.items.map(it => `<b class="ash-n" style="left:${mm(it.x)};top:${mm(it.y)};width:${mm(c.numW - 1.2)};height:${mm(c.rowP)};line-height:${mm(c.rowP)}">${it.no}.</b>` +
     (it.line ? `<i class="ash-ln" style="left:${mm(it.line.x0)};top:${mm(it.line.y)};width:${mm(it.line.x1 - it.line.x0)}"></i>`
       : it.bub.map(b => `<i class="ash-b" style="left:${mm(b.x - c.bubD / 2)};top:${mm(b.y - c.bubD / 2)};width:${mm(c.bubD)};height:${mm(c.bubD)};line-height:${mm(c.bubD)};font-size:${fs}pt">${b.L}</i>`).join(''))).join('');
-  const labels = L.labels.map(l => `<b class="ash-pl" style="left:${mm(l.x)};top:${mm(l.y)};height:${mm(c.rowP)};line-height:${mm(c.rowP)}">${esc(l.text)}</b>`).join('');
+  const labels = L.labels.map(l => `<b class="ash-pl" style="left:${mm(l.x)};top:${mm(l.y)};width:${mm(l.w)};height:${mm(c.hdr)};line-height:${mm(c.hdr)}">${esc(l.text)}</b>`).join('');
   return `<div class="ash" style="width:${O().W}mm;height:${O().H}mm">${mk}
     <div class="ash-qr" style="left:${Q.x}mm;top:${Q.y}mm;width:${Q.s}mm;height:${Q.s}mm">${qrSvg(qrText(sh, who))}</div>
     <div class="ash-h"><div class="s">${esc(S.school || '')}</div><div class="t">${esc(sh.title || 'Answer Sheet')}</div></div>
-    <div class="ash-who"><div class="r"><span>Name:</span><b class="v no-emph">${who.name ? esc(who.name) : ''}</b></div>
-      <div class="r"><span>Section:</span><b class="v sm no-emph">${who.section ? esc(who.section) : ''}</b><span>Date:</span><i class="v xs"></i></div>
-      <div class="r"><span>Score:</span><i class="v xxs"></i><span>/ ${total(sh)}</span></div></div>
+    <div class="ash-who"><div class="r"><span>Name:</span><b class="v no-emph">${who.name ? esc(who.name) : ''}</b><span>Section:</span><b class="v sm no-emph">${who.section ? esc(who.section) : ''}</b></div>
+      <div class="r"><span>Date:</span><i class="v xs"></i><span>Score:</span><i class="v xxs"></i><span>/ ${total(sh)}</span></div></div>
     <div class="ash-ins">Shade the circle of your answer completely with a dark pencil or pen. Do not fold, write on, or mark the black squares and the code.</div>
     ${labels}${items}</div>`;
 }
 async function sheetsHtml(sh, people){
   await M.loadScript('vendor/qrcode.js');
   const L = O().layout(sh.parts);
-  return people.map((w, i) => `<div class="ash-blk${i < people.length - 1 ? ' pb' : ''}" style="height:${BLOCK_H}mm">${sheetHtml(sh, w, L)}</div>`).join('');
+  // two sheets per page: a dashed cut line under the first, a page break after the second
+  return people.map((w, i) => `<div class="ash-blk ${i % 2 ? 'b2' : 'b1'}${i % 2 && i < people.length - 1 ? ' pb' : ''}" style="height:${BLOCK_H}mm">${sheetHtml(sh, w, L)}</div>`).join('');
 }
 M.asSheetsHtml = sheetsHtml;
 
@@ -99,13 +99,13 @@ function editor(sh0){
 
     <div class="row" style="margin-top:14px"><h3 style="margin:0">Items and answer key</h3><span class="spacer"></span><span class="small muted" id="asTot"></span></div>
     <div id="asParts" style="margin-top:8px"></div>
-    <div class="row" style="margin-top:8px"><button class="btn sm" id="asAdd">${ico('plus')} Add a part</button><span class="spacer"></span><span class="tiny muted">Numbering continues from part to part. Up to about 130 items fit on one A4 sheet.</span></div>
+    <div class="row" style="margin-top:8px"><button class="btn sm" id="asAdd">${ico('plus')} Add a part</button><span class="spacer"></span><span class="tiny muted">Numbering continues from part to part. Bubbles come in columns of 10; up to about 120 items fit on a half sheet.</span></div>
     <div class="small" id="asFit" style="margin-top:8px"></div>
     <div class="row" style="margin-top:16px"><span class="spacer"></span><button class="btn" id="asX">Cancel</button><button class="btn" id="asSave">${ico('save')} Save</button><button class="btn primary" id="asPrint">${ico('print')} Save &amp; print…</button></div>`, b => {
     const keyHint = (p) => { const ch = FMTS[p.fmt].ch; const k = String(p.key || '').toUpperCase().replace(/[^A-Z]/g, ''); const bad = [...k.slice(0, +p.n)].filter(x => !ch.includes(x)).length;
       return `${Math.min(k.length, +p.n)} of ${p.n} keyed${bad ? ` · <span class="low">${bad} not ${ch.join('/')}</span>` : ''}${k.length > +p.n ? ` · <span class="low">${k.length - p.n} extra</span>` : ''}`; };
     const fit = () => { const L = O().layout(sh.parts); $('#asTot', b).textContent = `${total(sh)} item(s) · ${keyed(sh)} keyed`;
-      $('#asFit', b).innerHTML = !total(sh) ? '' : L.fits ? `<span class="muted">Fits on one A4 sheet${L.cfg.bubD < 4.6 ? ' (smaller bubbles)' : ''}.</span>` : `<span class="low">Too many items for one sheet — split the test into two answer sheets.</span>`; };
+      $('#asFit', b).innerHTML = !total(sh) ? '' : L.fits ? `<span class="muted">${L.cols} column(s) of 10${L.bands > 1 ? ' in 2 rows' : ''} · 2 answer sheets per A4 page${L.cfg.bubD < 3.6 ? ' (smaller bubbles)' : ''}.</span>` : `<span class="low">Too many items for a half sheet — split the test into two answer sheets.</span>`; };
     const draw = () => { $('#asParts', b).innerHTML = sh.parts.map((p, i) => `<div class="as-prow">
         <div class="row" style="gap:8px;flex-wrap:wrap">
         <input class="input" data-i="${i}" data-k="label" value="${esc(p.label || '')}" placeholder="Part label (e.g. Test I. Multiple Choice)" style="flex:2;min-width:140px">
@@ -125,7 +125,7 @@ function editor(sh0){
     $('#asX', b).onclick = M.closeModal;
     const save = () => { sh.title = $('#asT', b).value.trim(); if(!sh.title){ M.toast('Type the name of the assessment'); return null; }
       if(!total(sh)){ M.toast('Add at least one item'); return null; }
-      if(!O().layout(sh.parts).fits){ M.toast('Too many items for one sheet'); return null; }
+      if(!O().layout(sh.parts).fits){ M.toast('Too many items for a half sheet'); return null; }
       const L = store(); if(sh.id){ const i = L.findIndex(x => x.id === sh.id); if(i >= 0) L[i] = sh; else L.push(sh); } else { sh.id = M.uid('as'); sh.created = new Date().toISOString(); L.push(sh); }
       sh.edited = new Date().toISOString(); M.save(); return sh; };
     $('#asSave', b).onclick = () => { if(!save()) return; M.closeModal(); M.route(); M.toast('Answer sheet saved'); };
@@ -139,19 +139,19 @@ async function printDialog(sh){
   const SRC = sources(); if(!SRC.find(s => s.id === pui.src)) pui.src = (SRC[0] || {}).id || '';
   let roster = []; const picked = new Set();
   M.modal('Print answer sheets', `
-    <div class="small muted" style="margin-top:0"><b>${esc(sh.title)}</b> · ${total(sh)} items · one A4 page per answer sheet, 0.3 in margins</div>
+    <div class="small muted" style="margin-top:0"><b>${esc(sh.title)}</b> · ${total(sh)} items · 2 answer sheets per A4 page (cut in half), 0.3 in margins</div>
     <div class="seg" id="apMode" style="margin-top:12px">${[['class','Whole class'],['some','Selected learners'],['blank','Blank copies']].map(([k, l]) => `<button data-m="${k}" class="${k === pui.mode ? 'on' : ''}">${l}</button>`).join('')}</div>
     <div id="apSrcBox" style="margin-top:12px"><label class="field">Class (from Classes)<select class="input" id="apSrc">${SRC.map(s => `<option value="${s.id}" ${s.id === pui.src ? 'selected' : ''}>${esc(s.label)}</option>`).join('') || '<option value="">No classes yet</option>'}</select></label></div>
     <div id="apBody" style="margin-top:10px"></div>
     <div class="small muted" id="apInfo" style="margin-top:12px"></div>
-    <div class="tiny muted" style="margin-top:6px">In the print window choose paper <b>A4</b> and scale <b>100%</b>. Each sheet is one page — no page is ever skipped or left blank.</div>
+    <div class="tiny muted" style="margin-top:6px">In the print window choose paper <b>A4</b> and scale <b>100%</b>. Two sheets per page — cut along the dashed line. No page is skipped or left blank.</div>
     <div class="row" style="margin-top:14px"><span class="spacer"></span><button class="btn" id="apX">Cancel</button><button class="btn primary" id="apGo">${ico('print')} Print</button></div>`, async b => {
     const src = () => SRC.find(s => s.id === $('#apSrc', b).value);
     const people = () => { const s = src(); const sec = s ? s.section : '', sid = s ? s.id : '';
       if(pui.mode === 'blank') return Array.from({length: Math.max(1, Math.min(200, pui.copies))}, () => ({name: '', section: '', src: '', lk: ''}));
       const L = pui.mode === 'some' ? roster.filter(x => picked.has(x.name)) : roster.filter(x => !(pui.skipOut && (x.out || isOut(x))));
       return [...L.map(x => ({name: x.name, section: sec, src: sid, lk: x.lk})), ...Array.from({length: pui.blanks}, () => ({name: '', section: sec, src: sid, lk: ''}))]; };
-    const info = () => { const n = people().length; $('#apInfo', b).innerHTML = `<b>${n}</b> answer sheet(s) · <b>${n}</b> page(s).`; };
+    const info = () => { const n = people().length; $('#apInfo', b).innerHTML = `<b>${n}</b> answer sheet(s) on <b>${Math.ceil(n / 2)}</b> page(s).`; };
     const body = () => { $('#apSrcBox', b).style.display = pui.mode === 'blank' ? 'none' : '';
       if(pui.mode === 'blank'){ $('#apBody', b).innerHTML = `<label class="field">Number of blank copies<input class="input" id="apCp" inputmode="numeric" value="${pui.copies}" style="max-width:120px"></label><div class="tiny muted" style="margin-top:6px">When you scan a blank sheet, MASTRO asks whose paper it is.</div>`;
         $('#apCp', b).oninput = e => { pui.copies = parseInt(e.target.value) || 1; info(); }; return info(); }
@@ -184,7 +184,7 @@ M.asheetSection = function(box){
   const nScans = (id) => (M.S.scans || []).filter(r => r.sheet === id).length;
   const phone = /iPhone|iPod|Android/i.test(navigator.userAgent);
   box.innerHTML = `<div class="card as-head"><div class="row" style="gap:12px;flex-wrap:wrap"><div class="grow"><h2 style="margin:0">${ico('assess','width:22px;height:22px;vertical-align:-4px')} Answer sheets</h2>
-      <div class="small muted" style="margin-top:4px">1 · Make the sheet and its answer key &nbsp; 2 · Print (one A4 page per learner) &nbsp; 3 · Scan with your phone &nbsp; 4 · See the scores per section</div></div>
+      <div class="small muted" style="margin-top:4px">1 · Make the sheet and its answer key &nbsp; 2 · Print (2 per A4 page) &nbsp; 3 · Scan with your phone &nbsp; 4 · See the scores per section</div></div>
       <button class="btn sm" id="asRx" title="${phone ? 'Take in an answer key shown on your MacBook' : 'Take in the scores scanned on your iPhone'}">📥 ${phone ? 'Receive key' : 'Receive scores from iPhone'}</button>
       <button class="btn primary" id="asNew">${ico('plus')} New answer sheet</button></div></div>
     ${L.length ? `<div class="as-cards">${L.map(s => { const k = keyed(s), bub = s.parts.reduce((a, p) => a + (FMTS[p.fmt] && FMTS[p.fmt].ch ? +p.n : 0), 0), n = nScans(s.id);
