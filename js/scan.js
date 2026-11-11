@@ -269,6 +269,7 @@ async function toEcr(sh, sec, list){
       if(!n) return M.toast('No learner is matched to an ECR row');
       const over = list.filter(r => { const c = map[r.id] && M.ecrGetScore(E, u.term, u.comp, map[r.id]); return c != null && c !== '' && +c !== r.score; }).length;
       if(over && !confirm(`${over} learner(s) already have a different ${u.comp.toUpperCase()} score in this ECR. Replace them?`)) return;
+      M.snapshot(`Before uploading ${u.comp.toUpperCase()} scores to ${E.title}`);
       try { M.ecrPutScores(E, u.term, u.comp, sc, $('#teH', b).checked ? M.asTotal(sh) : null); }
       catch(e){ alert(e.message); return; }
       list.forEach(r => { if(map[r.id]) { r.ecr = {id: E.id, term: u.term, comp: u.comp, at: Date.now()}; } }); M.save();

@@ -690,6 +690,7 @@ async function importSeatCheck(file){
   try {
     const data = JSON.parse(await file.text());
     if(!Array.isArray(data.sections)) throw new Error('This is not a SeatCheck backup');
+    M.snapshot('Before importing SeatCheck backup (' + file.name + ')');
     const a = A(); let added = 0, updated = 0;
     data.sections.forEach(ns => {
       const old = a.sections.find(x => x.id === ns.id);

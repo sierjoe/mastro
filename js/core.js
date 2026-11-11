@@ -2,7 +2,8 @@
    MASTRO core — shared helpers, state, grade math, storage, router.
    Every other file adds views to M.views and uses the helpers here.
    Data stays on this device:
-     class records, attendance & settings → localStorage ("mastro.v1")
+     class records, attendance & settings → IndexedDB ("mastro" / "state"), plus a quick copy in localStorage ("mastro.v1")
+     restore points                       → IndexedDB ("mastro" / "snaps" + "snapdata")
      uploaded documents                   → IndexedDB ("mastro" / "docs")
    ===================================================================== */
 (function () {
@@ -11,7 +12,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.18', date:'2026-11-10', label:'November 10, 2026'};
+M.VERSION = {n:'6.19', date:'2026-11-11', label:'November 11, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -238,8 +239,38 @@ M.normalizeAtt = (A) => {
   });
   if(!A.current && A.sections[0]) A.current = A.sections[0].id;
 };
-M.load = () => {
-  let S; try { S = JSON.parse(localStorage.getItem(M.KEY)); } catch(e) { S = null; }
+/* ---------------- saving (v6.19) ----------------
+   The class data is kept in TWO places on this device:
+     IndexedDB  — the main copy, with plenty of room (hundreds of MB)
+     localStorage — a quick copy (Safari allows only about 5 MB; it is dropped when full)
+   Every save stamps M.S.savedAt; when MASTRO opens, the newer copy wins. */
+M.storage = {idb:false, local:true, blocked:false, error:null};
+const WHERE_KEY = M.KEY + '.where';   // set once the quick copy no longer fits, so a missing copy is never mistaken for "no data"
+let _pendingRaw = null;
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('Storage took too long')), ms))]);
+M.prepareStorage = async () => {
+  let local = null; try { local = JSON.parse(localStorage.getItem(M.KEY)); } catch(e){}
+  try {
+    const rec = await withTimeout(idbGet('state', 'main'), 4000);
+    M.storage.idb = true;
+    if(rec && rec.json){ const s = JSON.parse(rec.json); if(!local || !local.classes || (s.savedAt || 0) > (local.savedAt || 0)) _pendingRaw = s; }
+  } catch(e){
+    M.storage.idb = false; M.storage.error = e;
+    // the data lives only in IndexedDB and it could not be opened: never start over with sample data (it would overwrite nothing, but would look empty and invite re-entering)
+    let where = null; try { where = localStorage.getItem(WHERE_KEY); } catch(_){}
+    if((!local || !local.classes) && where === 'idb') M.storage.blocked = true;
+  }
+  if(navigator.storage && navigator.storage.persist) navigator.storage.persist().then(p => { M.storage.persisted = p; }).catch(()=>{});
+};
+M.start = async () => {
+  await M.prepareStorage().catch(()=>{});
+  M.boot();
+  if(M.storage.blocked) alert('MASTRO could not open the records saved on this device.\n\nNothing has been deleted. Close MASTRO completely (and any other MASTRO tab), then open it again. If this keeps happening, restore your latest backup file in Settings.');
+  else M.dailySnapshot();
+};
+M.load = (raw) => {
+  let S = raw || _pendingRaw; _pendingRaw = null;
+  if(!S){ try { S = JSON.parse(localStorage.getItem(M.KEY)); } catch(e) { S = null; } }
   const fresh = !S || !S.classes;
   if(fresh) S = defaultState();
   M.S = migrate(S);
@@ -253,8 +284,29 @@ M.load = () => {
   if(fresh){ const sec = M.sectionFor(M.cls()); if(sec) M.S.att.current = sec.id; }
   M.save();
 };
-M.save = () => { try { localStorage.setItem(M.KEY, JSON.stringify(M.S)); } catch(e) { M.toast('Could not save — storage is full'); } };
-M.reset = () => { M.S = migrate(defaultState()); M.autoLinkSections(); const sec = M.sectionFor(M.cls()); if(sec) M.S.att.current = sec.id; M.save(); };
+const FULL_MSG = 'Could not save — this device is out of storage. Back up everything now (Settings).';
+M.save = () => {
+  if(M.storage.blocked) return;           // the real records could not be opened: do not save over them
+  M.S.savedAt = Date.now();
+  let json; try { json = JSON.stringify(M.S); } catch(e){ M.toast('Could not save: ' + e.message); return; }
+  let localOk = true;
+  try { localStorage.setItem(M.KEY, json); } catch(e){
+    localOk = false;
+    // an old, smaller copy would look "newer" than nothing — remove it so IndexedDB is the only copy
+    try { localStorage.removeItem(M.KEY); localStorage.setItem(WHERE_KEY, 'idb'); } catch(_){}
+  }
+  M.storage.local = localOk;
+  if(M.storage.idb) writeState(json, localOk); else if(!localOk) M.toast(FULL_MSG);
+};
+let _busy = false, _next = null;
+function writeState(json, localOk){
+  if(_busy){ _next = [json, localOk]; return; }   // only the latest state needs writing
+  _busy = true;
+  idbPut('state', {id:'main', json, at:Date.now()})
+    .then(() => { M.storage.error = null; }, e => { M.storage.error = e; if(!localOk) M.toast(FULL_MSG); })
+    .then(() => { _busy = false; if(_next){ const n = _next; _next = null; writeState(n[0], n[1]); } });
+}
+M.reset = () => { M.snapshot('Before reset to sample data'); M.S = migrate(defaultState()); M.autoLinkSections(); const sec = M.sectionFor(M.cls()); if(sec) M.S.att.current = sec.id; M.save(); };
 M.cls = () => M.S.classes.find(c => c.id === M.S.activeClassId) || M.S.classes[0];
 M.className = (c) => `Grade ${c.grade} – ${c.section}`;
 M.checkItems = () => M.S.settings.checkItems;
@@ -422,30 +474,73 @@ M.autoLinkSections = () => {
 M.sectionFor = (c) => (M.S.att && M.S.att.sections || []).find(s => s.classId === c.id);
 M.sidFor = (sec, lid) => sec ? Object.keys(sec.students).find(sid => sec.students[sid].lid === lid) : null;
 
-/* ---------------- IndexedDB (documents) ---------------- */
-let _db;
+/* ---------------- IndexedDB ----------------
+   docs      uploaded documents, templates and ECR files
+   state     the class data (one record, id 'main')                     — v6.19
+   snaps     restore points: date, label, size                          — v6.19
+   snapdata  the saved class data of each restore point (same id)       — v6.19 */
+let _db, _dbP;
 function db(){
   if(_db) return Promise.resolve(_db);
-  return new Promise((res, rej) => {
-    const r = indexedDB.open('mastro', 1);
-    r.onupgradeneeded = () => r.result.createObjectStore('docs', {keyPath:'id'});
-    r.onsuccess = () => { _db = r.result; res(_db); };
-    r.onerror = () => rej(r.error);
-  });
+  return _dbP || (_dbP = new Promise((res, rej) => {
+    const r = indexedDB.open('mastro', 2);
+    r.onupgradeneeded = () => { const d = r.result;
+      ['docs', 'state', 'snaps', 'snapdata'].forEach(n => { if(!d.objectStoreNames.contains(n)) d.createObjectStore(n, {keyPath:'id'}); }); };
+    r.onsuccess = () => { _db = r.result; _db.onversionchange = () => { _db.close(); _db = null; _dbP = null; }; res(_db); };
+    r.onerror = () => { _dbP = null; rej(r.error); };
+    r.onblocked = () => { _dbP = null; rej(new Error('Another MASTRO window is open — close it and reopen MASTRO')); };
+  }));
 }
-async function docsTx(mode, fn){
+async function tx(stores, mode, fn){
   const d = await db();
   return new Promise((res, rej) => {
-    const tx = d.transaction('docs', mode), st = tx.objectStore('docs');
-    const out = fn(st);
-    tx.oncomplete = () => res(out && out.result !== undefined ? out.result : out);
-    tx.onerror = () => rej(tx.error);
+    const t = d.transaction(stores, mode);
+    const out = fn(t);
+    t.oncomplete = () => res(out && out.result !== undefined ? out.result : out);
+    t.onerror = () => rej(t.error);
+    t.onabort = () => rej(t.error || new Error('Not saved (storage full?)'));   // a full disk aborts the transaction
   });
 }
-M.docsAll = () => docsTx('readonly', st => st.getAll());
-M.docGet = (id) => docsTx('readonly', st => st.get(id));
-M.docPut = (d) => docsTx('readwrite', st => st.put(d));
-M.docDel = (id) => docsTx('readwrite', st => st.delete(id));
+const idbGet = (store, id) => tx(store, 'readonly', t => t.objectStore(store).get(id));
+const idbAll = (store) => tx(store, 'readonly', t => t.objectStore(store).getAll());
+const idbPut = (store, v) => tx(store, 'readwrite', t => t.objectStore(store).put(v));
+M.docsAll = () => idbAll('docs');
+M.docGet = (id) => idbGet('docs', id);
+M.docPut = (d) => idbPut('docs', d);
+M.docDel = (id) => tx('docs', 'readwrite', t => t.objectStore('docs').delete(id));
+
+/* ---------------- restore points ----------------
+   A copy of the class data is kept automatically at the start of each day and
+   before every big change (SF1, score upload, SeatCheck import, restore, reset, deleting a class).
+   The newest 20 are kept. Uploaded documents are not part of a restore point (they are never replaced by those changes). */
+M.SNAP_MAX = 20;
+M.snapshot = (label, extra) => {
+  if(!M.storage.idb || !M.S || M.storage.blocked) return Promise.resolve(null);
+  let json; try { json = JSON.stringify(M.S); } catch(e){ return Promise.resolve(null); }   // taken NOW, before the change is made
+  const meta = {id:M.uid('rp'), at:new Date().toISOString(), day:M.today(), label:String(label || 'Restore point'), size:json.length, ...(extra || {})};
+  return tx(['snaps', 'snapdata'], 'readwrite', t => { t.objectStore('snaps').put(meta); t.objectStore('snapdata').put({id:meta.id, json}); })
+    .then(() => M.snapshots()).then(all => {
+      const old = all.slice(M.SNAP_MAX);
+      return old.length ? tx(['snaps', 'snapdata'], 'readwrite', t => old.forEach(x => { t.objectStore('snaps').delete(x.id); t.objectStore('snapdata').delete(x.id); })) : null;
+    }).then(() => meta).catch(() => null);
+};
+M.snapshots = () => idbAll('snaps').then(L => L.sort((a, b) => a.at < b.at ? 1 : -1)).catch(() => []);
+M.snapState = (id) => idbGet('snapdata', id).then(x => { if(!x || !x.json) throw new Error('This restore point is missing'); return JSON.parse(x.json); });
+M.snapRestore = async (id) => {
+  const meta = (await M.snapshots()).find(x => x.id === id); const state = await M.snapState(id);
+  await M.snapshot('Before going back to ' + (meta ? new Date(meta.at).toLocaleString() : 'a restore point'));
+  M.load(state);
+};
+M.snapDelete = (id) => tx(['snaps', 'snapdata'], 'readwrite', t => { t.objectStore('snaps').delete(id); t.objectStore('snapdata').delete(id); });
+M.dailySnapshot = async () => { const all = await M.snapshots(); if(!all.some(x => x.day === M.today() && x.auto)) await M.snapshot('Start of the day', {auto:true}); };
+
+/* ---------------- device status (for Home and Settings) ---------------- */
+M.isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+M.isInstalled = () => navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+M.storageInfo = async () => { const out = {idb:M.storage.idb, local:M.storage.local, error:M.storage.error, persisted:M.storage.persisted};
+  try { if(navigator.storage && navigator.storage.estimate){ const e = await navigator.storage.estimate(); out.usage = e.usage; out.quota = e.quota; } } catch(e){}
+  try { if(navigator.storage && navigator.storage.persisted) out.persisted = await navigator.storage.persisted(); } catch(e){}
+  return out; };
 
 /* ---------------- modal ---------------- */
 M.modal = (title, html, onMount, wide) => {

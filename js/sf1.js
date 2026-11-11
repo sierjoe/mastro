@@ -112,6 +112,7 @@ M.importSF1 = async function(file){
   b => {
     $('#sfCancel', b).onclick = M.closeModal;
     $('#sfApply', b).onclick = async () => {
+      M.snapshot('Before applying SF1 (' + file.name + ')');
       const use = $('#sfUse', b).checked, today = M.today();
       const stamp = {date: today, file: file.name};
       matched.forEach(({r, l}) => {

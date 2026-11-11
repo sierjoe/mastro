@@ -106,7 +106,7 @@ M.views.home = async function(el){
     <div class="grow"><h2 style="margin:0">Welcome to MASTRO</h2><div class="small muted">This device has no class data yet. Restore your MASTRO data file (kept in your Google Drive), or start by uploading your SF1, gradesheet or ECRs.</div></div>
     <button class="btn primary" id="wRestore">${ico('upload')} Restore my data file</button><input type="file" id="wFile" accept=".json" hidden></div></div>` : (M.backupDue() ? `
   <div class="card backup-nudge" style="margin-bottom:18px"><div class="row">${ico('save','width:26px;height:26px;color:var(--gold)')}<div class="grow"><b>${s.lastBackup ? 'Your last full backup was ' + Math.floor((Date.now() - new Date(s.lastBackup).getTime())/864e5) + ' days ago' : 'You have no full backup yet'}</b><div class="small muted">Keep a copy in your private Google Drive folder.</div></div>
-    <button class="btn gold" id="hBk">${ico('download')} Back up everything</button></div></div>` : '')) + `
+    <button class="btn gold" id="hBk">${ico('download')} Back up everything</button></div></div>` : '')) + M.storageWarnHtml() + `
   <section class="h2col">
     <div class="card hero home-hero hx-hero">
       <div class="small hx-eyebrow">${hello}${first ? ', ' + esc(first.charAt(0) + first.slice(1).toLowerCase()) : ''} · ${esc(dnow.toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'}))}</div>
@@ -147,6 +147,9 @@ M.views.home = async function(el){
   $$('.hk[href="#home/checks"]').forEach(a => a.onclick = e => { e.preventDefault(); $('#hChecks').scrollIntoView({behavior:'smooth', block:'center'}); });
   if($('#hsQ')){ homeSearch(c); }
   if($('#hBk')) $('#hBk').onclick = () => M.backupAll();
+  if($('#hBk2')) $('#hBk2').onclick = () => M.backupAll();
+  if($('#hInst')) $('#hInst').onclick = M.installHelp;
+  if($('#hInstX')) $('#hInstX').onclick = () => { s.hideInstallTip = true; M.save(); M.route(); };
   if($('#wRestore')){ $('#wRestore').onclick = () => $('#wFile').click(); $('#wFile').onchange = e => { const f = e.target.files[0]; e.target.value=''; if(f) M.restoreFile(f); }; }
   const docs = (await M.docsAll().catch(()=>[])).sort((a,b)=>b.added.localeCompare(a.added)).slice(0,4);
   const rd = $('#recentDocs'); if(!rd) return;
@@ -791,6 +794,11 @@ M.views.settings = function(el){
     <div id="bkSum" class="bk-sum"><div class="muted small">Counting…</div></div>
     <div class="row" style="margin-top:14px"><button class="btn primary" id="bkAll">${ico('download')} Back up everything</button><button class="btn" id="rs">${ico('upload')} Restore backup</button><input type="file" id="rsFile" accept=".json" hidden><span class="spacer"></span><button class="btn sm" id="bk" title="Smaller file without uploaded documents">Records only</button><button class="btn sm danger" id="reset">Reset to sample data</button></div>
   </div>
+  <div class="card" style="margin-top:20px" id="rpCard"><div class="row"><h2 style="margin:0">Restore points</h2><span class="spacer"></span><span class="small muted" id="stInfo"></span></div>
+    <p class="small muted">MASTRO keeps a copy of your records at the start of each day and before every big change (SF1, score upload, SeatCheck import, restore, reset, deleting a class) — the newest ${M.SNAP_MAX}. If something went wrong, go back to one. Uploaded documents are not affected. These copies stay on this device, so keep backing up to your Drive folder too.</p>
+    <div id="rpList" class="list"><div class="muted small">Loading…</div></div>
+    <div class="row" style="margin-top:12px"><button class="btn sm" id="rpNow">${ico('save')} Make a restore point now</button></div>
+  </div>
   <div class="card about-card" style="margin-top:20px"><div class="row"><img src="icons/brand.png" alt="" style="width:46px;height:46px;object-fit:contain"><div class="grow"><b>MASTRO</b> <span class="ver-chip">v${M.VERSION.n}</span> <span class="small muted">${M.VERSION.label}</span><div class="small muted">Developed by <b>${esc(M.DEV.name)}</b> · ${esc(M.DEV.org)}</div></div></div></div>`;
   $$('[data-sb]', el).forEach(i => i.onchange = () => { s[i.dataset.sb] = i.checked; M.save(); M.applyTheme(); M.toast('Saved'); });
   $$('[data-s]', el).forEach(i => i.onchange = () => { s[i.dataset.s] = i.value.trim(); M.save(); if(i.dataset.s==='theme') M.applyTheme(); M.toast('Saved'); });
@@ -810,8 +818,10 @@ M.views.settings = function(el){
   $('#newCls').onclick = () => { const n = {id:M.uid('c'), grade:'', section:'NEW SECTION', sy:c.sy, adviser:s.adviser||c.adviser, head:s.head, learners:[], grades:{'1':{},'2':{},'3':{}}, checklist:{}, sf9:{days:{}, abs:{}, comments:{}, cert:false, layout:'duplex'}}; M.S.classes.push(n); M.S.activeClassId=n.id; M.save(); M.route(); M.toast('Blank class created'); };
   $('#impCls').onclick = () => $('#impFile2').click();
   $('#impFile2').onchange = e => { const f=e.target.files[0]; if(f) importXlsx(f); e.target.value=''; };
-  $('#delCls').onclick = () => { if(M.S.classes.length<2) return M.toast('Keep at least one class'); if(!confirm(`Delete ${M.className(c)} and all its grades?`)) return; M.S.classes=M.S.classes.filter(x=>x.id!==c.id); M.S.activeClassId=M.S.classes[0].id; M.save(); M.route(); };
+  $('#delCls').onclick = () => { if(M.S.classes.length<2) return M.toast('Keep at least one class'); if(!confirm(`Delete ${M.className(c)} and all its grades?`)) return; M.snapshot(`Before deleting ${M.className(c)}`); M.S.classes=M.S.classes.filter(x=>x.id!==c.id); M.S.activeClassId=M.S.classes[0].id; M.save(); M.route(); };
   M.backupSummary().then(x => { const b = $('#bkSum'); if(b) b.innerHTML = x.html; });
+  M.drawRestorePoints();
+  $('#rpNow').onclick = async () => { const m = await M.snapshot('Made by you'); M.toast(m ? 'Restore point made' : 'Could not make a restore point on this device'); M.drawRestorePoints(); };
   $('#bk').onclick = () => backup(false);
   $('#bkAll').onclick = () => backup(true);
   $('#rs').onclick = () => $('#rsFile').click();
@@ -819,6 +829,37 @@ M.views.settings = function(el){
   $('#reset').onclick = () => { if(!confirm('Replace all class records and attendance with the original sample data? Documents are kept.')) return; M.reset(); M.applyTheme(); M.route(); M.toast('Reset done'); };
 };
 const blobToB64 = (b) => new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(b); });
+/* ---------------- storage warnings (Home) and restore points (Settings) — v6.19 ---------------- */
+M.storageWarnHtml = () => {
+  const s = M.S.settings, st = M.storage; let out = '';
+  if(st.blocked || (!st.idb && !st.local)) out += `
+  <div class="card backup-nudge" style="margin-bottom:18px"><div class="row">${ico('save','width:26px;height:26px;color:var(--red)')}<div class="grow"><b>Your changes are not being saved on this device</b><div class="small muted">${st.blocked ? 'MASTRO could not open the records saved here. Close MASTRO completely and open it again.' : 'The storage of this device is full or blocked.'} Back up everything now so nothing is lost.</div></div>
+    <button class="btn gold" id="hBk2">${ico('download')} Back up everything</button></div></div>`;
+  else if(M.isIOS() && !M.isInstalled() && !s.hideInstallTip) out += `
+  <div class="card backup-nudge" style="margin-bottom:18px"><div class="row">${ico('save','width:26px;height:26px;color:var(--gold)')}<div class="grow"><b>Add MASTRO to your Home Screen</b><div class="small muted">Opened as a website, Safari may erase MASTRO's records after about a week without use. From the Home Screen they stay.</div></div>
+    <button class="btn gold" id="hInst">How?</button><button class="btn sm" id="hInstX" title="Do not show this again">Hide</button></div></div>`;
+  return out;
+};
+M.installHelp = () => M.modal('Add MASTRO to the Home Screen', `<ol style="line-height:1.8;margin-top:0">
+  <li>Open MASTRO in <b>Safari</b> (not inside another app).</li><li>Tap the <b>Share</b> button (square with an arrow).</li>
+  <li>Scroll and tap <b>Add to Home Screen</b>, then <b>Add</b>.</li><li>From now on, open MASTRO with its icon on the Home Screen.</li></ol>
+  <p class="small muted">Important: the Home Screen app keeps its own records. If you already have records in Safari, first tap <b>Back up everything</b> here, then open the new icon and use <b>Restore my data file</b>.</p>
+  <div class="row"><span class="spacer"></span><button class="btn gold" id="ihB">${ico('download')} Back up everything first</button></div>`, b => { $('#ihB', b).onclick = () => { M.closeModal(); M.backupAll(); }; });
+M.drawRestorePoints = async () => {
+  const box = $('#rpList'); if(!box) return;
+  const info = await M.storageInfo(); const si = $('#stInfo');
+  if(si) si.textContent = [info.idb ? 'Saved on this device ✓' : (info.local ? 'Saved (small storage only)' : 'Not saving!'), info.usage ? M.fmtBytes(info.usage) + ' used' : '', info.persisted ? 'protected from clearing' : ''].filter(Boolean).join(' · ');
+  if(!info.idb){ box.innerHTML = '<div class="empty small">Restore points are not available on this device (storage could not be opened).</div>'; return; }
+  const L = await M.snapshots();
+  if(!L.length){ box.innerHTML = '<div class="empty small">No restore points yet — the first one is made the next time MASTRO opens.</div>'; return; }
+  box.innerHTML = L.map(x => `<div class="item" style="padding:8px 12px"><div class="grow"><div class="title small">${esc(new Date(x.at).toLocaleString(undefined, {weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}))}</div><div class="tiny muted">${esc(x.label)} · ${M.fmtBytes(x.size)}</div></div>
+    <button class="btn sm" data-rpdl="${x.id}" title="Download as a backup file">${ico('download')}</button><button class="btn sm" data-rpgo="${x.id}">Go back to this</button></div>`).join('');
+  $$('[data-rpgo]', box).forEach(b => b.onclick = async () => { const x = L.find(y => y.id === b.dataset.rpgo);
+    if(!confirm(`Go back to your records as they were on ${new Date(x.at).toLocaleString()}?\n(${x.label})\n\nEverything you changed after that is replaced. A restore point of your current records is made first, so you can undo this.`)) return;
+    try { await M.snapRestore(x.id); M.applyTheme(); if(M.renderClassSelect) M.renderClassSelect(); M.route(); M.toast('Records restored'); } catch(e){ alert('Could not restore: ' + e.message); } });
+  $$('[data-rpdl]', box).forEach(b => b.onclick = async () => { const x = L.find(y => y.id === b.dataset.rpdl);
+    try { const state = await M.snapState(x.id); M.downloadBlob(new Blob([JSON.stringify({app:'MASTRO', version:3, exported:x.at, full:false, state, docs:[]})], {type:'application/json'}), `MASTRO-restore-point-${x.day}.json`); } catch(e){ alert(e.message); } });
+};
 // what a full backup contains (shown in Settings so you can see nothing is left out)
 M.backupSummary = async function(){
   const S = M.S; const docs = await M.docsAll().catch(()=>[]);
@@ -866,8 +907,8 @@ async function restore(file){
   try {
     const data = JSON.parse(await file.text());
     if(data.app!=='MASTRO' || !data.state) throw new Error('Not a MASTRO backup (for SeatCheck backups use Attendance → Manage → Import SeatCheck backup)');
-    if(!confirm('Restore this backup? Current records on this device will be replaced.')) return;
-    localStorage.setItem(M.KEY, JSON.stringify(data.state)); M.load();
+    if(!confirm('Restore this backup? Current records on this device will be replaced.\n\n(A restore point of the current records is kept — Settings → Restore points.)')) return;
+    await M.snapshot('Before restoring ' + file.name); M.load(data.state);
     for(const d of data.docs||[]){
       if(d.skipped) continue;
       if(d.blob && typeof d.blob==='string'){ const res = await fetch(d.blob); d.blob = await res.blob(); }
