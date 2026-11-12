@@ -92,12 +92,12 @@ M.scanSendKey = (sh) => qrCarousel(`Answer key → iPhone`, chunkify('K', {sheet
   `<b>${esc(sh.title)}</b><br>On your iPhone open MASTRO → Assessments → <b>📥 Receive key</b> (or just tap 📷 Scan) and point the camera here.`);
 const recKey = (r) => [r.sheet, nm(secName(r.section)), r.lk || nm(r.name)].join('|');
 function addResult(r){ const L = scans(); const i = L.findIndex(x => recKey(x) === recKey(r)); if(i >= 0){ r.id = L[i].id; L[i] = r; } else L.push(r); M.save(); return i >= 0; }
-const packRec = (r) => [r.sheet, r.lk || '', r.name || '', r.section || '', r.score, r.max, r.ts, r.manual || 0];
+const packRec = (r) => [r.sheet, r.lk || '', r.name || '', r.section || '', r.score, r.max, r.ts, r.manual || 0, r.ans || ''];   // ans (bubbles) added in v6.20 for item analysis
 function importResults(obj){ let added = 0, updated = 0;
-  (obj.recs || []).forEach(a => { const r = {sheet: a[0], lk: a[1], name: a[2], section: a[3], score: a[4], max: a[5], ts: a[6], manual: a[7] || 0};
+  (obj.recs || []).forEach(a => { const r = {sheet: a[0], lk: a[1], name: a[2], section: a[3], score: a[4], max: a[5], ts: a[6], manual: a[7] || 0, ans: a[8] || ''};
     if(!r.sheet) return; const ex = scans().find(x => recKey(x) === recKey(r)); if(ex && (ex.ts || 0) >= (r.ts || 0)) return;
     const sh = sheets().find(s => s.id === r.sheet);
-    if(addResult(Object.assign({id: M.uid('sc'), title: sh ? sh.title : '', ans: '', from: 'phone', sent: true}, r))) updated++; else added++; });
+    if(addResult(Object.assign({id: M.uid('sc'), title: sh ? sh.title : '', from: 'phone', sent: true}, r))) updated++; else added++; });
   return {added, updated}; }
 function sendScores(sh){
   const L = scans().filter(r => r.sheet === sh.id); if(!L.length) return M.toast('No scores yet');
@@ -215,13 +215,14 @@ function report(sh){
         <div class="table-wrap" style="max-height:50vh"><table><thead><tr><th>#</th><th>Learner</th><th class="num">Score</th><th class="num">%</th><th></th></tr></thead><tbody>
           ${L.map((r, i) => `<tr><td class="muted">${i + 1}</td><td>${esc(r.name)}</td><td class="num"><b>${r.score}</b> / ${r.max}</td><td class="num">${Math.round(r.score / (r.max || max) * 100)}${r.ecr ? ` <span class="tiny" title="Uploaded to the ECR · Term ${r.ecr.term} · ${r.ecr.comp.toUpperCase()}" style="color:var(--green)">✓ ECR</span>` : ''}</td><td><button class="icon-btn" data-del="${r.id}" title="Delete this score">✕</button></td></tr>`).join('')}
         </tbody></table></div>
-        <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap"><button class="btn primary" id="rpE">⬆ Upload scores to ECR</button><button class="btn" id="rpX">${ico('download')} Download Excel</button><button class="btn" id="rpP">${ico('print')} Print</button>
+        <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap"><button class="btn primary" id="rpE">⬆ Upload scores to ECR</button><button class="btn" id="rpX">${ico('download')} Download Excel</button><button class="btn" id="rpP">${ico('print')} Print</button><button class="btn" id="rpI">🔎 Item analysis</button>
           ${isPhone() ? `<button class="btn" id="rpSend">📤 Send to MacBook</button>` : ''}<span class="spacer"></span><button class="btn" id="rpC">Close</button></div>`;
       $('#rpSec', b).onclick = e => { const x = e.target.closest('button'); if(!x) return; sel = x.dataset.s; draw(); };
       $$('[data-del]', b).forEach(x => x.onclick = () => { if(!confirm('Delete this score?')) return; M.S.scans = scans().filter(r => r.id !== x.dataset.del); M.save(); draw(); });
       $('#rpX', b).onclick = () => downloadXlsx(sh, G);
       $('#rpE', b).onclick = () => { M.closeModal(); setTimeout(() => toEcr(sh, sel, G[sel]), 60); }; $('#rpP', b).onclick = () => printReport(sh, sel, L, st);
       if($('#rpSend', b)) $('#rpSend', b).onclick = () => sendScores(sh);
+      $('#rpI', b).onclick = () => { M.closeModal(); setTimeout(() => M.itemAnalysis(sh), 60); };
       $('#rpC', b).onclick = M.closeModal; };
     draw();
   }, true);

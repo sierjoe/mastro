@@ -160,11 +160,16 @@ function repTab(el, c, d, L){
     <div class="grid g-3" style="gap:14px">
       <button class="card form-card rp-btn" data-r="crp"><b>Class Reading Profile</b><span class="small muted">Every learner: GST, word reading, comprehension, words per minute and profile, with the summary by sex.</span></button>
       <button class="card form-card rp-btn" data-r="sum"><b>Summary per profile</b><span class="small muted">Number of male, female and total learners per reading profile, with the list of names.</span></button>
-      <button class="card form-card rp-btn" data-r="cmp"><b>Pre-test vs Post-test</b><span class="small muted">Each learner's profile before and after, with the change in each group.</span></button></div></div>`;
+      <button class="card form-card rp-btn" data-r="cmp"><b>Pre-test vs Post-test</b><span class="small muted">Each learner's profile before and after, with the change in each group.</span></button></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px"><span class="small muted">Download:</span>${[['crp','Class Reading Profile'],['sum','Summary per profile'],['cmp','Pre-test vs Post-test']].map(([k, t]) => `<button class="btn sm" data-dl="${k}">${ico('download')} ${t} (PDF)</button>`).join('')}</div></div>`;
   $$('[data-r]', el).forEach(b => b.onclick = () => { const k = b.dataset.r;
     if(k === 'crp') M.rdPreview('Class Reading Profile', [crpPage(c, d, L)], true);
     if(k === 'sum') M.rdPreview('Summary per profile', [sumPage(c, d, L)], false);
     if(k === 'cmp') M.rdPreview('Pre-test vs Post-test', [cmpPage(c, L)], false); });
+  $$('[data-dl]', el).forEach(b => b.onclick = () => { const k = b.dataset.dl; const tag = `Phil-IRI ${lang} ${per}`;
+    if(k === 'crp') M.rdDownloadPdf(`${tag} Class Reading Profile`, [crpPage(c, d, L)], true);
+    if(k === 'sum') M.rdDownloadPdf(`${tag} Summary per profile`, [sumPage(c, d, L)], false);
+    if(k === 'cmp') M.rdDownloadPdf(`${tag} Pre-test vs Post-test`, [cmpPage(c, L)], false); });
 }
 const head = (c, title) => { const r = root(c); const d = data(c);
   return `${M.printHeader(title)}<table class="rd-info"><tr><td>School:</td><td><b>${esc(M.S.settings.school || '')}</b></td><td>Grade &amp; Section:</td><td><b>${esc(M.className(c))}</b></td></tr>

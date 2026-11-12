@@ -191,7 +191,7 @@ M.asheetSection = function(box){
       return `<div class="card as-card"><div class="row" style="align-items:flex-start"><div class="grow"><div class="title"><b>${esc(s.title)}</b></div>
           <div class="tiny muted" style="margin-top:3px">${total(s)} items${k < bub ? ` · <span class="low">answer key ${k}/${bub}</span>` : ''}</div></div>
           <div class="as-menu"><button class="icon-btn" data-asm="${s.id}" title="More">⋯</button><div class="as-pop" hidden><button data-ase="${s.id}">${ico('edit')} Edit</button><button data-ask="${s.id}">📱 Send key to iPhone</button><button data-asd="${s.id}" class="low">✕ Delete</button></div></div></div>
-        <div class="as-acts"><button class="btn sm" data-asp="${s.id}">${ico('print')} Print</button><button class="btn sm primary" data-ass="${s.id}">📷 Scan</button><button class="btn sm" data-asr="${s.id}">📊 Scores${n ? ` <span class="chip" style="margin-left:4px;padding:1px 7px">${n}</span>` : ''}</button></div></div>`; }).join('')}</div>`
+        <div class="as-acts"><button class="btn sm" data-asp="${s.id}">${ico('print')} Print</button><button class="btn sm primary" data-ass="${s.id}">📷 Scan</button><button class="btn sm" data-asr="${s.id}">📊 Scores${n ? ` <span class="chip" style="margin-left:4px;padding:1px 7px">${n}</span>` : ''}</button><button class="btn sm" data-asi="${s.id}" title="How many got each item right or wrong, per section">🔎 Item analysis ${M.newTag('item-analysis')}</button></div></div>`; }).join('')}</div>`
       : `<div class="card" style="margin-top:20px"><div class="empty">No answer sheets yet. Tap <b>New answer sheet</b>.</div></div>`}`;
   const get = (id) => store().find(x => x.id === id);
   $('#asNew', box).onclick = () => editor();
@@ -201,6 +201,7 @@ M.asheetSection = function(box){
   $$('[data-asp]', box).forEach(x => x.onclick = () => printDialog(get(x.dataset.asp)));
   $$('[data-ass]', box).forEach(x => x.onclick = () => M.scanOpen(get(x.dataset.ass)));
   $$('[data-asr]', box).forEach(x => x.onclick = () => M.scanReport(get(x.dataset.asr)));
+  $$('[data-asi]', box).forEach(x => x.onclick = () => M.itemAnalysis(get(x.dataset.asi)));
   $$('[data-ase]', box).forEach(x => x.onclick = () => editor(get(x.dataset.ase)));
   $$('[data-ask]', box).forEach(x => x.onclick = () => M.scanSendKey(get(x.dataset.ask)));
   $$('[data-asd]', box).forEach(x => x.onclick = () => { const s = get(x.dataset.asd); if(!s || !confirm(`Delete the answer sheet “${s.title}” and its scanned scores?`)) return;

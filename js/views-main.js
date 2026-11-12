@@ -95,7 +95,7 @@ M.views.home = async function(el){
       absNames = Object.entries(rec).filter(([sid,v]) => (v==='A'||v==='E') && sec.students[sid]).map(([sid]) => M.attFullName(sec, sid)); } }
   const C = M.SY_CAL; const dd = (a, b2) => Math.round((M.parse(b2) - M.parse(a)) / 864e5);
   const TT = C ? C.terms.find(x => today >= x.from && today <= x.to) : null;
-  const upcoming = C ? C.ev.filter(e => e[0] >= today).slice(0, 5) : [];
+  const upcoming = [...(C ? C.ev.filter(e => e[0] >= today).slice(0, 6) : []), ...(M.notesAhead ? M.notesAhead(45).map(n => [n.from < today ? today : n.from, n.to, n.title, 'mine']) : [])].sort((a, b) => a[0].localeCompare(b[0])).slice(0, 6);
   const red = flags.filter(f => f.lvl === 'red').length;
   const dnow = new Date(); const hr = dnow.getHours(); const hello = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
   const first = String(c.adviser || '').split(/\s+/)[0]; const fmtD = (iso) => M.parse(iso).toLocaleDateString(undefined, {month:'short', day:'numeric'});
@@ -132,10 +132,11 @@ M.views.home = async function(el){
   </section>
   <section class="h2col h2col-even">
     <div class="card"><div class="row"><h3 style="margin:0">Coming up</h3><span class="spacer"></span><button class="btn sm" id="hCal">${ico('calendar')} Calendar</button></div>
-      <div class="hx-list">${upcoming.length ? upcoming.map(e => `<div class="hx-ev"><span class="hx-date"><b>${esc(fmtD(e[0]).split(' ')[1] || '')}</b><i>${esc(fmtD(e[0]).split(' ')[0])}</i></span><span class="grow">${esc(e[2])}<span class="tiny muted">${e[0] === today ? 'Today' : 'in ' + dd(today, e[0]) + ' day(s)'}</span></span></div>`).join('') : '<div class="empty">No events ahead in the school calendar.</div>'}</div></div>
+      <div class="hx-list">${upcoming.length ? upcoming.map(e => `<div class="hx-ev"><span class="hx-date"><b>${esc(fmtD(e[0]).split(' ')[1] || '')}</b><i>${esc(fmtD(e[0]).split(' ')[0])}</i></span><span class="grow">${e[3] === 'mine' ? '📝 ' : ''}${esc(e[2])}<span class="tiny muted">${e[0] === today ? 'Today' : 'in ' + dd(today, e[0]) + ' day(s)'}</span></span></div>`).join('') : '<div class="empty">No events ahead in the school calendar.</div>'}</div></div>
     <div class="card" id="hChecks"><div class="row"><h3 style="margin:0">Needs your attention</h3><span class="spacer"></span><span class="chip ${red ? 'red' : flags.length ? 'gold' : 'green'}">${flags.length || '✓'}</span></div>
       <div class="hx-list">${flags.length ? flags.slice(0, 5).map(f=>`<div class="flag"><span class="dot ${f.lvl==='red'?'red':''}"></span><div>${f.html}</div></div>`).join('') + (flags.length > 5 ? `<button class="btn sm" id="hMore" style="margin-top:8px">Show all ${flags.length}</button>` : '') : '<div class="empty">Everything looks clean. 🎉</div>'}</div></div>
   </section>
+  <section style="margin-top:18px" id="hPlan">${M.plannerCard ? M.plannerCard() : ''}</section>
   <h3 class="h-sec">Go to</h3>
   <section class="h-apps">${apps.map(([i, l, h]) => `<a class="h-app" href="${h}"><span class="h-app-ico a-${i}">${ico(i,'width:24px;height:24px')}</span><span>${l}</span></a>`).join('')}</section>
   <section class="h2col h2col-even" style="margin-top:18px">
@@ -143,6 +144,7 @@ M.views.home = async function(el){
     <div class="card"><h3 style="margin:0 0 10px">Quick links</h3><div class="list">${(s.links||[]).map(l=>`<a class="item" href="${esc(l.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><div class="file-ico link">${ico('link')}</div><div class="grow"><div class="title">${esc(l.label)}</div><div class="tiny muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px">${esc(l.url)}</div></div></a>`).join('') || '<div class="empty">No links yet — add them in Settings.</div>'}</div></div>
   </section>`;
   if($('#hCal')) $('#hCal').onclick = () => { M.modal('School calendar', `<div id="calWrap">${M.calendarCard ? M.calendarCard() : ''}</div>`, b => { if(M.calendarBind) M.calendarBind($('#calWrap', b)); const lb = document.createElement('button'); lb.className = 'btn sm'; lb.textContent = '📝 What I did last time'; lb.onclick = () => M.welcomeBack(true); const ca = $('#calAll', b); if(ca) ca.before(lb); }, true); };
+  if(M.plannerBind && $('#hPlan')) M.plannerBind($('#hPlan'));
   if($('#hMore')) $('#hMore').onclick = () => { $('#hChecks .hx-list').innerHTML = flags.map(f=>`<div class="flag"><span class="dot ${f.lvl==='red'?'red':''}"></span><div>${f.html}</div></div>`).join(''); };
   $$('.hk[href="#home/checks"]').forEach(a => a.onclick = e => { e.preventDefault(); $('#hChecks').scrollIntoView({behavior:'smooth', block:'center'}); });
   if($('#hsQ')){ homeSearch(c); }
@@ -385,6 +387,7 @@ M.views.learners = function viewLearners(el){
       <button class="btn sm gold" id="lSf1">${ico('upload')} Upload SF1</button>
       <button class="btn sm" id="lNp">${ico('edit')} Name parts ${M.newTag('name-parts')}</button>
       <button class="btn sm" id="lDup">Duplicates${dupCount(c) ? ` <span class="chip red" style="padding:1px 7px;font-size:11px">${dupCount(c)}</span>` : ''} ${M.newTag('dup-learners')}</button>
+      <button class="btn sm gold" id="l137">📨 Request Old 137${(() => { const id = M.checkItemId(/137/); const n = id ? c.learners.filter(l => M.counted(l) && !(c.checklist[l.id] || {})[id]).length : 0; return n ? ` <span class="chip red" style="padding:1px 7px;font-size:11px">${n}</span>` : ''; })()} ${M.newTag('req-137')}</button>
       <button class="btn sm" id="lPrint">${ico('print')} Print checklist</button>
       <button class="btn sm primary" id="addL">${ico('plus')} Add learner</button>
     </div>
@@ -398,6 +401,7 @@ M.views.learners = function viewLearners(el){
   $('#lf').onclick = e => { const b=e.target.closest('button'); if(!b) return; M.S.ui.lfilter=b.dataset.f; M.save(); viewLearners(el); };
   $('#addL').onclick = () => learnerForm(c, null);
   $('#lPrint').onclick = () => printChecklist(c);
+  $('#l137').onclick = () => M.req137(c, () => viewLearners(el));
   $('#lNp').onclick = () => M.nameCheck(c, () => viewLearners(el));
   $('#lDup').onclick = () => dupFinder(c, () => viewLearners(el));
   $('#lSf1').onclick = () => M.pickSF1();

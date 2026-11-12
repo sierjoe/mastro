@@ -12,7 +12,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.19', date:'2026-11-11', label:'November 11, 2026'};
+M.VERSION = {n:'6.20', date:'2026-11-12', label:'November 12, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -83,6 +83,8 @@ M.COMMENT_BANK = [
 ];
 
 const I = {
+  wallet:'<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18"/><path d="M16 15h2"/><path d="M6 6l9-3 2 3"/>',
+  bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   chev:'<path d="M6 9l6 6 6-6"/>',
   calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
@@ -129,6 +131,8 @@ M.NAV = [
   {id:'analysis', hidden:true, label:'Analysis', icon:'analysis', eyebrow:'Class analysis tools', title:'Analysis'},
   {id:'assess', label:'Assessments', icon:'assess', eyebrow:'Answer sheets · scan · scores', title:'Assessments'},
   {id:'items', hidden:true, label:'Item Analysis', icon:'items', eyebrow:'Summative tests & term examinations', title:'Item Analysis'},
+  {id:'fund-hr', group:'funds', label:'Homeroom', icon:'wallet', eyebrow:'Funds · Homeroom contributions & receipts', title:'Homeroom Fund'},
+  {id:'fund-spta', group:'funds', label:'SPTA', icon:'wallet', eyebrow:'Funds · SPTA contributions & receipts', title:'SPTA Fund'},
   {id:'repo', label:'Repository', icon:'repo', eyebrow:'Documents & files', title:'Repository'},
   {id:'settings', label:'Settings', icon:'settings', eyebrow:'School, backup & data', title:'Settings'}
 ];
@@ -656,7 +660,7 @@ document.addEventListener('click', e => {
   if(!tags.length) return; M.markSeen(tags.map(t => t.dataset.newid)); tags.forEach(t => t.remove());
 }, true);
 M.NAV_NEW = {assess:'nav-assess-ai', reading:'nav-reading'};
-M.NAV_GROUPS = {analytics:{label:'Analytics', icon:'analysis', newId:'nav-analytics'}};
+M.NAV_GROUPS = {analytics:{label:'Analytics', icon:'analysis', newId:'nav-analytics'}, funds:{label:'Funds', icon:'wallet', newId:'nav-funds'}};
 
 /* ---------------- router ---------------- */
 M.applyTheme = () => { const t = M.S.settings.theme; if(t==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);

@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.19 · November 11, 2026)
+# MASTRO — Adviser's Workspace (v6.20 · November 12, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -19,6 +19,23 @@ Offline forms, documents and class management for the class adviser
 - **Learner status**: tag T/O, SARDO, NLP or Dropped Out; statistics and reports reflect it.
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
+
+### New in v6.20
+- **Item analysis** (Assessments → an answer sheet → **🔎 Item analysis**): for every item, how many learners got it right, wrong
+  or left it blank, % right (difficulty), discrimination (upper vs lower 27%), how many chose each letter, and Retain / Revise / Reject.
+  **One report per section** — print one section or all (each on its own A4 page), or Excel with one sheet per section.
+  Scores sent from the iPhone now carry the bubbles too, so they are included.
+- **Old Form 137 requests** (Learners → **📨 Request Old 137**): everyone whose Old 137 is not ticked; tick several learners from the same
+  school / adviser and make **one letter**. Set the previous grade, school year, adviser / teacher, school, each learner's year / section and
+  year enrolled (with **⤓ Same for all**), and **1st request · 2nd request · Urgent**. **✓ Received** ticks Old 137.
+  Upload your own Word template in the letter (it stays only on your device and in your backups — never on GitHub).
+- **Reading reports** (BULIG and Phil-IRI): **Download PDF** (and **Excel** for the tables) beside View and Print.
+- **Funds** in the sidebar → **Homeroom** and **SPTA**: projects agreed for the school year (amount per learner, exemptions),
+  payments in any number of instalments, balances per learner, an **acknowledgement receipt** a quarter of an A4 (landscape, 4 per sheet),
+  summary printout and Excel.
+- **My calendar** on Home: notes, comments, reminders, events and to-dos on any date or from–until, with an optional **alarm**.
+  They pop up every time you open MASTRO (with missed alarms), and alarms ring while MASTRO is open.
+- The **version** now shows in the top bar (also on iPhone).
 
 ### New in v6.19 — safer saving
 - **Records no longer run out of room.** Grades, attendance and everything else are now saved in the browser's large storage
@@ -188,7 +205,7 @@ Offline forms, documents and class management for the class adviser
 ## Update your GitHub copy (you already have v1 online)
 1. Unzip `MASTRO.zip`. Open the `mastro` folder.
 2. In your `mastro` repository on GitHub, click **Add file → Upload files**.
-3. Drag **everything inside the folder** (files and the folders `css`, `js`, `icons`, `vendor`, `templates`) into the page — v6.12–v6.19 changed files and added `js/omr.js`, `js/asheet.js`, `js/scan.js` and `js/philiri.js` (v6.19 adds no new files); v6.11 changes files only (no new files); v6.10 added `js/sf10req.js` and `templates/SF10_Request_Template.docx`; v6.9 added `js/calendar.js`, `templates/RPC_English.jpg` and `templates/RPC_Filipino.jpg`; v6.8 added `js/anecdotal.js`; v6.7 added `js/classtools.js`, `templates/SF4_Template.xlsx` and `templates/SF5_Template.xlsx`; v6.5 added `icons/bulig.png` and `icons/bulig-mark.png`; v6.4 added `js/reading.js`; v6.2 added `js/bowdata.js`, `js/sf78.js`, `templates/SF7_Template.xlsx` and `templates/SF8_Template.xlsx`; v6.1 added `js/assess.js`; v6 added `js/xlsxview.js`, `js/ecredit.js`, `js/tests.js`, `vendor/pdf.min.js` and `vendor/pdf.worker.min.js`;
+3. Drag **everything inside the folder** (files and the folders `css`, `js`, `icons`, `vendor`, `templates`) into the page — v6.20 adds `js/itemsheet.js`, `js/funds.js` and `js/planner.js`; v6.12–v6.19 changed files and added `js/omr.js`, `js/asheet.js`, `js/scan.js` and `js/philiri.js` (v6.19 adds no new files); v6.11 changes files only (no new files); v6.10 added `js/sf10req.js` and `templates/SF10_Request_Template.docx`; v6.9 added `js/calendar.js`, `templates/RPC_English.jpg` and `templates/RPC_Filipino.jpg`; v6.8 added `js/anecdotal.js`; v6.7 added `js/classtools.js`, `templates/SF4_Template.xlsx` and `templates/SF5_Template.xlsx`; v6.5 added `icons/bulig.png` and `icons/bulig-mark.png`; v6.4 added `js/reading.js`; v6.2 added `js/bowdata.js`, `js/sf78.js`, `templates/SF7_Template.xlsx` and `templates/SF8_Template.xlsx`; v6.1 added `js/assess.js`; v6 added `js/xlsxview.js`, `js/ecredit.js`, `js/tests.js`, `vendor/pdf.min.js` and `vendor/pdf.worker.min.js`;
    then **Commit changes**. Files with the same name are replaced.
 4. Optional clean-up: `js/app.js` and `vendor/exceljs.min.js` are no longer used — you can delete them on GitHub.
 5. Wait 1–2 minutes, then open your app link. On iPhone, open MASTRO once while online so it saves the new version.
@@ -211,5 +228,5 @@ is already loaded; to bring in newer SeatCheck records, go to **Attendance → M
 - Saved only on the device (browser storage). Use **Settings → Back up everything** often and keep the file in your Google Drive folder.
 - To move data to another device: **Settings → Restore backup** there.
 - Clearing Safari website data deletes MASTRO data — keep backups.
-- When you change files later, also edit `sw.js` and raise `mastro-v6.19.0` (e.g. to `mastro-v6.19.1`) so devices download the update.
+- When you change files later, also edit `sw.js` and raise `mastro-v6.20.0` (e.g. to `mastro-v6.20.1`) so devices download the update.
 - Restore points stay on the device they were made on. They help you undo a mistake; they do not replace **Back up everything**.

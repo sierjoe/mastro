@@ -1424,3 +1424,75 @@ b.p-nm{font-weight:800!important}
 .a-repo{background:linear-gradient(145deg,#8ea4ff,#5068e8)}.a-settings{background:linear-gradient(145deg,#a3adbd,#6b7689)}
 @media (max-width:900px){.h2col,.h2col-even{grid-template-columns:1fr}.hk-row{grid-template-columns:1fr 1fr}.h-apps{grid-template-columns:repeat(4,1fr)}}
 @media (max-width:420px){.hk{padding:14px}.hk-v{font-size:24px}.h-app-ico{width:46px;height:46px}}
+
+/* ===================== v6.20 ===================== */
+.pbreak{break-after:page;page-break-after:always;height:0}
+/* item analysis */
+.ia-t td,.ia-t th{white-space:nowrap}
+.ia-t tr.ia-low td{background:rgba(220,60,60,.08)}
+.ia-t td.ia-key{background:rgba(31,107,74,.16);font-weight:700}
+.ia-t td.ia-bad{background:rgba(214,160,30,.18)}
+.ia-print{font-family:Arial,Helvetica,sans-serif;font-size:9pt;color:#000}
+.ia-print .c{text-align:center}.ia-print .t{font-size:12.5pt;font-weight:bold;margin:1.5mm 0}
+.ia-print table{width:100%;border-collapse:collapse;margin-top:3mm}
+.ia-print th,.ia-print td{border:.25mm solid #000;padding:.8mm 1.2mm;text-align:center}
+.ia-print tr.ia-low td{background:#f3dada}
+.ia-print td.ia-key{text-decoration:underline;font-weight:bold}.ia-print td.ia-bad{font-style:italic}
+.ia-print .s{margin-top:3mm}.ia-print .tiny{font-size:7.5pt}
+.ia-sign{margin-top:8mm}.ia-sign .nm{margin-top:7mm;font-weight:bold;text-transform:uppercase}
+/* reading report PDF (rendered off-screen) */
+.rd-pdf-host{position:fixed;left:-30000px;top:0;background:#fff;z-index:-1}
+.rd-pdf-host .rd-prev{zoom:1!important}
+.rd-pdf-host .rd-prev .fitbox{padding:0!important;box-shadow:none!important;margin:0 0 4px!important;background:#fff}
+
+/* funds */
+.fd-projs{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.fd-proj{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:14px;background:rgba(127,127,127,.08);border:1px solid transparent}
+.fd-proj:hover{border-color:var(--green)}
+.fd-t td.fd-full{background:rgba(31,107,74,.14);color:var(--green);font-weight:700}
+.fd-t td.fd-part{background:rgba(214,160,30,.16)}
+.fd-t td.fd-none{background:rgba(220,60,60,.08);color:var(--red,#c0392b)}
+.fd-t td.fd-ex{opacity:.5}
+.fd-t tfoot td{border-top:2px solid rgba(127,127,127,.35)}
+.fd-line{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed rgba(127,127,127,.25)}
+.fd-pt th,.fd-pt td{text-align:center}.fd-pt td.l{text-align:left}
+/* acknowledgement receipt: quarter of A4 landscape, 4 per sheet */
+.ar-sheet{width:281mm;height:194mm;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;break-after:page;page-break-after:always;overflow:hidden}
+.ar-sheet:last-child{break-after:auto;page-break-after:auto}
+.ar{box-sizing:border-box;border-right:.3mm dashed #999;border-bottom:.3mm dashed #999;padding:3.5mm 4.5mm;overflow:hidden;font-family:Arial,Helvetica,sans-serif;font-size:7.6pt;color:#000;line-height:1.25}
+.ar:nth-child(2n){border-right:0}.ar:nth-child(n+3){border-bottom:0}
+.ar-in{height:100%;display:flex;flex-direction:column;gap:1.4mm}
+.ar-hd{display:grid;grid-template-columns:11mm 1fr 11mm;align-items:center;text-align:center;gap:2mm}
+.ar-hd img{width:11mm;height:11mm;object-fit:contain}.ar-hd b{font-size:9pt;display:block}
+.ar-s1{font-size:6.4pt}
+.ar-tt{text-align:center;border-top:.3mm solid #000;border-bottom:.3mm solid #000;padding:.8mm 0}.ar-tt b{font-size:10.5pt;letter-spacing:.06em;display:block}.ar-tt span{font-size:7pt}
+.ar-no{display:flex;justify-content:space-between}
+.ar-p{margin:0;text-align:justify}
+.ar-t{width:100%;border-collapse:collapse}.ar-t th,.ar-t td{border:.2mm solid #000;padding:.6mm 1.2mm;text-align:right;font-size:7pt}
+.ar-t th{text-align:center;background:#eee}.ar-t td.l{text-align:left}.ar-t tr.ar-tot td{font-weight:bold}
+.ar-note{font-size:6.8pt;font-style:italic}
+.ar-ft{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end}
+.ar-st{font-weight:bold;border:.3mm solid #000;border-radius:1mm;padding:.6mm 2mm}
+.ar-sig{text-align:center;min-width:52mm}.ar-sig .nm{border-top:.25mm solid #000;font-weight:bold;text-transform:uppercase;padding-top:.6mm;margin-top:6mm}
+.ar-empty{border-color:transparent!important}
+
+/* version in the top bar */
+.ver-top{font-size:11px;font-weight:800;letter-spacing:.03em;padding:4px 9px;border-radius:999px;background:var(--green,#1f6b4a);color:#fff;white-space:nowrap;align-self:center}
+/* my calendar */
+.pl-ym{min-width:130px;text-align:center}
+.pl-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
+.pl-wd{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;opacity:.6;text-align:center;padding:2px 0}
+.pl-day{all:unset;cursor:pointer;box-sizing:border-box;min-height:62px;border-radius:10px;padding:4px 6px;background:rgba(127,127,127,.07);display:flex;flex-direction:column;gap:2px;overflow:hidden;border:1.5px solid transparent}
+.pl-day:hover{border-color:var(--green)}
+.pl-day.off{opacity:.38}.pl-day.today{border-color:var(--green);background:rgba(31,107,74,.12)}
+.pl-day.hol .pl-dn{color:var(--red)}
+.pl-dn{font-weight:800;font-size:13px}
+.pl-dots{display:flex;gap:3px;min-height:6px}.pl-dots i{width:6px;height:6px;border-radius:50%}.pl-dots i.sc{background:#999}
+.pl-lb{font-size:10px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pl-lb.sc{opacity:.6}
+.pl-n{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;margin:4px 0;border-radius:10px;background:rgba(127,127,127,.07);border-left:4px solid var(--kc,#888)}
+.pl-n.done{opacity:.55}.pl-n.done b{text-decoration:line-through}
+.pl-ck{all:unset;cursor:pointer;width:18px;height:18px;border-radius:5px;border:1.5px solid var(--kc,#888);display:grid;place-items:center;font-size:12px;font-weight:800;flex:none;margin-top:1px}
+.pl-tx{margin-top:2px;opacity:.85}
+@media (max-width:600px){.pl-day{min-height:44px;padding:3px}.pl-lb{display:none}.ver-top{font-size:10px;padding:3px 7px}}
+.pl-nav{display:inline-flex;align-items:center;gap:6px;flex-wrap:nowrap}
+@media (max-width:600px){.pl-card > .row h3{flex-basis:100%}.pl-ym{min-width:120px}}

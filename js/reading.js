@@ -146,14 +146,15 @@ function drawMatrix(box, c, d, L){
   box.innerHTML = `<div class="mf-box"><div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><b class="small">Reading profile per level · male &amp; female</b><span class="spacer"></span>
       <div class="seg sm" id="mxP">${PER.map(([k, t]) => `<button data-p="${k}" class="${k === u.rdPer ? 'on' : ''}">${t}</button>`).join('')}</div>
       <div class="seg sm" id="mxB"><button data-b="pre" class="${u.rdBasis === 'pre' ? 'on' : ''}">Pre-test level</button><button data-b="cur" class="${u.rdBasis === 'cur' ? 'on' : ''}">Current level</button></div>
-      <button class="btn sm" id="mxPr">${ico('print')} Print</button></div>
+      <button class="btn sm" id="mxDl">${ico('download')} PDF</button><button class="btn sm" id="mxPr">${ico('print')} Print</button></div>
     <div class="table-wrap" style="margin-top:8px">${matrixTable(d, L, u.rdPer, u.rdBasis)}</div>
     <div class="tiny muted" style="margin-top:6px">${lab} reading profile of the learners in each BULIG level (${u.rdBasis === 'pre' ? 'pre-test level' : 'level after the latest assessment period'}). Learners with no ${lab} profile are not counted.</div></div>`;
   $$('#mxP button', box).forEach(x => x.onclick = () => { u.rdPer = x.dataset.p; M.save(); drawMatrix(box, c, d, L); });
   $$('#mxB button', box).forEach(x => x.onclick = () => { u.rdBasis = x.dataset.b; M.save(); drawMatrix(box, c, d, L); });
-  $('#mxPr', box).onclick = () => { const html = `<div class="rdp">${head(c, d, `READING PROFILE PER LEVEL · ${lab} · MALE AND FEMALE`, u.rdBasis === 'cur' ? d.aps.length : 0)}${matrixTable(d, L, u.rdPer, u.rdBasis, true)}
+  const mxHtml = () => `<div class="rdp">${head(c, d, `READING PROFILE PER LEVEL · ${lab} · MALE AND FEMALE`, u.rdBasis === 'cur' ? d.aps.length : 0)}${matrixTable(d, L, u.rdPer, u.rdBasis, true)}
       <div style="font-size:8.5pt;margin-top:6px">${lab} reading profile (${esc(d.tool)}) by ${u.rdBasis === 'pre' ? 'pre-test level' : 'current level'}. M = male, F = female.</div>${sign(c)}</div>`;
-    preview(`Reading profile per level · ${lab}`, [html], true); };
+  $('#mxPr', box).onclick = () => preview(`Reading profile per level · ${lab}`, [mxHtml()], true);
+  $('#mxDl', box).onclick = () => downloadPdf(`BULIG reading profile per level ${lab}`, [mxHtml()], true);
 }
 
 /* ---------- 1 · Pre-test level + BOSY/MOSY/EOSY profile (template: MONITORING columns F, H, I, J) ---------- */
@@ -264,10 +265,11 @@ function repTab(el, c, d, L){
   el.innerHTML = `<div class="card"><h2 style="margin:0 0 4px">BULIG reports · ${esc(d.subject === 'FILIPINO' ? 'Filipino' : 'English')} reading</h2><p class="small muted" style="margin:0 0 14px">Every report fits A4 inside 0.3 in margins — big classes shrink to fit, nothing runs off the page. Tap <b>View</b> to check it before printing.</p>
     <div class="item rpc-item" style="align-items:center;gap:12px;margin-bottom:10px"><img src="${RPC_IMG(d)}" alt="" style="width:40px;height:56px;object-fit:cover;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.2)"><div class="grow"><div class="title">Reading Progress Card (BPrC) ${M.newTag('rpc')} <span class="chip" style="font-size:10px;padding:2px 8px">A4 landscape · EN + FIL</span></div><div class="tiny muted">One sheet per learner: English copy and Filipino copy side by side, with name, LRN and the date each level was passed. Pick one, several or all learners; print or download a PDF.</div></div><button class="btn sm primary" id="rpcGo">${ico('print')} Choose learners</button></div>
     <div class="list">${R.map(r => `<div class="item" style="align-items:center;gap:12px">${ico('pdf','width:24px;height:24px;color:var(--green)')}<div class="grow"><div class="title">${r.t}${r.land ? ' <span class="chip" style="font-size:10px;padding:2px 8px">A4 landscape</span>' : ' <span class="chip" style="font-size:10px;padding:2px 8px">A4</span>'}</div><div class="tiny muted">${r.s}</div></div>
-      ${r.ap ? apSel(r.ap) : ''}<button class="btn sm" data-v="${r.id}" ${r.ap && !aps.length ? 'disabled' : ''}>${ico('eye')} View</button><button class="btn sm primary" data-p="${r.id}" ${r.ap && !aps.length ? 'disabled' : ''}>${ico('print')} Print</button></div>`).join('')}</div></div>`;
+      ${r.ap ? apSel(r.ap) : ''}<button class="btn sm" data-v="${r.id}" ${r.ap && !aps.length ? 'disabled' : ''}>${ico('eye')} View</button><button class="btn sm" data-d="${r.id}" ${r.ap && !aps.length ? 'disabled' : ''} title="Download as PDF">${ico('download')} PDF</button><button class="btn sm primary" data-p="${r.id}" ${r.ap && !aps.length ? 'disabled' : ''}>${ico('print')} Print</button></div>`).join('')}</div></div>`;
   $$('[data-v]', el).forEach(b => b.onclick = () => { const r = R.find(x => x.id === b.dataset.v); preview(r.t, r.pages(), !!r.land); });
   $('#rpcGo', el).onclick = () => rpcPicker(c, d, L);
   $$('[data-p]', el).forEach(b => b.onclick = () => { const r = R.find(x => x.id === b.dataset.p); printPages(r.pages(), !!r.land); });
+  $$('[data-d]', el).forEach(b => b.onclick = () => { const r = R.find(x => x.id === b.dataset.d); downloadPdf(`BULIG ${r.t} ${d.subject === 'FILIPINO' ? 'Filipino' : 'English'}`, r.pages(), !!r.land); });
 }
 
 /* ---------- Reading Progress Card (BPrC) — the BULIG card template, filled ---------- */
@@ -422,12 +424,47 @@ function fitPages(pages, land){
     return `<div class="fitbox" style="width:${W}mm;height:${H}mm;overflow:hidden"><div style="width:${(W / k).toFixed(2)}mm;transform:scale(${k.toFixed(4)});transform-origin:0 0">${html}</div></div>`; }).join('');
 }
 function printPages(pages, land){ M.doPrint(fitPages(pages, land), M.pageCss('A4', land), {noFit: true}); }
+/* ---------- downloads (v6.20): the same A4 pages as a PDF, and the tables as an Excel workbook ---------- */
+const fileSafe = (s) => String(s || 'Reading report').replace(/[\\\/:*?"<>|·]+/g, ' ').replace(/\s+/g, ' ').trim();
+async function downloadPdf(title, pages, land){
+  M.toast('Making the PDF…');
+  await Promise.all([M.loadScript('vendor/html2canvas.min.js'), M.loadScript('vendor/jspdf.umd.min.js')]);
+  const host = document.createElement('div'); host.className = 'rd-pdf-host';
+  host.innerHTML = `<div class="print-only rd-prev ${land ? 'land' : ''}">${M.safePages(fitPages(pages, land))}</div>`;
+  document.body.appendChild(host);
+  try {
+    await new Promise(r => setTimeout(r, 120));
+    const {jsPDF} = window.jspdf; const pdf = new jsPDF({orientation: land ? 'landscape' : 'portrait', unit: 'mm', format: 'a4', compress: true});
+    const PW = land ? 297 : 210, PH = land ? 210 : 297, m = 7.62;   // 0.3 in margins
+    const boxes = [...host.querySelectorAll('.fitbox')];
+    for(let i = 0; i < boxes.length; i++){
+      const cv = await html2canvas(boxes[i], {scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true});
+      if(i) pdf.addPage('a4', land ? 'landscape' : 'portrait');
+      const w = PW - 2 * m, h = Math.min(PH - 2 * m, w * cv.height / cv.width);
+      pdf.addImage(cv.toDataURL('image/jpeg', 0.92), 'JPEG', m, m, w, h, undefined, 'FAST');
+    }
+    pdf.save(`${fileSafe(title)}.pdf`); M.toast('PDF downloaded');
+  } catch(e){ alert('Could not make the PDF: ' + e.message); }
+  finally { host.remove(); }
+}
+function downloadXlsx(title, pages){
+  const box = document.createElement('div'); box.innerHTML = pages.join('');
+  const tables = [...box.querySelectorAll('table')].filter(t => !t.classList.contains('rd-info') && t.rows.length > 1);
+  if(!tables.length) return M.toast('This report has no table to put in Excel — use Download PDF');
+  const wb = XLSX.utils.book_new(); const head = [[M.S.settings.school || ''], [title], [M.className(M.cls())], []];
+  tables.forEach((t, i) => { const ws = XLSX.utils.aoa_to_sheet(head); XLSX.utils.sheet_add_dom(ws, t, {origin: 'A5', raw: true});
+    ws['!cols'] = [{wch: 34}, ...Array(30).fill({wch: 12})];
+    XLSX.utils.book_append_sheet(wb, ws, `Table ${i + 1}`); });
+  XLSX.writeFile(wb, `${fileSafe(title)}.xlsx`); M.toast('Excel downloaded');
+}
+M.rdDownloadPdf = downloadPdf; M.rdDownloadXlsx = downloadXlsx;
 function preview(title, pages, land){
   const html = fitPages(pages, land);
-  M.modal(title, `<div class="row" style="margin-bottom:10px"><span class="small muted">A4 ${land ? 'landscape' : 'portrait'} · 0.3 in margins · ${pages.length} page(s)</span><span class="spacer"></span><button class="btn primary" id="pvP">${ico('print')} Print</button></div>
+  M.modal(title, `<div class="row" style="margin-bottom:10px"><span class="small muted">A4 ${land ? 'landscape' : 'portrait'} · 0.3 in margins · ${pages.length} page(s)</span><span class="spacer"></span><button class="btn" id="pvD">${ico('download')} Download PDF</button><button class="btn" id="pvX">${ico('download')} Excel</button><button class="btn primary" id="pvP">${ico('print')} Print</button></div>
     <div class="rd-prev-wrap"><div class="print-only rd-prev ${land ? 'land' : ''}">${M.safePages(html)}</div></div>`, b => {
     const box = $('.rd-prev', b); const fit = () => { const pw = (land ? 297 : 210) * 96 / 25.4; const z = Math.min(1, ($('.rd-prev-wrap', b).clientWidth - 24) / pw); box.style.zoom = z.toFixed(3); }; fit();
     $('#pvP', b).onclick = () => printPages(pages, land);
+    $('#pvD', b).onclick = () => downloadPdf(title, pages, land); $('#pvX', b).onclick = () => downloadXlsx(title, pages);
   }, true);
 }
 M.rdPreview = preview; M.rdPrint = printPages;
