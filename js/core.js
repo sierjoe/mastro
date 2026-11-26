@@ -12,7 +12,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.20', date:'2026-11-12', label:'November 12, 2026'};
+M.VERSION = {n:'6.21', date:'2026-11-26', label:'November 26, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -659,7 +659,7 @@ document.addEventListener('click', e => {
   const tags = [...host.querySelectorAll('.new-tag')]; if(host.classList && host.classList.contains('new-tag')) tags.push(host);
   if(!tags.length) return; M.markSeen(tags.map(t => t.dataset.newid)); tags.forEach(t => t.remove());
 }, true);
-M.NAV_NEW = {assess:'nav-assess-ai', reading:'nav-reading'};
+M.NAV_NEW = {assess:'nav-assess-ai', reading:'nav-reading-hub'};
 M.NAV_GROUPS = {analytics:{label:'Analytics', icon:'analysis', newId:'nav-analytics'}, funds:{label:'Funds', icon:'wallet', newId:'nav-funds'}};
 
 /* ---------------- router ---------------- */

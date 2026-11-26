@@ -210,8 +210,8 @@ function cmpPage(c, L){
 /* ---------- Reading tab: BULIG | Phil-IRI ---------- */
 M.views.reading = function(el, args){
   const u = M.S.ui; u.readMode = u.readMode || 'bulig';
-  el.innerHTML = `<div class="row" style="margin-bottom:16px"><div class="seg rd-mode" id="rdMode"><button data-m="bulig" class="${u.readMode === 'bulig' ? 'on' : ''}">BULIG</button><button data-m="philiri" class="${u.readMode === 'philiri' ? 'on' : ''}">Phil-IRI</button></div></div><div id="rdHost"></div>`;
+  el.innerHTML = `<div class="row" style="margin-bottom:16px"><div class="seg rd-mode" id="rdMode"><button data-m="bulig" class="${u.readMode === 'bulig' ? 'on' : ''}">BULIG</button><button data-m="philiri" class="${u.readMode === 'philiri' ? 'on' : ''}">Phil-IRI</button><button data-m="hub" class="hub-tab ${u.readMode === 'hub' ? 'on' : ''}">✦ BULIG Hub</button></div></div><div id="rdHost"></div>`;
   $$('#rdMode button', el).forEach(b => b.onclick = () => { u.readMode = b.dataset.m; M.save(); M.views.reading(el, []); });
-  (u.readMode === 'philiri' ? M.views.readingPhiliri : M.views.readingBulig)($('#rdHost', el), args || []);
+  (u.readMode === 'philiri' ? M.views.readingPhiliri : u.readMode === 'hub' ? M.views.readingHub : M.views.readingBulig)($('#rdHost', el), args || []);
 };
 })();

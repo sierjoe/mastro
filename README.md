@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.20 · November 12, 2026)
+# MASTRO — Adviser's Workspace (v6.21 · November 26, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -19,6 +19,17 @@ Offline forms, documents and class management for the class adviser
 - **Learner status**: tag T/O, SARDO, NLP or Dropped Out; statistics and reports reflect it.
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
+
+### New in v6.21
+- **✦ BULIG Hub** (Reading → **BULIG Hub**): the Division of Bukidnon BULIG modules as interactive activities on the laptop —
+  project them for the whole class or choose one learner in **Who's reading?**; results are saved to the learner.
+  - **Level 6 · Graded Comprehension** (Grades 7–10): read the selection on a full-screen page (🔊 read aloud, A−/A+ text size),
+    then one question at a time with instant feedback, stars, a skill breakdown (literal / interpretive / critical / creative) and answer review.
+    **Answer keys** tab: check or correct any key (Grade 8 has no printed key — those answers were written for you to verify).
+  - **Level 4 · Fluency** (10 poems, 15 stories, pre- and post-assessment): ▶ timer, tap words to mark miscues
+    (mispronunciation, omission, substitution, insertion, repetition, transposition, reversal), 🔊 model reading with word highlight,
+    🐢 pace reader; oral reading score, level (Independent / Instructional / Frustration) and words per minute.
+  - **Progress** tab per level (learners × activities) with CSV download.
 
 ### New in v6.20
 - **Item analysis** (Assessments → an answer sheet → **🔎 Item analysis**): for every item, how many learners got it right, wrong
