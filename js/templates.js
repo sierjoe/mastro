@@ -465,7 +465,7 @@ M.templatePages = async function(code, blob, opts, onStep){
       // SF10 prints on 8.5 × 13 in long bond unless you pick another paper — a template set to Legal / A4 used to run past the bottom of the long paper
       let pp = (M.S.settings.tplPaper || {})[code]; if(code === 'SF10' && !pp) pp = 'FOLIO'; if(pp === 'TEMPLATE') pp = '';
       const base = Object.assign({drawings: x.src.drawings}, /^SF2$/.test(code) ? {orientation:'landscape', fit:true} : /^SF[45]$/.test(code) ? {paper:[11.69, 8.27], margin:0.3, fit:true} : {},
-        pp === 'A4' ? {paper:[8.27, 11.69], fit:true} : pp === 'FOLIO' ? {paper:[8.5, 13], fit:true} : pp === 'LEGAL' ? {paper:[8.5, 14], fit:true} : {});
+        pp === 'A4' ? {paper:[8.27, 11.69], fit:true, fill:true} : pp === 'A5' ? {paper:[5.83, 8.27], fit:true, fill:true} : pp === 'LETTER' ? {paper:[8.5, 11], fit:true, fill:true} : pp === 'FOLIO' ? {paper:[8.5, 13], fit:true, fill:true} : pp === 'LEGAL' ? {paper:[8.5, 14], fit:true, fill:true} : {});
       // portrait / landscape choice (e.g. SF8 in portrait): the form is scaled to fit the chosen direction
       const ori = (M.S.settings.tplOrient || {})[code]; if(ori){ base.orientation = ori; base.fit = true; if(base.paper){ const [a, b2] = base.paper; base.paper = ori === 'portrait' ? [Math.min(a, b2), Math.max(a, b2)] : [Math.max(a, b2), Math.min(a, b2)]; } }
       // some forms print on more than one page (row ranges); unused learner rows can be hidden on screen/print
@@ -552,7 +552,7 @@ function progress(text){
   return { set:(t, f) => { $('.pt', p).textContent = t; $('.bar-fill', p).style.width = (f*100)+'%'; }, done:() => p.remove() };
 }
 M.xvProgress = progress;
-const paperName = (pp) => { const k = pp.map(x => +x.toFixed(2)).join('×'); return ({'8.5×13':'8.5 × 13 in (folio)','8.5×14':'8.5 × 14 in (legal)','8.5×11':'8.5 × 11 in (letter)','8.27×11.69':'A4','11.69×8.27':'A4 landscape','13×8.5':'13 × 8.5 in (folio, landscape)','14×8.5':'8.5 × 14 in landscape'})[k] || `${pp[0]} × ${pp[1]} in`; };
+const paperName = (pp) => { const k = pp.map(x => +x.toFixed(2)).join('×'); return ({'8.5×13':'8.5 × 13 in (folio)','8.5×14':'8.5 × 14 in (legal)','8.5×11':'8.5 × 11 in (letter)','8.27×11.69':'A4','11.69×8.27':'A4 landscape','5.83×8.27':'A5','8.27×5.83':'A5 landscape','11×8.5':'8.5 × 11 in (letter) landscape','13×8.5':'13 × 8.5 in (folio, landscape)','14×8.5':'8.5 × 14 in landscape'})[k] || `${pp[0]} × ${pp[1]} in`; };
 M.xvPaperName = paperName;
 M.xvPrintPages = (pages) => M.doPrint(M.xvTrueFit(pages.map(p => p.html).join('')), M.xvPageCss(pages[0].paper), {margin: pages[0].margins ? pages[0].margins[0] : 0.5, noFit: true});
 M.xvPdf = async function(pages, filename){
@@ -641,7 +641,7 @@ M.templateCard = async function(el, f){
           <button class="icon-btn" id="vNx" ${i<L.length-1?'':'disabled'}>${ico('right','width:18px;height:18px')}</button>
           <span class="small muted">${i+1} of ${L.length}</span><span class="spacer"></span>
           <button class="btn sm" id="vP1">${ico('print')} Print</button><button class="btn sm" id="vD1">${ico('pdf')} PDF</button><button class="btn sm" id="vX1">${ico('download')} Excel</button>
-          ${f.code === 'SF10' ? `<select class="input" id="vPaper" style="width:auto;padding:6px 10px;font-size:13px" title="Paper you print on">${[['FOLIO','Paper: 8.5 × 13 in (long)'],['A4','Paper: A4'],['LEGAL','Paper: 8.5 × 14 in (legal)'],['TEMPLATE','Paper: as in template']].map(([v, t]) => `<option value="${v}" ${(((M.S.settings.tplPaper||{})[f.code]||'FOLIO')) === v ? 'selected' : ''}>${t}</option>`).join('')}</select>` : ''}
+          ${/^SF(9|10)$/.test(f.code) ? `<select class="input" id="vPaper" style="width:auto;padding:6px 10px;font-size:13px" title="Paper you print on — the form is enlarged or reduced to fill it">${[['FOLIO','Paper: 8.5 × 13 in (long)'],['A4','Paper: A4 (210 × 297 mm)'],['A5','Paper: A5'],['LETTER','Paper: 8.5 × 11 in (letter)'],['TEMPLATE','Paper: as in template']].map(([v, t]) => `<option value="${v}" ${(((M.S.settings.tplPaper||{})[f.code]||(f.code === 'SF10' ? 'FOLIO' : 'TEMPLATE'))) === v ? 'selected' : ''}>${t}</option>`).join('')}</select>` : ''}
           <button class="btn sm primary" id="vPA">${ico('print')} Print all (${L.length})</button><button class="btn sm primary" id="vDA">${ico('pdf')} Bulk PDF</button><button class="btn sm" id="vClose">✕</button></div>
         <div class="chips" id="vInfo" style="margin:10px 0"></div><div id="vPages"><div class="empty">Filling…</div></div>`;
       const go = (id) => { ui.lid = id; viewer(); };

@@ -12,7 +12,7 @@ const M = window.M = { views:{} };
 
 /* ---------------- constants ---------------- */
 M.KEY = 'mastro.v1';
-M.VERSION = {n:'6.22', date:'2026-11-26', label:'November 26, 2026'};
+M.VERSION = {n:'6.23', date:'2026-11-26', label:'November 26, 2026'};
 M.DEV = {name:'Jhon Joemar L. La Victoria', org:'Impalutao Integrated School'};
 M.RAW = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','Music & Arts','PE & Health'];
 M.AREAS = ['English','Filipino','Science','Mathematics','TLE','Araling Panlipunan','Values Education','MAPEH'];
@@ -116,6 +116,7 @@ const I = {
   save:'<path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v6h8V3M7 21v-7h10v7"/>',
   trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14M10 11v6M14 11v6"/>',
   book:'<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>',
+  gate:'<path d="M3 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/><path d="M2 21h20M11 12h.01M15 8h4a2 2 0 0 1 2 2v11"/><path d="M18 14l2 2-2 2"/>',
   pdf:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 16v-4h1.5a1.5 1.5 0 0 1 0 3H8M13 12v4h1a2 2 0 0 0 0-4z"/>'
 };
 M.ico = (n, style='') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${style?`style="${style}"`:''}>${I[n]||''}</svg>`;
@@ -126,6 +127,7 @@ M.NAV = [
   {id:'learners', label:'Learners', icon:'learners', eyebrow:'Roster & credentials checklist', title:'Learners'},
   {id:'grades', label:'Grades', icon:'grades', eyebrow:'Consolidated gradesheet', title:'Grades'},
   {id:'reading', label:'Reading', icon:'book', eyebrow:'BULIG · Phil-IRI reading monitoring', title:'Reading'},
+  {id:'gatepass', label:'Gate Pass', icon:'gate', eyebrow:'Let learners out · print the pass · anecdotal record', title:'Gate Pass'},
   {id:'classes', label:'Classes', icon:'classes', eyebrow:'Electronic class records (ECR)', title:'Classes'},
   {id:'forms', label:'Forms', icon:'forms', eyebrow:'DepEd School Forms SF1–SF10', title:'Forms'},
   {id:'analysis', hidden:true, label:'Analysis', icon:'analysis', eyebrow:'Class analysis tools', title:'Analysis'},
@@ -659,7 +661,7 @@ document.addEventListener('click', e => {
   const tags = [...host.querySelectorAll('.new-tag')]; if(host.classList && host.classList.contains('new-tag')) tags.push(host);
   if(!tags.length) return; M.markSeen(tags.map(t => t.dataset.newid)); tags.forEach(t => t.remove());
 }, true);
-M.NAV_NEW = {assess:'nav-assess-ai', reading:'nav-reading-hub'};
+M.NAV_NEW = {assess:'nav-assess-ai', reading:'nav-reading-hub', gatepass:'nav-gatepass'};
 M.NAV_GROUPS = {analytics:{label:'Analytics', icon:'analysis', newId:'nav-analytics'}, funds:{label:'Funds', icon:'wallet', newId:'nav-funds'}};
 
 /* ---------------- router ---------------- */

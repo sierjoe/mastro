@@ -63,7 +63,7 @@ function view(el, k){
       <div class="small muted">School year ${esc(c.sy || '')} · contributions agreed for the year, paid in full or in instalments. Every payment gets an acknowledgement receipt.</div></div>
       <button class="btn" id="fdSet">${ico('settings')} Receipt details</button><button class="btn" id="fdProj">${ico('plus')} Project</button><button class="btn primary" id="fdPay" ${P.length ? '' : 'disabled'}>₱ Record payment</button></div>
     <div class="rp-stats">${[['Expected', peso(expected)], ['Collected', peso(got)], ['Balance', peso(Math.max(0, expected - got))], ['Fully paid', `${full} / ${L.length}`], ['Not yet paid', none], ['Payments', F.pays.length]].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('')}</div>
-    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" id="fdRc" ${F.pays.length ? '' : 'disabled'}>${ico('print')} Print receipts</button><button class="btn sm" id="fdSum" ${P.length ? '' : 'disabled'}>${ico('print')} Print summary</button><button class="btn sm" id="fdX" ${P.length ? '' : 'disabled'}>${ico('download')} Excel</button></div></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" id="fdRc" ${F.pays.length ? '' : 'disabled'}>${ico('print')} Print receipts</button><button class="btn sm" id="fdRec" ${F.pays.length ? '' : 'disabled'}>📒 Payment records</button><button class="btn sm" id="fdSum" ${P.length ? '' : 'disabled'}>${ico('print')} Print summary</button><button class="btn sm" id="fdX" ${P.length ? '' : 'disabled'}>${ico('download')} Excel</button></div></div>
 
   <div class="card" style="margin-top:16px"><h3 style="margin:0 0 10px">Projects</h3>
     ${P.length ? `<div class="fd-projs">${P.map(pr => { const exp = r2(L.reduce((a, l) => a + due(pr, l.id), 0)), g = r2(L.reduce((a, l) => a + paid(F, l.id, pr.id), 0));
@@ -75,10 +75,10 @@ function view(el, k){
     <div class="table-wrap"><table class="fd-t"><thead><tr><th>#</th><th class="sticky-col">Learner</th>${P.map(pr => `<th class="c">${esc(pr.name)}<div class="tiny muted">${peso(pr.amount)}</div></th>`).join('')}<th class="num">Paid</th><th class="num">Balance</th><th></th></tr></thead>
       <tbody>${L.map((l, i) => { const d = dueAll(F, l.id), p = paidAll(F, l.id); const st = d && p >= d ? 'full' : 'bal';
         return `<tr data-row="${st}" data-name="${esc(M.normName(l.name))}"><td class="muted">${i + 1}</td><td class="sticky-col"><a href="#" data-led="${l.id}"><b>${esc(l.name)}</b></a> ${M.statusChip(l, 1)}<div class="tiny muted">${F.pays.filter(x => x.lid === l.id).length} payment(s)</div></td>${P.map(pr => cell(l, pr)).join('')}
-          <td class="num"><b>${peso(p)}</b></td><td class="num ${d - p > 0 ? 'low' : ''}">${d - p > 0 ? peso(d - p) : '<span style="color:var(--green)">✓ Paid</span>'}</td><td><button class="btn sm" data-pay="${l.id}">₱ Pay</button></td></tr>`; }).join('')}</tbody>
+          <td class="num"><b>${peso(p)}</b></td><td class="num ${d - p > 0 ? 'low' : ''}">${d - p > 0 ? peso(d - p) : '<span style="color:var(--green)">✓ Paid</span>'}</td><td style="white-space:nowrap"><button class="btn sm" data-pay="${l.id}">₱ Pay</button> <button class="btn sm" data-led2="${l.id}" title="Payment record of this learner">📒</button></td></tr>`; }).join('')}</tbody>
       <tfoot><tr><td></td><td class="sticky-col"><b>Total</b></td>${P.map(pr => `<td class="c"><b>${peso(L.reduce((a, l) => a + paid(F, l.id, pr.id), 0)).replace('₱', '')}</b></td>`).join('')}<td class="num"><b>${peso(got)}</b></td><td class="num"><b>${peso(Math.max(0, expected - got))}</b></td><td></td></tr></tfoot></table></div></div>
 
-  <div class="card" style="margin-top:16px"><h3 style="margin:0 0 10px">Latest payments</h3>${F.pays.length ? `<div class="list">${[...F.pays].sort((a, b) => (b.date + b.at).localeCompare(a.date + a.at)).slice(0, 12).map(p => payRow(c, F, k, p)).join('')}</div>` : '<div class="empty small">No payments yet.</div>'}</div>` : ''}`;
+  <div class="card" style="margin-top:16px"><div class="row" style="margin:0 0 10px"><h3 style="margin:0">Latest payments</h3><span class="spacer"></span>${F.pays.length > 12 ? `<button class="btn sm" id="fdRec2">See all ${F.pays.length} →</button>` : ''}</div>${F.pays.length ? `<div class="list">${[...F.pays].sort((a, b) => (b.date + b.at).localeCompare(a.date + a.at)).slice(0, 12).map(p => payRow(c, F, k, p)).join('')}</div>` : '<div class="empty small">No payments yet.</div>'}</div>` : ''}`;
 
   const rr = () => view(el, k);
   $('#fdProj', el).onclick = () => projectForm(c, k, null, rr);
@@ -87,6 +87,8 @@ function view(el, k){
   $$('[data-pe]', el).forEach(b => b.onclick = () => projectForm(c, k, P.find(x => x.id === b.dataset.pe), rr));
   $$('[data-pay]', el).forEach(b => b.onclick = () => payForm(c, k, b.dataset.pay, rr));
   $$('[data-led]', el).forEach(a => a.onclick = (e) => { e.preventDefault(); ledger(c, k, a.dataset.led, rr); });
+  $$('[data-led2]', el).forEach(a => a.onclick = () => ledger(c, k, a.dataset.led2, rr));
+  ['#fdRec', '#fdRec2'].forEach(id => { if($(id, el)) $(id, el).onclick = () => records(c, k, rr); });
   bindPayRows(el, c, k, rr);
   if($('#fdRc', el)) $('#fdRc', el).onclick = () => receiptPicker(c, k);
   if($('#fdSum', el)) $('#fdSum', el).onclick = () => printSummary(c, k);
@@ -97,7 +99,7 @@ function view(el, k){
 }
 function payRow(c, F, k, p){ const l = c.learners.find(x => x.id === p.lid) || {name: '(removed learner)'};
   return `<div class="item" style="gap:10px;align-items:center"><div class="grow"><div class="title small"><b>${esc(l.name)}</b> · ${peso(total(p))}</div>
-    <div class="tiny muted">${esc(longD(p.date))} · ${esc(p.or)} · ${p.lines.map(x => { const pr = F.projects.find(y => y.id === x.proj); return `${esc(pr ? pr.name : '?')} ${peso(x.amt)}`; }).join(' · ')}${p.by ? ` · from ${esc(p.by)}` : ''}</div></div>
+    <div class="tiny muted">${esc(longD(p.date))} · ${esc(p.or)} · ${p.lines.map(x => { const pr = F.projects.find(y => y.id === x.proj); return `${esc(pr ? pr.name : '?')} ${peso(x.amt)}`; }).join(' · ')}${p.by ? ` · from ${esc(p.by)}` : ''}${p.note ? ` · ${esc(p.note)}` : ''}${p.edited ? ` · <span class="chip gold" style="font-size:10px;padding:1px 7px" title="${esc((p.log || []).map(x => `${new Date(x.at).toLocaleString()}: was ${x.date} · ${peso(x.total)}`).join('\n'))}">edited ${esc(new Date(p.edited).toLocaleDateString())}</span>` : ''}</div></div>
     <button class="btn sm" data-rcp="${p.id}">${ico('print')} Receipt</button><button class="icon-btn" data-pedit="${p.id}" title="Edit">${ico('edit', 'width:16px;height:16px')}</button><button class="icon-btn del-l" data-pdel="${p.id}" title="Delete payment">${ico('trash', 'width:16px;height:16px')}</button></div>`; }
 function bindPayRows(box, c, k, rr){ const F = fund(c, k);
   $$('[data-rcp]', box).forEach(b => b.onclick = () => printReceipts(c, k, [F.pays.find(p => p.id === b.dataset.rcp)]));
@@ -147,7 +149,7 @@ function payForm(c, k, lid, rr, edit){
   let cur = lid || (L[0] && L[0].id); const p0 = edit || null;
   const lastBy = (id) => { const x = [...F.pays].reverse().find(p => p.lid === id && p.by); return x ? x.by : ''; };
   M.modal(p0 ? `Edit payment ${p0.or}` : `Record payment · ${FUNDS[k].long}`, `
-    <label class="field">Learner<select class="input" id="pyL" ${p0 ? 'disabled' : ''}>${L.map(l => `<option value="${l.id}" ${l.id === cur ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></label>
+    <label class="field">Learner${p0 ? ' <span class="muted">(change it if the payment was recorded under the wrong learner)</span>' : ''}<select class="input" id="pyL">${L.map(l => `<option value="${l.id}" ${l.id === cur ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></label>
     <div class="grid g-2" style="gap:8px"><label class="field">Date<input class="input" id="pyD" type="date" value="${esc(p0 ? p0.date : M.today())}"></label><label class="field">Received from (parent / guardian)<input class="input" id="pyB" value="${esc(p0 ? p0.by : lastBy(cur))}" placeholder="Name of the one who paid"></label></div>
     <div class="field">Amount for each project <span class="muted">— pay any part; the rest stays as balance</span><div id="pyLines"></div></div>
     <div class="row" style="gap:8px;margin:6px 0"><button class="btn sm" id="pyAll">Pay all balances</button><span class="spacer"></span><b id="pyT"></b></div>
@@ -163,7 +165,7 @@ function payForm(c, k, lid, rr, edit){
       $$('[data-fill]', b).forEach(x => x.onclick = () => { amt[x.dataset.fill] = x.dataset.bal; $(`[data-amt="${x.dataset.fill}"]`, b).value = x.dataset.bal; sum(); });
       sum(); void l; };
     const sum = () => { $('#pyT', b).textContent = 'Total ' + peso(Object.values(amt).reduce((a, v) => a + (+v || 0), 0)); };
-    $('#pyL', b).onchange = (e) => { cur = e.target.value; Object.keys(amt).forEach(x => delete amt[x]); $('#pyB', b).value = lastBy(cur); lines(); };
+    $('#pyL', b).onchange = (e) => { cur = e.target.value; if(!p0){ Object.keys(amt).forEach(x => delete amt[x]); $('#pyB', b).value = lastBy(cur); } lines(); };
     $('#pyAll', b).onclick = () => { $$('[data-fill]', b).forEach(x => x.click()); };
     $('#pyC', b).onclick = M.closeModal;
     $('#pyS', b).onclick = () => {
@@ -171,7 +173,8 @@ function payForm(c, k, lid, rr, edit){
       if(!ls.length) return M.toast('Type the amount paid');
       const date = $('#pyD', b).value || M.today(), by = $('#pyB', b).value.trim(), note = $('#pyN', b).value.trim();
       let p;
-      if(p0){ Object.assign(p0, {date, by, note, lines: ls, edited: new Date().toISOString()}); p = p0; }
+      if(p0){ (p0.log = p0.log || []).push({at: new Date().toISOString(), date: p0.date, by: p0.by, lid: p0.lid, total: total(p0), lines: p0.lines.map(x => ({...x}))});
+        Object.assign(p0, {lid: cur, date, by, note, lines: ls, edited: new Date().toISOString()}); p = p0; }
       else { p = {id: M.uid('py'), lid: cur, date, by, note, lines: ls, or: orNo(k, F, F.next), at: new Date().toISOString()}; F.next++; F.pays.push(p); }
       const pr = $('#pyR', b) ? $('#pyR', b).checked : false; if($('#pyR', b)) M.S.ui.fdPrint = pr;
       M.save(); M.closeModal(); rr(); M.toast(`${p.or} saved · ${peso(total(p))}`);
@@ -179,6 +182,39 @@ function payForm(c, k, lid, rr, edit){
     };
     lines();
   }, true);
+}
+
+/* ---------- all payment records: filter, edit, delete, print ---------- */
+function records(c, k, rr){
+  const F = fund(c, k); const u = M.S.ui.fdRec = M.S.ui.fdRec || {};
+  const L = [...new Map(F.pays.map(p => [p.lid, c.learners.find(x => x.id === p.lid) || {id: p.lid, name: '(removed learner)'}])).values()].sort((a, b) => a.name.localeCompare(b.name));
+  M.modal(`Payment records · ${FUNDS[k].long}`, `
+    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <label class="field mini">Learner<select class="input" id="rcL"><option value="">All learners</option>${L.map(l => `<option value="${l.id}" ${u.lid === l.id ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></label>
+      <label class="field mini">Project<select class="input" id="rcP"><option value="">All projects</option>${F.projects.map(p => `<option value="${p.id}" ${u.pj === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+      <label class="field mini">From<input class="input" type="date" id="rcA" value="${esc(u.a || '')}"></label><label class="field mini">To<input class="input" type="date" id="rcB" value="${esc(u.b || '')}"></label>
+      <label class="field mini grow">Search<input class="input" id="rcQ" placeholder="Receipt no., payer, note" value="${esc(u.q || '')}"></label></div>
+    <div id="rcBox" style="margin-top:12px"></div>`, b => {
+    const draw = () => { Object.assign(u, {lid: $('#rcL', b).value, pj: $('#rcP', b).value, a: $('#rcA', b).value, b: $('#rcB', b).value, q: $('#rcQ', b).value.trim().toLowerCase()}); M.save();
+      const ps = F.pays.filter(p => (!u.lid || p.lid === u.lid) && (!u.pj || p.lines.some(x => x.proj === u.pj)) && (!u.a || p.date >= u.a) && (!u.b || p.date <= u.b)
+        && (!u.q || [p.or, p.by, p.note].join(' ').toLowerCase().includes(u.q))).sort((x, y) => (x.date + x.at).localeCompare(y.date + y.at));
+      const amt = (p) => u.pj ? r2((p.lines.find(x => x.proj === u.pj) || {}).amt || 0) : total(p);
+      $('#rcBox', b).innerHTML = `<div class="row" style="margin-bottom:8px"><b>${ps.length} payment(s) · ${peso(ps.reduce((a, p) => a + amt(p), 0))}</b><span class="spacer"></span><button class="btn sm" id="rcPr" ${ps.length ? '' : 'disabled'}>${ico('print')} Print this list</button></div>
+        ${ps.length ? `<div class="list" style="max-height:52vh;overflow:auto">${ps.map(p => payRow(c, F, k, p)).join('')}</div>` : '<div class="empty small">No payments match.</div>'}`;
+      bindPayRows(b, c, k, () => { rr(); records(c, k, rr); });
+      $('#rcPr', b).onclick = () => { const l = u.lid ? c.learners.find(x => x.id === u.lid) : null; printRecord(c, k, ps, l ? `Payment record of ${l.name}` : 'Payment records', l, u.pj); }; };
+    ['#rcL', '#rcP', '#rcA', '#rcB'].forEach(id => $(id, b).onchange = draw); $('#rcQ', b).oninput = draw; draw();
+  }, true);
+}
+function printRecord(c, k, ps, title, l, pj){ const F = fund(c, k);
+  const rows = ps.map((p, i) => { const who = c.learners.find(x => x.id === p.lid) || {name: '—'}; const ls = p.lines.filter(x => !pj || x.proj === pj);
+    return `<tr><td>${i + 1}</td><td>${esc(longD(p.date))}</td><td>${esc(p.or)}</td>${l ? '' : `<td>${esc(who.name)}</td>`}<td class="l">${ls.map(x => { const pr = F.projects.find(y => y.id === x.proj); return `${esc(pr ? pr.name : '?')} ${peso(x.amt)}`; }).join('<br>')}</td><td>${esc(p.by || '')}</td><td style="text-align:right">${peso(ls.reduce((a, x) => a + (+x.amt || 0), 0))}</td></tr>`; }).join('');
+  const sum = ps.reduce((a, p) => a + p.lines.filter(x => !pj || x.proj === pj).reduce((b2, x) => b2 + (+x.amt || 0), 0), 0);
+  const bal = l ? `<p>Total due: <b>${peso(dueAll(F, l.id))}</b> &nbsp; Total paid: <b>${peso(paidAll(F, l.id))}</b> &nbsp; Balance: <b>${peso(Math.max(0, dueAll(F, l.id) - paidAll(F, l.id)))}</b></p>` : '';
+  M.doPrint(M.printHeader(`${FUNDS[k].long.toUpperCase()} · ${title.toUpperCase()}`) + `<p>Grade &amp; Section: <b>${esc(M.className(c))}</b> &nbsp; School Year: <b>${esc(c.sy || '')}</b> &nbsp; As of: <b>${esc(longD(M.today()))}</b></p>${bal}
+    <table class="fd-pt"><thead><tr><th>#</th><th>Date</th><th>Receipt no.</th>${l ? '' : '<th>Learner</th>'}<th>Project(s)</th><th>Received from</th><th>Amount</th></tr></thead><tbody>${rows}
+    <tr><td colspan="${l ? 5 : 6}" style="text-align:right"><b>TOTAL</b></td><td style="text-align:right"><b>${peso(sum)}</b></td></tr></tbody></table>
+    <div style="margin-top:36px;display:flex;justify-content:flex-end"><div style="text-align:center;min-width:220px"><b>${esc(F.receiver || c.adviser || '')}</b><div style="border-top:1px solid #000">${esc(F.title || 'Class Adviser')}</div></div></div>`, M.pageCss('A4'));
 }
 
 /* ---------- one learner's history ---------- */
@@ -189,7 +225,8 @@ function ledger(c, k, lid, rr){
       ${F.projects.map(pr => { const d = due(pr, lid), p = paid(F, lid, pr.id); return `<tr><td>${esc(pr.name)}</td><td class="num">${d ? peso(d) : 'exempted'}</td><td class="num">${peso(p)}</td><td class="num ${d - p > 0 ? 'low' : ''}">${peso(Math.max(0, d - p))}</td></tr>`; }).join('')}
       <tr><td><b>Total</b></td><td class="num"><b>${peso(dueAll(F, lid))}</b></td><td class="num"><b>${peso(paidAll(F, lid))}</b></td><td class="num"><b>${peso(Math.max(0, dueAll(F, lid) - paidAll(F, lid)))}</b></td></tr></tbody></table></div>
     <h3 style="margin:14px 0 8px">Payments (${ps.length})</h3>${ps.length ? `<div class="list">${ps.map(p => payRow(c, F, k, p)).join('')}</div>` : '<div class="empty small">No payments yet.</div>'}
-    <div class="row" style="margin-top:12px;gap:8px"><span class="spacer"></span>${ps.length > 1 ? `<button class="btn" id="lgAll">${ico('print')} All receipts</button>` : ''}<button class="btn primary" id="lgPay">₱ Record payment</button></div>`, b => {
+    <div class="row" style="margin-top:12px;gap:8px"><button class="btn" id="lgSt">${ico('print')} Print payment record</button><span class="spacer"></span>${ps.length > 1 ? `<button class="btn" id="lgAll">${ico('print')} All receipts</button>` : ''}<button class="btn primary" id="lgPay">₱ Record payment</button></div>`, b => {
+    $('#lgSt', b).onclick = () => printRecord(c, k, ps, `Payment record of ${l.name}`, l);
     bindPayRows(b, c, k, () => { rr(); ledger(c, k, lid, rr); });
     $('#lgPay', b).onclick = () => payForm(c, k, lid, rr);
     if($('#lgAll', b)) $('#lgAll', b).onclick = () => printReceipts(c, k, ps);

@@ -20,6 +20,12 @@ Offline forms, documents and class management for the class adviser
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
 
+### New in v6.23
+- **Reading → Reports → BULIG RMS**: fills the division BULIG RMS Excel file (.xlsm, macros kept) from MASTRO's reading records — school info, learners, pre-test levels, AP quarters and remarks. Pick English or Filipino; one file per language. Learners without a pre-test level and NLP/TO learners are left out. Template mistakes fixed (pre-test count columns, "Frustration" spelling, quarter cells).
+- **Funds → 📒 Payment records**: see every payment (filter by learner, project, dates; search), edit or delete, print the record. Edits keep a history and can move a payment to the right learner. Each learner row has a 📒 ledger button.
+- **SF9 / SF10 printing fills the paper**: A4, A5, 8.5×11 and 8.5×13 now scale the form up to use the whole page.
+- **Gate Pass tab**: prints the school gate pass on the top part of the page. Pick learners (tap once = going out, twice = companion), preset or typed reason, time out, return time or Homebound. Each pass writes an anecdotal record for every learner on it; companions are noted as only accompanying, so their parents won't worry.
+
 ### New in v6.22
 - **Split screen** in every BULIG Hub reading activity: the **learner side** shows only a clean page with big text, and the **teacher side** has the timer,
   miscue marking, answer key, live answers and scoring. **⇆** swaps the sides, **▣ One page** goes back to a single page.

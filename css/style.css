@@ -1857,3 +1857,28 @@ body.hub-open{overflow:hidden}
 .hb-air.on .hb-onair{color:#fff;background:#e0362b;border-color:#ff7a6b;box-shadow:0 0 40px rgba(255,60,40,.6);animation:hbPulse 1.4s infinite}
 .hb-air-t{font:800 46px var(--font);font-variant-numeric:tabular-nums}
 .hb-air .hb-paper{width:100%}
+/* v6.23: SF9 page boxes come from the chosen paper (inline size); landscape puts both sides on one page */
+.sf9-page.land{justify-content:space-evenly}
+
+/* ================= v6.23 · Gate Pass ================= */
+.gp-page{width:7.5in;font-family:"Bookman Old Style",Bookman,"URW Bookman","URW Bookman L","TeX Gyre Bonum",Georgia,serif;font-size:11pt;color:#000}
+.gp-pass{font-family:"Bookman Old Style",Bookman,"URW Bookman","URW Bookman L","TeX Gyre Bonum",Georgia,serif;font-size:11pt;color:#000;line-height:1.25}
+.gp-t{text-align:center;font-weight:700;margin:0 0 14pt}
+.gp-l{display:flex;align-items:flex-end;gap:4pt;flex-wrap:wrap;margin:0 0 11pt}
+.gp-u{display:inline-block;border-bottom:1px solid #000;padding:0 4pt 1pt;text-align:left;margin-right:6pt}
+.gp-u i{font-style:italic;font-size:.9em}
+.gp-sp{width:.45in}
+.gp-paper{background:#fff;border-radius:6px;padding:14px 18px;box-shadow:0 2px 10px rgba(0,0,0,.12);overflow:auto}
+.gp-pick{max-height:34vh;overflow:auto;padding:4px 2px}
+.gp-names{display:flex;flex-wrap:wrap;gap:6px}
+.gp-names button{border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:12.5px;padding:6px 10px;border-radius:999px;cursor:pointer}
+.gp-names button i{font-style:normal;font-size:10.5px;font-weight:800;margin-left:4px;padding:1px 6px;border-radius:6px}
+.gp-names button.go{background:var(--green);color:#fff;border-color:var(--green)}.gp-names button.go i{background:rgba(255,255,255,.25)}
+.gp-names button.comp{background:rgba(201,162,39,.18);border-color:var(--gold);color:var(--ink)}.gp-names button.comp i{background:var(--gold);color:#fff}
+.gp-rs .chip{cursor:pointer;border:0;font:inherit;font-size:12px}
+.gp-rs .chip:hover{background:var(--green);color:#fff}
+.gp-time{display:flex;flex-direction:column;min-width:96px}.gp-time b{font-size:16px}.gp-time span{font-size:11px;color:var(--ink-3)}
+.btn.big{padding:12px 20px;font-size:15px}
+.gp-l{flex-wrap:nowrap}
+.gp-l>span{white-space:nowrap}
+.gp-l>.gp-u.grow{flex:1 1 auto;white-space:normal}

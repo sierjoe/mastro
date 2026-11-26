@@ -195,22 +195,25 @@ function sf9Back(D){
   </div>`;
 }
 // paper layouts: two panels side by side (landscape) or front/back on separate pages (portrait)
-M.SF9_LAYOUTS = {
-  duplex:   {label:'A4 portrait · front & back', cls:'a4p', fmt:'a4', orient:'portrait',  margin:7.62, w:194, h:264, both:false},
-  landscape:{label:'A4 landscape · both sides',  cls:'a4l', fmt:'a4', orient:'landscape', margin:7.62, w:264, h:194, both:true},
-  a5p:      {label:'A5 portrait · front & back', cls:'a5p', fmt:'a5', orient:'portrait',  margin:6, w:136, h:197, both:false},
-  a5l:      {label:'A5 landscape · both sides',  cls:'a5l', fmt:'a5', orient:'landscape', margin:6, w:198, h:135, both:true}
-};
+// v6.23: every paper size, portrait (front & back on two pages) or landscape (both sides on one page); the panel is scaled UP or down to fill the paper
+const SF9_PAPERS = [['a4','A4',210,297],['a5','A5',148,210],['let','8.5 × 11 in (letter)',215.9,279.4],['fol','8.5 × 13 in (long)',215.9,330.2]];
+M.SF9_LAYOUTS = {};
+SF9_PAPERS.forEach(([k, t, pw, ph]) => [['p','portrait · front & back',false],['l','landscape · both sides',true]].forEach(([o, ot, both]) => {
+  const key = k === 'a4' ? (o === 'p' ? 'duplex' : 'landscape') : k + o; const land = o === 'l'; const m = 7.62;
+  const W = land ? ph : pw, Hh = land ? pw : ph;
+  M.SF9_LAYOUTS[key] = {label: `${t} ${ot}`, cls: land ? 'land' : 'port', fmt: [pw, ph], orient: land ? 'landscape' : 'portrait', margin: m, w: +(W - 2 * m).toFixed(2), h: +(Hh - 2 * m).toFixed(2), pw: W, ph: Hh, both}; }));
 const LAY = (k) => M.SF9_LAYOUTS[k] || M.SF9_LAYOUTS.duplex;
 const PANEL_W = 184.2, PANEL_H = 270.4; // mm at 10.4pt (50.2em × 73.7em)
 function sf9Pages(D, layout){
   const L = LAY(layout);
-  const k = Math.min(1, (L.both ? (L.w - 6) / 2 : L.w) / PANEL_W, (L.h - 2) / PANEL_H);
-  const slot = (html) => k >= 0.999 ? html : `<div class="pslot" style="width:${(PANEL_W*k).toFixed(2)}mm;height:${(PANEL_H*k).toFixed(2)}mm"><div class="pscale" style="transform:scale(${k.toFixed(4)})">${html}</div></div>`;
-  if(L.both) return `<div class="sf9-page ${L.cls}">${slot(sf9Front(D))}${slot(sf9Back(D))}</div>`;
-  return `<div class="sf9-page ${L.cls}">${slot(sf9Front(D))}</div><div class="sf9-page ${L.cls}">${slot(sf9Back(D))}</div>`;
+  const k = Math.min((L.both ? (L.w - 6) / 2 : L.w) / PANEL_W, (L.h - 2) / PANEL_H);   // fills the paper (scales up on long bond, down on A5)
+  const slot = (html) => `<div class="pslot" style="width:${(PANEL_W*k).toFixed(2)}mm;height:${(PANEL_H*k).toFixed(2)}mm"><div class="pscale" style="transform:scale(${k.toFixed(4)})">${html}</div></div>`;
+  const pg = (inner) => `<div class="sf9-page ${L.cls}" style="width:${L.w}mm;height:${L.h}mm">${inner}</div>`;
+  if(L.both) return pg(slot(sf9Front(D)) + slot(sf9Back(D)));
+  return pg(slot(sf9Front(D))) + pg(slot(sf9Back(D)));
 }
-const pageCss = (layout) => { const L = LAY(layout); return `@page{size:${L.fmt.toUpperCase()} ${L.orient}}`; };
+const pageCss = (layout) => { const L = LAY(layout); return `@page{size:${L.pw}mm ${L.ph}mm}`; };
+const sf9Print = (html, layout) => M.doPrint(html, pageCss(layout), {noFit: true, safe: false, margin: 0.3});
 
 /* =====================================================================
    SF9 VIEW
@@ -252,8 +255,8 @@ function sf9View(el, lidArg){
   $('#lsel').onchange = e => go(e.target.value);
   $('#lay').onchange = e => { c.sf9.layout = e.target.value; M.save(); sf9View(el, l.id); };
   $('#sfTabs').onclick = e => { const b=e.target.closest('button'); if(!b) return; ui.tab = b.dataset.t; sf9View(el, l.id); };
-  $('#p1').onclick = () => M.doPrint(sf9Pages(M.sf9Data(c,l), layout), pageCss(layout));
-  $('#pAll').onclick = () => M.doPrint(L.map(x=>sf9Pages(M.sf9Data(c,x), layout)).join(''), pageCss(layout));
+  $('#p1').onclick = () => sf9Print(sf9Pages(M.sf9Data(c,l), layout), layout);
+  $('#pAll').onclick = () => sf9Print(L.map(x=>sf9Pages(M.sf9Data(c,x), layout)).join(''), layout);
   $('#d1').onclick = () => makePdf(c, [l], layout, `SF9 ${l.name}.pdf`);
   $('#dAll').onclick = () => makePdf(c, L, layout, `SF9 ${c.grade}-${c.section} (${L.length} learners).pdf`);
   $('#xAll').onclick = () => makeXlsx(c, L);
@@ -376,7 +379,7 @@ async function makePdf(c, learners, layout, filename){
     await Promise.all([M.loadScript('vendor/html2canvas.min.js'), M.loadScript('vendor/jspdf.umd.min.js')]);
     const {jsPDF} = window.jspdf;
     const Ly = LAY(layout);
-    const pdf = new jsPDF({orientation: Ly.orient, unit:'mm', format:Ly.fmt, compress:true});
+    const pdf = new jsPDF({orientation: Ly.orient, unit:'mm', format: Ly.fmt, compress:true});
     const stage = $('#pdfStage'); let first = true, n = 0;
     const total = learners.length * (Ly.both?1:2);
     for(const l of learners){
