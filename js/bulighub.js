@@ -9,11 +9,11 @@ const M = window.M;
 const {$, $$, esc} = M;
 
 const MODS = [
-  {k:'L3', n:'3', t:'Word Recognition', sub:'CVC words · word families · speed read', icon:'🔤', phase:3},
+  {k:'L3', n:'3', t:'Word Recognition', sub:'25 lessons · CVC · word families · blends · sight words', icon:'🔤', ready:true},
   {k:'L4', n:'4', t:'Fluency', sub:'25 poems & stories · timed oral reading', icon:'🎙️', ready:true},
-  {k:'L5', n:'5', t:'Listening & Vocabulary', sub:'20 days · matching · word search · crossword', icon:'🎧', phase:2},
+  {k:'L5', n:'5', t:'Listening & Vocabulary', sub:'Grades 7–8 and 9–10 · 20 days · pre- and post-tests', icon:'🎧', ready:true},
   {k:'L6', n:'6', t:'Graded Comprehension', sub:'Grades 7–10 · pre-test · 10 selections · post-test', icon:'📖', ready:true},
-  {k:'L7', n:'7', t:'Love for Reading & Writing', sub:'Fact or Bluff · Match Me · news & editorial writing', icon:'✍️', phase:3}
+  {k:'L7', n:'7', t:'Love for Reading & Writing', sub:'Grade 7 · 27 campus-journalism activities', icon:'✍️', ready:true}
 ];
 const SKILL_C = {Literal:'lit', Interpretive:'int', Critical:'cri', Creative:'cre', Mixed:'mix'};
 const MIS = [['MP','Mispronunciation'],['O','Omission'],['S','Substitution'],['I','Insertion'],['R','Repetition'],['T','Transposition'],['RV','Reversal']];
@@ -26,7 +26,7 @@ const keyOf = (a) => ((M.S.hubKeys || {})[a.id]) || a.q.map(q => q[2]);
 const learnerById = (c, id) => c.learners.find(l => l.id === id);
 const short = (n) => { const p = String(n || '').split(','); return (p[1] ? p[1].trim().split(' ')[0] + ' ' : '') + p[0].trim(); };
 const gradeOf = (c) => { const u = ui(); const g = +(u.grade || c.grade); return String([7,8,9,10].includes(g) ? g : g > 10 ? 10 : 7); };
-const loadData = () => Promise.all([M.loadScript('js/hub-l6.js'), M.loadScript('js/hub-l4.js')]);
+const loadData = () => Promise.all(['js/hub-l3.js','js/hub-l4.js','js/hub-l5.js','js/hub-l6.js','js/hub-l7.js'].map(f => M.loadScript(f)));
 const stars = (pct) => pct >= 80 ? 3 : pct >= 60 ? 2 : pct > 0 ? 1 : 0;
 const starHtml = (n, of = 3) => `<span class="hb-stars">${'★'.repeat(n)}<i>${'★'.repeat(of - n)}</i></span>`;
 
@@ -94,108 +94,149 @@ function saveBox(c, host, id, rec, after, manual){
 }
 
 /* =========================== Level 6 · comprehension player =========================== */
-function playL6(c, g, idx){
-  const A = M.HUB_L6[g]; const a = A[idx]; const key = keyOf(a); const n = a.q.length; const u = ui();
+function playL6(c, g, idx){ return playQuiz(c, M.HUB_L6[g], idx, {sub: `Level 6 · Graded Reading Comprehension · Grade ${g}`, theme: 'hs-l6', replay: (i) => playL6(c, g, i)}); }
+// generic multiple-choice player: a = {id, label, title, p?: [paragraphs], q: [[stem, options, key, skill?, context?]]}
+function playQuiz(c, A, idx, opt){
+  const a = A[idx]; const key = keyOf(a); const n = a.q.length; const u = ui();
   const who = u.who ? learnerById(c, u.who) : null;
-  const st = stage(`${a.label} · ${a.title}`, `Level 6 · Graded Reading Comprehension · Grade ${g}${who ? ' · ' + who.name : ' · Whole class'}`, 'hs-l6');
-  const ans = new Array(n).fill(null); let i = -1;
-  const passage = (cls) => `<article class="hb-paper ${cls || ''}"><div class="hb-kicker">${esc(a.label)}${a.focus && a.focus !== 'Mixed' ? ` · ${esc(a.focus)} comprehension` : ''}</div><h1>${esc(a.title)}</h1>${a.by ? `<div class="hb-by">by ${esc(a.by)}</div>` : ''}${a.p.map(p => `<p>${esc(p)}</p>`).join('')}</article>`;
+  const st = stage(`${a.label}${a.title ? ' · ' + a.title : ''}`, `${opt.sub}${who ? ' · ' + who.name : ' · Whole class'}`, (opt.theme || 'hs-l6') + ' hs-wide');
+  const ans = new Array(n).fill(null); let i = -1; const T0 = Date.now(); let tRead = 0, tq = 0;
+  let LB, TB;   // learner box, teacher box
+  const frame = () => { st.body.innerHTML = splitWrap(`<div id="hbL"></div>`, `<div id="hbT"></div>`, 'Teacher · answer key and live results', 'learner');
+    splitWire(st.body, () => { frame(); i < 0 ? read() : i >= n ? end() : q(); }); LB = $('#hbL', st.body); TB = $('#hbT', st.body); };
+  const fmt = (ms) => { const s2 = Math.round(ms / 1000); return `${Math.floor(s2 / 60)}:${String(s2 % 60).padStart(2, '0')}`; };
+  const right = () => ans.filter((x, j) => x === key[j]).length;
+  const teacher = () => { if(!TB) return; const done = ans.filter(x => x !== null).length;
+    const cur = i >= 0 && i < n ? a.q[i] : null;
+    TB.innerHTML = `<div class="hb-tp">
+      <div class="hb-tp-k"><div><span>Stage</span><b>${i < 0 ? 'Reading' : i >= n ? 'Finished' : `Question ${i + 1}/${n}`}</b></div><div><span>Correct</span><b>${right()}/${done}</b></div><div><span>${a.p && a.p.length ? 'Reading time' : 'Time'}</span><b id="hbTr">${fmt(i < 0 ? Date.now() - T0 : a.p && a.p.length ? tRead : Date.now() - T0)}</b></div></div>
+      ${i < 0 ? `<div class="hb-tp-note">The learner is reading <b>${esc(a.title)}</b> (${a.p.join(' ').split(/\s+/).length} words). When they are ready, they tap <b>I'm ready</b> — or start the questions from here.</div><button class="hs-btn" id="hbTGo">Start the questions →</button>` : ''}
+      ${cur ? `<div class="hb-tp-cur"><div class="hb-tp-l">Now on the learner's side${cur[3] || a.focus ? ' · ' + esc(cur[3] || a.focus) : ''}</div><b>${i + 1}. ${esc(cur[0])}</b>
+        <ol type="A">${cur[1].map((o, j) => `<li class="${'ABCD'[j] === key[i] ? 'key' : ''} ${ans[i] === 'ABCD'[j] ? 'pick' : ''}">${esc(o)}${'ABCD'[j] === key[i] ? ' <i>✓ key</i>' : ''}${ans[i] === 'ABCD'[j] && ans[i] !== key[i] ? ' <i class="x">learner</i>' : ''}</li>`).join('')}</ol></div>` : ''}
+      ${i >= n ? `<div id="hbSaveT" class="hb-tp-save"></div>` : ''}
+      <div class="hb-tp-list">${a.q.map((x, j) => `<div class="${j === i ? 'cur' : ''} ${ans[j] === null ? '' : ans[j] === key[j] ? 'ok' : 'no'}"><i>${j + 1}</i><span>${esc(x[0])}</span><b>${ans[j] ? (ans[j] === key[j] ? '✓ ' : '✕ ') + ans[j] : '·'}</b><em>key ${key[j]}</em></div>`).join('')}</div>
+    </div>`;
+    if($('#hbTGo', TB)) $('#hbTGo', TB).onclick = () => go(0); };
+  const clockT = setInterval(() => { const e = $('#hbTr', st.s); if(e && (i < 0 || (!(a.p && a.p.length) && i < n))) e.textContent = fmt(Date.now() - T0); }, 1000); st.s._stop = () => clearInterval(clockT);
+  const passage = (cls) => !(a.p && a.p.length) ? '' : `<article class="hb-paper ${cls || ''}"><div class="hb-kicker">${esc(a.label)}${a.focus && a.focus !== 'Mixed' ? ` · ${esc(a.focus)} comprehension` : ''}</div><h1>${esc(a.title)}</h1>${a.by ? `<div class="hb-by">by ${esc(a.by)}</div>` : ''}${a.p.map(p => `<p>${esc(p)}</p>`).join('')}</article>`;
   const read = () => { st.s.onKey = (e) => { if(e.key === 'Enter') go(0); };
-    st.body.innerHTML = `<div class="hb-read">${passage()}
-      <div class="hb-dock"><button class="hs-btn ghost" id="hbTts">🔊 Read aloud</button><span class="hb-dock-t">${a.p.join(' ').split(/\s+/).length} words · ${n} questions</span><button class="hs-btn big" id="hbGo">I'm ready — questions →</button></div></div>`;
-    let on = false; $('#hbTts', st.body).onclick = (e) => { if(on){ TTS.stop(); on = false; e.target.textContent = '🔊 Read aloud'; return; }
+    LB.innerHTML = `<div class="hb-read">${passage('learner')}
+      <div class="hb-dock"><button class="hs-btn ghost" id="hbTts">🔊 Read aloud</button><span class="hb-dock-t">${n} questions after reading</span><button class="hs-btn big" id="hbGo">I'm ready — questions →</button></div></div>`;
+    let on = false; $('#hbTts', LB).onclick = (e) => { if(on){ TTS.stop(); on = false; e.target.textContent = '🔊 Read aloud'; return; }
       if(!TTS.ok()) return M.toast('This browser cannot read aloud'); on = true; e.target.textContent = '⏸ Stop reading';
-      TTS.speak(a.title + '. ' + a.p.join(' '), {onEnd: () => { on = false; const b = $('#hbTts', st.body); if(b) b.textContent = '🔊 Read aloud'; }}); };
-    $('#hbGo', st.body).onclick = () => go(0); };
-  const go = (k) => { TTS.stop(); i = k; if(i >= n) return end(); q(); };
+      TTS.speak(a.title + '. ' + a.p.join(' '), {onEnd: () => { on = false; const b = $('#hbTts', LB); if(b) b.textContent = '🔊 Read aloud'; }}); };
+    $('#hbGo', LB).onclick = () => go(0); teacher(); };
+  const go = (k) => { TTS.stop(); if(i < 0) tRead = Date.now() - T0; i = k; if(i >= n) return end(); q(); };
   const q = () => { const [stem, opts, , skill] = a.q[i]; const done = ans[i] !== null;
-    st.body.innerHTML = `<div class="hb-quiz">
+    LB.innerHTML = `<div class="hb-quiz">
       <div class="hb-prog">${a.q.map((x, j) => `<i class="${j === i ? 'cur' : ''} ${ans[j] === null ? '' : ans[j] === key[j] ? 'ok' : 'no'}"></i>`).join('')}</div>
       <div class="hb-qcard"><div class="hb-qmeta"><span>Question ${i + 1} of ${n}</span>${skill || (a.focus && a.focus !== 'Mixed') ? `<span class="hb-skill sk-${SKILL_C[skill || a.focus]}">${esc(skill || a.focus)}</span>` : ''}</div>
-        <h2>${esc(stem)}</h2>
+        ${a.q[i][4] ? `<div class="hb-ctx">${esc(a.q[i][4])}</div>` : ''}<h2>${esc(stem)}</h2>
         <div class="hb-opts">${opts.map((o, j) => { const L = 'ABCD'[j]; return `<button class="hb-opt" data-l="${L}"><b>${L}</b><span>${esc(o)}</span></button>`; }).join('')}</div>
         <div class="hb-fb" id="hbFb"></div></div>
-      <div class="hb-dock"><button class="hs-btn ghost" id="hbBack">📖 Look back at the selection</button><span class="spacer"></span><button class="hs-btn big" id="hbNext" ${done ? '' : 'hidden'}>${i === n - 1 ? 'See my score →' : 'Next →'}</button></div>
+      <div class="hb-dock">${a.p && a.p.length ? '<button class="hs-btn ghost" id="hbBack">📖 Look back at the selection</button>' : ''}<span class="spacer"></span><button class="hs-btn big" id="hbNext" ${done ? '' : 'hidden'}>${i === n - 1 ? 'See my score →' : 'Next →'}</button></div>
       <div class="hb-drawer" id="hbDrawer" hidden><button class="hs-ic hb-dx" id="hbDx">✕</button>${passage('small')}</div></div>`;
     const mark = (L, fresh) => { ans[i] = L; const ok = L === key[i];
-      $$('.hb-opt', st.body).forEach(b => { b.disabled = true; b.classList.toggle('right', b.dataset.l === key[i]); b.classList.toggle('wrong', b.dataset.l === L && !ok); b.classList.toggle('dim', b.dataset.l !== L && b.dataset.l !== key[i]); });
-      $('#hbFb', st.body).innerHTML = ok ? `<span class="good">${['Correct! 🎉','Nice work! ⭐','You got it! 👏','Excellent! 🌟'][i % 4]}</span>` : `<span class="bad">Not quite — the answer is <b>${key[i]}</b>.</span>`;
-      if(fresh) chime(ok); $('#hbNext', st.body).hidden = false; $('.hb-prog i.cur', st.body).classList.add(ok ? 'ok' : 'no'); };
-    $$('.hb-opt', st.body).forEach(b => b.onclick = () => mark(b.dataset.l, true));
+      $$('.hb-opt', LB).forEach(b => { b.disabled = true; b.classList.toggle('right', b.dataset.l === key[i]); b.classList.toggle('wrong', b.dataset.l === L && !ok); b.classList.toggle('dim', b.dataset.l !== L && b.dataset.l !== key[i]); });
+      $('#hbFb', LB).innerHTML = ok ? `<span class="good">${['Correct! 🎉','Nice work! ⭐','You got it! 👏','Excellent! 🌟'][i % 4]}</span>` : `<span class="bad">Not quite — the answer is <b>${key[i]}</b>.</span>`;
+      if(fresh) chime(ok); $('#hbNext', LB).hidden = false; $('.hb-prog i.cur', LB).classList.add(ok ? 'ok' : 'no'); teacher(); };
+    $$('.hb-opt', LB).forEach(b => b.onclick = () => mark(b.dataset.l, true));
     if(done) mark(ans[i], false);
-    $('#hbNext', st.body).onclick = () => go(i + 1);
-    $('#hbBack', st.body).onclick = () => { $('#hbDrawer', st.body).hidden = false; };
-    $('#hbDx', st.body).onclick = () => { $('#hbDrawer', st.body).hidden = true; };
+    $('#hbNext', LB).onclick = () => go(i + 1);
+    if($('#hbBack', LB)){ $('#hbBack', LB).onclick = () => { $('#hbDrawer', LB).hidden = false; }; $('#hbDx', LB).onclick = () => { $('#hbDrawer', LB).hidden = true; }; }
     st.s.onKey = (e) => { const k = e.key.toUpperCase(); const m = {A:'A', B:'B', C:'C', D:'D', 1:'A', 2:'B', 3:'C', 4:'D'}[k];
-      if(m && ans[i] === null){ const b = $(`.hb-opt[data-l="${m}"]`, st.body); if(b) b.click(); } else if((e.key === 'Enter' || e.key === 'ArrowRight') && ans[i] !== null) go(i + 1); };
-  };
-  const end = () => { st.s.onKey = null; const right = ans.filter((x, j) => x === key[j]).length; const pct = Math.round(right / n * 100); const sN = stars(pct);
+      if(m && ans[i] === null){ const b = $(`.hb-opt[data-l="${m}"]`, LB); if(b) b.click(); } else if((e.key === 'Enter' || e.key === 'ArrowRight') && ans[i] !== null) go(i + 1); };
+    teacher(); };
+  const end = () => { st.s.onKey = null; const r = right(); const pct = Math.round(r / n * 100); const sN = stars(pct);
     const sk = {}; a.q.forEach((x, j) => { const k = x[3] || (a.focus !== 'Mixed' ? a.focus : null); if(!k) return; sk[k] = sk[k] || [0, 0]; sk[k][1]++; if(ans[j] === key[j]) sk[k][0]++; });
-    st.body.innerHTML = `<div class="hb-end">
-      <div class="hb-ring" style="--p:${pct}"><div><b>${right}</b><span>of ${n}</span></div></div>
+    LB.innerHTML = `<div class="hb-end">
+      <div class="hb-ring" style="--p:${pct}"><div><b>${r}</b><span>of ${n}</span></div></div>
       ${starHtml(sN)}
       <h2>${pct >= 80 ? 'Outstanding reading!' : pct >= 60 ? 'Good job — keep going!' : 'Nice try — let’s read it again!'}</h2>
-      ${Object.keys(sk).length > 1 ? `<div class="hb-sk">${Object.entries(sk).map(([k, [r, t]]) => `<div class="sk-${SKILL_C[k]}"><span>${esc(k)}</span><b>${r}/${t}</b></div>`).join('')}</div>` : ''}
+      ${Object.keys(sk).length > 1 ? `<div class="hb-sk">${Object.entries(sk).map(([k, [x, t]]) => `<div class="sk-${SKILL_C[k]}"><span>${esc(k)}</span><b>${x}/${t}</b></div>`).join('')}</div>` : ''}
       <div id="hbSave"></div>
       <details class="hb-review"><summary>Review answers</summary>${a.q.map((x, j) => `<div class="${ans[j] === key[j] ? 'ok' : 'no'}"><b>${j + 1}.</b> ${esc(x[0])}<br><span>${ans[j] === key[j] ? '✓' : '✕'} Your answer: ${ans[j] || '–'} · Correct: <b>${key[j]}</b> ${esc(x[1]['ABCD'.indexOf(key[j])] || '')}</span></div>`).join('')}</details>
       <div class="hb-dock center"><button class="hs-btn ghost" id="hbAgain">↻ Try again</button><button class="hs-btn ghost" id="hbList">☰ All activities</button>${idx < A.length - 1 ? `<button class="hs-btn big" id="hbNextA">Next: ${esc(A[idx + 1].label)} →</button>` : ''}</div></div>`;
     if(pct >= 60) confetti(st.s);
-    saveBox(c, $('#hbSave', st.body), a.id, {score: right, max: n, pct, ans: ans.join(''), ts: Date.now()});
-    $('#hbAgain', st.body).onclick = () => playL6(c, g, idx);
-    $('#hbList', st.body).onclick = () => closeStage(true);
-    if($('#hbNextA', st.body)) $('#hbNextA', st.body).onclick = () => playL6(c, g, idx + 1);
-  };
-  read();
+    teacher(); saveBox(c, $('#hbSaveT', st.body) || $('#hbSave', LB), a.id, {score: r, max: n, pct, ans: ans.join(''), secs: Math.round(tRead / 1000), ts: Date.now()});
+    $('#hbAgain', LB).onclick = () => opt.replay(idx);
+    $('#hbList', LB).onclick = () => closeStage(true);
+    if($('#hbNextA', LB)) $('#hbNextA', LB).onclick = () => opt.replay(idx + 1); };
+  frame(); if(a.p && a.p.length) read(); else { tRead = 0; i = 0; q(); }
 }
+
+/* =========================== split screen (learner side | teacher side) ===========================
+   The learner looks only at their side: a clean page, big text, nothing to click. The teacher scores on the other side.
+   ⇆ swaps the sides, ▣ switches to one page (old layout). Saved in M.S.ui.hub.split / .swap. */
+function splitWrap(learnerHtml, teacherHtml, teacherTitle, offShow){ const u = ui(); const split = u.split !== false;
+  const btns = `<span class="spacer"></span><button class="hs-ic sm" id="hbSwap" title="Swap sides" ${split ? '' : 'hidden'}>⇆</button><button class="hs-ic sm" id="hbSplit" title="${split ? 'One page for everyone' : 'Learner side | teacher side'}">${split ? '▣ One page' : '◫ Split screen'}</button>`;
+  if(!split && offShow === 'learner') return `<div class="hb-split off"><section class="hb-side hb-learner solo"><div class="hb-side-tag">${btns}</div>${learnerHtml}</section></div>`;
+  return `<div class="hb-split ${split ? 'on' : 'off'} ${u.swap ? 'swap' : ''}">
+    ${split ? `<section class="hb-side hb-learner"><div class="hb-side-tag">📖 Learner</div>${learnerHtml}</section>` : ''}
+    <section class="hb-side hb-teacher"><div class="hb-side-tag t">👩‍🏫 ${esc(teacherTitle || 'Teacher')}${btns}</div>${teacherHtml}</section></div>`; }
+function splitWire(host, redraw){ const u = ui();
+  const sw = $('#hbSwap', host), sp = $('#hbSplit', host);
+  if(sw) sw.onclick = () => { u.swap = !u.swap; M.save(); $('.hb-split', host).classList.toggle('swap', u.swap); };
+  if(sp) sp.onclick = () => { u.split = u.split === false; M.save(); redraw(); }; }
+// words as tappable spans; the same data-i on both sides
+function wordsHtml(lines, kind, words){ let wi = 0;
+  return lines.map(line => `<${kind === 'poem' ? 'div class="hb-ln"' : 'p'}>${line.split(/(\s+)/).map(t => { if(!t.trim()) return ' '; if(words) words.push(t); return `<span class="hb-w" data-i="${wi++}">${esc(t)}</span>`; }).join('')}</${kind === 'poem' ? 'div' : 'p'}>`).join(''); }
+function countdown(host, done){ const d = document.createElement('div'); d.className = 'hb-cd'; host.appendChild(d); let n = 3;
+  const step = () => { if(n === 0){ d.innerHTML = '<b>Read!</b>'; setTimeout(() => d.remove(), 650); done(); return; } d.innerHTML = `<b>${n}</b>`; n--; setTimeout(step, 750); }; step(); }
 
 /* =========================== Level 4 · fluency player =========================== */
 function playL4(c, idx){
   const P = M.HUB_L4; const a = P[idx]; const u = ui(); const who = u.who ? learnerById(c, u.who) : null;
-  const st = stage(`${a.label} · ${a.title}`, `Level 4 · Fluency${a.grade ? ' · ' + a.grade : ''}${who ? ' · ' + who.name : ' · Whole class'}`, 'hs-l4');
-  // tokens per line/paragraph
-  let wi = 0; const words = [];
-  const body = a.t.map(line => `<${a.kind === 'poem' ? 'div class="hb-ln"' : 'p'}>${line.split(/(\s+)/).map(t => { if(!t.trim()) return ' '; words.push(t); return `<span class="hb-w" data-i="${wi++}">${esc(t)}</span>`; }).join('')}</${a.kind === 'poem' ? 'div' : 'p'}>`).join('');
-  const marks = {}; let active = 'MP'; let t0 = 0, acc = 0, timer = 0, running = false, pace = false, paceT = 0, paceI = 0; let wpmT = u.paceWpm || 120;
-  st.body.innerHTML = `<div class="hb-flu">
-    <div class="hb-fbar">
-      <div class="hb-clock" id="hbClock">0:00</div>
-      <button class="hs-btn big" id="hbStart">▶ Start</button><button class="hs-btn ghost" id="hbReset" title="Start over">↺</button>
-      <span class="hb-sep"></span>
-      <button class="hs-btn ghost" id="hbModel" title="The laptop reads the passage aloud while the words light up">🔊 Model reading</button>
-      <label class="hb-pace"><input type="checkbox" id="hbPace"> 🐢 Pace reader <input type="range" id="hbPw" min="60" max="200" step="10" value="${wpmT}"><b id="hbPwv">${wpmT}</b> wpm</label>
-      <span class="spacer"></span><button class="hs-btn big done" id="hbDone">⏹ Done reading</button>
-    </div>
-    <div class="hb-mis" id="hbMis"><span class="hb-mis-t">Tap a word to mark a miscue:</span>${MIS.map(([k, t]) => `<button data-k="${k}" class="${k === active ? 'on' : ''}"><b>${k}</b>${t}<i data-c="${k}">0</i></button>`).join('')}</div>
-    <article class="hb-paper flu ${a.kind}"><div class="hb-kicker">${esc(a.label)} · ${a.kind === 'poem' ? 'Poem' : 'Story'} · ${a.wc} words</div><h1>${esc(a.title)}</h1><div class="hb-text" id="hbText">${body}</div></article>
-    <div id="hbRes"></div></div>`;
-  const W = $$('.hb-w', st.body); const clock = $('#hbClock', st.body);
+  const st = stage(`${a.label} · ${a.title}`, `Level 4 · Fluency${a.grade ? ' · ' + a.grade : ''}${who ? ' · ' + who.name : ' · Whole class'}`, 'hs-l4 hs-wide');
+  const words = []; const tHtml = wordsHtml(a.t, a.kind, words); const lHtml = wordsHtml(a.t, a.kind);
+  const marks = {}; let active = 'MP'; let t0 = 0, acc = 0, timer = 0, running = false, pace = false, paceT = 0, paceI = 0; let wpmT = u.paceWpm || 120; let modelOn = false;
+  const draw = () => {
+    st.body.innerHTML = splitWrap(
+      `<article class="hb-paper flu ${a.kind} learner"><h1>${esc(a.title)}</h1><div class="hb-text">${lHtml}</div></article>`,
+      `<div class="hb-fbar">
+        <div class="hb-clock" id="hbClock">0:00</div>
+        <button class="hs-btn big" id="hbStart">▶ Start</button><button class="hs-btn ghost" id="hbReset" title="Start over">↺</button>
+        <span class="spacer"></span><button class="hs-btn big done" id="hbDone">⏹ Done</button>
+        <div class="hb-fbar2"><button class="hs-btn ghost sm" id="hbModel" title="The laptop reads the passage aloud while the words light up">🔊 Model reading</button>
+        <label class="hb-pace"><input type="checkbox" id="hbPace" ${pace ? 'checked' : ''}> 🐢 Pace <input type="range" id="hbPw" min="60" max="200" step="10" value="${wpmT}"><b id="hbPwv">${wpmT}</b> wpm</label></div>
+      </div>
+      <div class="hb-mis" id="hbMis"><span class="hb-mis-t">Miscue type, then tap the word:</span>${MIS.map(([k, t]) => `<button data-k="${k}" class="${k === active ? 'on' : ''}" title="${t}"><b>${k}</b>${t}<i data-c="${k}">0</i></button>`).join('')}</div>
+      <article class="hb-paper flu ${a.kind} teacher"><div class="hb-kicker">${esc(a.label)} · ${a.kind === 'poem' ? 'Poem' : 'Story'} · ${a.wc} words</div><h1>${esc(a.title)}</h1><div class="hb-text" id="hbText">${tHtml}</div></article>
+      <div id="hbRes"></div>`, 'Teacher · tap the words the learner misses');
+    splitWire(st.body, () => { const keep = {...marks}; draw(); Object.assign(marks, keep); restore(); });
+    wire(); };
+  let W = [], WL = [], clock;
+  const hl = (cls, j) => { [W, WL].forEach(A => A.forEach((w, k) => w.classList.toggle(cls, k === j))); const t = WL[j] || W[j]; if(t) t.scrollIntoView({block: 'nearest', behavior: 'smooth'}); };
   const secs = () => (acc + (running ? (Date.now() - t0) : 0)) / 1000;
   const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-  const tick = () => { clock.textContent = fmt(secs()); };
-  const counts = () => { MIS.forEach(([k]) => { $(`[data-c="${k}"]`, st.body).textContent = Object.values(marks).filter(x => x === k).length; }); };
-  const startPace = () => { clearInterval(paceT); if(!pace) return; paceT = setInterval(() => { W.forEach((w, j) => w.classList.toggle('pace', j === paceI)); if(W[paceI]) W[paceI].scrollIntoView({block: 'nearest', behavior: 'smooth'}); paceI++; if(paceI > W.length) clearInterval(paceT); }, 60000 / wpmT); };
+  const tick = () => { if(clock) clock.textContent = fmt(secs()); };
+  const counts = () => { MIS.forEach(([k]) => { const e = $(`[data-c="${k}"]`, st.body); if(e) e.textContent = Object.values(marks).filter(x => x === k).length; }); };
+  const restore = () => { Object.entries(marks).forEach(([j, k]) => { const w = W[+j]; if(w){ w.className = 'hb-w mk'; w.dataset.m = k; } }); counts(); tick(); if(running) $('#hbStart', st.body).textContent = '⏸ Pause'; };
+  const startPace = () => { clearInterval(paceT); if(!pace) return; paceT = setInterval(() => { hl('pace', paceI); paceI++; if(paceI > W.length) clearInterval(paceT); }, 60000 / wpmT); };
+  const go = () => { t0 = Date.now(); running = true; timer = setInterval(tick, 250); $('#hbStart', st.body).textContent = '⏸ Pause'; st.s.classList.add('reading'); startPace(); };
   const start = () => { if(running){ acc += Date.now() - t0; running = false; clearInterval(timer); clearInterval(paceT); $('#hbStart', st.body).textContent = '▶ Resume'; return; }
-    t0 = Date.now(); running = true; timer = setInterval(tick, 250); $('#hbStart', st.body).textContent = '⏸ Pause'; st.s.classList.add('reading'); startPace(); };
-  const reset = () => { running = false; acc = 0; clearInterval(timer); clearInterval(paceT); paceI = 0; tick(); $('#hbStart', st.body).textContent = '▶ Start';
-    Object.keys(marks).forEach(k => delete marks[k]); W.forEach(w => { w.className = 'hb-w'; delete w.dataset.m; }); counts(); $('#hbRes', st.body).innerHTML = ''; st.s.classList.remove('reading'); };
+    const lp = $('.hb-learner', st.body); if(!acc && lp) countdown(lp, go); else go(); };
+  const reset = () => { running = false; acc = 0; clearInterval(timer); clearInterval(paceT); paceI = 0; Object.keys(marks).forEach(k => delete marks[k]); draw(); };
   st.s._stop = () => { clearInterval(timer); clearInterval(paceT); };
-  $('#hbStart', st.body).onclick = start; $('#hbReset', st.body).onclick = reset;
-  $$('#hbMis button', st.body).forEach(b => b.onclick = () => { active = b.dataset.k; $$('#hbMis button', st.body).forEach(x => x.classList.toggle('on', x === b)); });
-  W.forEach(w => w.onclick = () => { const j = w.dataset.i; if(marks[j] === active){ delete marks[j]; w.className = 'hb-w'; delete w.dataset.m; } else { marks[j] = active; w.className = 'hb-w mk'; w.dataset.m = active; } counts(); });
-  $('#hbPace', st.body).onchange = (e) => { pace = e.target.checked; paceI = 0; W.forEach(w => w.classList.remove('pace')); if(running) startPace(); };
-  $('#hbPw', st.body).oninput = (e) => { wpmT = +e.target.value; u.paceWpm = wpmT; $('#hbPwv', st.body).textContent = wpmT; if(running && pace) startPace(); };
-  let modelOn = false;
-  $('#hbModel', st.body).onclick = (e) => { if(modelOn){ TTS.stop(); modelOn = false; e.target.textContent = '🔊 Model reading'; W.forEach(w => w.classList.remove('say')); return; }
-    if(!TTS.ok()) return M.toast('This browser cannot read aloud');
-    const text = words.join(' '); const starts = []; let p = 0; words.forEach(w => { starts.push(p); p += w.length + 1; });
-    modelOn = true; e.target.textContent = '⏸ Stop';
-    TTS.speak(text, {rate: 0.9, onWord: (ci) => { let j = starts.length - 1; while(j > 0 && starts[j] > ci) j--; W.forEach((w, k) => w.classList.toggle('say', k === j)); if(W[j]) W[j].scrollIntoView({block: 'nearest', behavior: 'smooth'}); },
-      onEnd: () => { modelOn = false; const b = $('#hbModel', st.body); if(b) b.textContent = '🔊 Model reading'; W.forEach(w => w.classList.remove('say')); }}); };
-  $('#hbDone', st.body).onclick = () => { if(running) start(); const s = Math.round(secs()); results(s); };
+  const wire = () => { W = $$('.hb-teacher .hb-w', st.body); WL = $$('.hb-learner .hb-w', st.body); clock = $('#hbClock', st.body); tick();
+    $('#hbStart', st.body).onclick = start; $('#hbReset', st.body).onclick = reset;
+    $$('#hbMis button', st.body).forEach(b => b.onclick = () => { active = b.dataset.k; $$('#hbMis button', st.body).forEach(x => x.classList.toggle('on', x === b)); });
+    W.forEach(w => w.onclick = () => { const j = w.dataset.i; if(marks[j] === active){ delete marks[j]; w.className = 'hb-w'; delete w.dataset.m; } else { marks[j] = active; w.className = 'hb-w mk'; w.dataset.m = active; } counts(); });
+    $('#hbPace', st.body).onchange = (e) => { pace = e.target.checked; paceI = 0; [W, WL].forEach(A => A.forEach(w => w.classList.remove('pace'))); if(running) startPace(); };
+    $('#hbPw', st.body).oninput = (e) => { wpmT = +e.target.value; u.paceWpm = wpmT; $('#hbPwv', st.body).textContent = wpmT; if(running && pace) startPace(); };
+    $('#hbModel', st.body).onclick = (e) => { if(modelOn){ TTS.stop(); modelOn = false; e.target.textContent = '🔊 Model reading'; hl('say', -1); return; }
+      if(!TTS.ok()) return M.toast('This browser cannot read aloud');
+      const starts = []; let p = 0; words.forEach(w => { starts.push(p); p += w.length + 1; });
+      modelOn = true; e.target.textContent = '⏸ Stop';
+      TTS.speak(words.join(' '), {rate: 0.9, onWord: (ci) => { let j = starts.length - 1; while(j > 0 && starts[j] > ci) j--; hl('say', j); },
+        onEnd: () => { modelOn = false; const b = $('#hbModel', st.body); if(b) b.textContent = '🔊 Model reading'; hl('say', -1); }}); };
+    $('#hbDone', st.body).onclick = () => { if(running) start(); results(Math.round(secs())); };
+  };
   st.s.onKey = (e) => { if(e.key === ' ' && e.target === document.body){ e.preventDefault(); start(); } };
   const results = (s) => { st.s.classList.remove('reading');
     const box = $('#hbRes', st.body); let read = a.wc;
-    const draw = () => { const mis = Object.keys(marks).length; const pct = Math.max(0, Math.round((a.wc - mis) / a.wc * 1000) / 10); const lvl = levelOf(pct); const wpm = s ? Math.round(read * 60 / s) : 0;
+    const lp = $('.hb-learner', st.body);
+    const rdraw = () => { const mis = Object.keys(marks).length; const pct = Math.max(0, Math.round((a.wc - mis) / a.wc * 1000) / 10); const lvl = levelOf(pct); const wpm = s ? Math.round(read * 60 / s) : 0;
       box.innerHTML = `<div class="hb-fres">
         <div class="hb-fres-h"><h2>Oral reading record</h2><button class="hs-ic" id="hbRx">✕</button></div>
         <div class="hb-kpis">
@@ -207,13 +248,14 @@ function playL4(c, idx){
         <div class="tiny hb-formula">Score = (${a.wc} − ${mis}) ÷ ${a.wc} × 100 · Independent 97–100 · Instructional 90–96 · Frustration 89 and below &nbsp;|&nbsp; Speed = words read × 60 ÷ ${s} s</div>
         <div id="hbSave"></div>
         <div class="hb-dock center"><button class="hs-btn ghost" id="hbAgain">↻ Read again</button><button class="hs-btn ghost" id="hbList">☰ All passages</button>${idx < P.length - 1 ? `<button class="hs-btn big" id="hbNextA">Next: ${esc(P[idx + 1].title)} →</button>` : ''}</div></div>`;
-      $('#hbRead', box).onchange = (e) => { read = Math.max(1, Math.min(a.wc, +e.target.value || a.wc)); draw(); };
+      $('#hbRead', box).onchange = (e) => { read = Math.max(1, Math.min(a.wc, +e.target.value || a.wc)); rdraw(); };
       $('#hbRx', box).onclick = () => { box.innerHTML = ''; };
       saveBox(c, $('#hbSave', box), a.id, {pct, wpm, mis, secs: s, read, lvl, ts: Date.now(), marks: Object.entries(marks).map(([k, v]) => k + v).join(',')}, null, true);
       $('#hbAgain', box).onclick = () => playL4(c, idx); $('#hbList', box).onclick = () => closeStage(true);
-      if($('#hbNextA', box)) $('#hbNextA', box).onclick = () => playL4(c, idx + 1);
-      if(pct >= 97) confetti(st.s); };
-    draw(); box.scrollIntoView({behavior: 'smooth'}); };
+      if($('#hbNextA', box)) $('#hbNextA', box).onclick = () => playL4(c, idx + 1); };
+    rdraw(); if(lp){ const g = document.createElement('div'); g.className = 'hb-wd'; g.innerHTML = `<b>Well done!</b><span>You finished reading.</span>`; lp.appendChild(g); if(Object.keys(marks).length / a.wc <= .03) confetti(lp); }
+    box.scrollIntoView({behavior: 'smooth'}); };
+  draw();
 }
 
 /* =========================== hub views =========================== */
@@ -221,7 +263,7 @@ const BACK = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke
 
 M.views.readingHub = function view(el){
   const c = M.cls(); const u = ui();
-  if(!M.HUB_L6 || !M.HUB_L4){ el.innerHTML = `<div class="card"><div class="empty">Opening the BULIG Hub…</div></div>`; loadData().then(() => view(el)).catch(() => { el.innerHTML = `<div class="card"><div class="empty">Could not load the BULIG modules. Reload MASTRO and try again.</div></div>`; }); return; }
+  if(!M.HUB_L6 || !M.HUB_L4 || !M.HUB_L3 || !M.HUB_L5 || !M.HUB_L7){ el.innerHTML = `<div class="card"><div class="empty">Opening the BULIG Hub…</div></div>`; loadData().then(() => view(el)).catch(() => { el.innerHTML = `<div class="card"><div class="empty">Could not load the BULIG modules. Reload MASTRO and try again.</div></div>`; }); return; }
   if(u.who && !learnerById(c, u.who)) u.who = '';
   const who = u.who ? learnerById(c, u.who) : null; const lv = who && M.buligLevel ? M.buligLevel(c, who.id) : [];
   const mod = MODS.find(m => m.k === u.mod && m.ready);
@@ -237,6 +279,7 @@ M.views.readingHub = function view(el){
   if(!mod) return shelf(main, c, el);
   if(mod.k === 'L6') return l6Home(main, c, el);
   if(mod.k === 'L4') return l4Home(main, c, el);
+  if(M._hub.homes[mod.k]) return M._hub.homes[mod.k](main, c, el);
 };
 
 function shelf(main, c, el){ const u = ui();
@@ -278,19 +321,19 @@ function l4Home(main, c, el){ const u = ui(); const P = M.HUB_L4;
   $$('.hb-tile', box).forEach(b => b.onclick = () => playL4(c, +b.dataset.i));
 }
 
-function progress(box, c, A, kind){ const L = M.readLearners ? M.readLearners(c) : c.learners; const R = (c.hub || {}).r || {};
-  const col = (a, i) => kind === 'L6' ? (i === 0 ? 'Pre' : i === A.length - 1 ? 'Post' : String(i)) : (/Pre/.test(a.label) ? 'Pre' : /Post-assessment A/.test(a.label) ? 'Post A' : /Post-assessment B/.test(a.label) ? 'Post B' : a.label.replace('Activity ', ''));
-  const cell = (x) => !x ? '<td class="e">·</td>' : kind === 'L6' ? `<td class="s${stars(x.best.pct)}" title="${x.n} attempt(s)">${x.best.score}/${x.best.max}</td>` : `<td class="lv-${x.best.lvl}" title="${x.best.pct}% · ${x.best.wpm} wpm · ${x.n} attempt(s)">${x.best.wpm}<small>${x.best.pct}%</small></td>`;
+function progress(box, c, A, kind, colFn){ const L = M.readLearners ? M.readLearners(c) : c.learners; const R = (c.hub || {}).r || {};
+  const col = colFn || ((a, i) => kind === 'L6' ? (i === 0 ? 'Pre' : i === A.length - 1 ? 'Post' : String(i)) : (/Pre/.test(a.label) ? 'Pre' : /Post-assessment A/.test(a.label) ? 'Post A' : /Post-assessment B/.test(a.label) ? 'Post B' : a.label.replace('Activity ', '')));
+  const cell = (x) => !x ? '<td class="e">·</td>' : kind !== 'L4' ? `<td class="s${stars(x.best.pct)}" title="${x.n} attempt(s)">${x.best.score}/${x.best.max}</td>` : `<td class="lv-${x.best.lvl}" title="${x.best.pct}% · ${x.best.wpm} wpm · ${x.n} attempt(s)">${x.best.wpm}<small>${x.best.pct}%</small></td>`;
   const any = L.some(l => R[l.id] && A.some(a => R[l.id][a.id]));
-  box.innerHTML = `<div class="card hb-progc"><div class="row" style="margin-bottom:10px"><b>${kind === 'L6' ? 'Best score per selection' : 'Best reading speed (wpm) and oral reading score per passage'}</b><span class="spacer"></span><button class="btn sm" id="hbCsv">⬇ Download CSV</button></div>
+  box.innerHTML = `<div class="card hb-progc"><div class="row" style="margin-bottom:10px"><b>${kind !== 'L4' ? 'Best score per activity' : 'Best reading speed (wpm) and oral reading score per passage'}</b><span class="spacer"></span><button class="btn sm" id="hbCsv">⬇ Download CSV</button></div>
     ${any ? '' : '<div class="small muted" style="margin-bottom:8px">No results yet — choose a learner in “Who’s reading?” and play an activity, or save a whole-class result to a learner at the end.</div>'}
     <div class="hb-tw"><table class="hb-pt"><thead><tr><th class="l">Learner</th>${A.map((a, i) => `<th title="${esc(a.title)}">${col(a, i)}</th>`).join('')}</tr></thead><tbody>
     ${[['M','MALE'],['F','FEMALE']].map(([sx, t]) => { const arr = L.filter(l => sx === 'M' ? l.sex === 'M' : l.sex !== 'M'); return arr.length ? `<tr class="sx"><td colspan="${A.length + 1}">${t}</td></tr>` + arr.map(l => `<tr><td class="l">${esc(l.name)}</td>${A.map(a => cell((R[l.id] || {})[a.id])).join('')}</tr>`).join('') : ''; }).join('')}</tbody></table></div>
     ${kind === 'L4' ? '<div class="tiny muted" style="margin-top:8px">Colour = level: green Independent (97–100%), amber Instructional (90–96%), red Frustration (89% and below).</div>' : ''}</div>`;
   $('#hbCsv', box).onclick = () => { const rows = [['Learner', 'Sex', ...A.map((a, i) => col(a, i) + ' ' + a.title)]];
-    L.forEach(l => rows.push([l.name, l.sex, ...A.map(a => { const x = (R[l.id] || {})[a.id]; return !x ? '' : kind === 'L6' ? `${x.best.score}/${x.best.max}` : `${x.best.pct}% ${x.best.lvl} ${x.best.wpm} wpm`; })]));
+    L.forEach(l => rows.push([l.name, l.sex, ...A.map(a => { const x = (R[l.id] || {})[a.id]; return !x ? '' : kind !== 'L4' ? `${x.best.score}/${x.best.max}` : `${x.best.pct}% ${x.best.lvl} ${x.best.wpm} wpm`; })]));
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n'); const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob(['﻿' + csv], {type: 'text/csv'})); a.download = `BULIG Hub ${kind === 'L6' ? 'Level 6' : 'Level 4'} - ${M.className(c)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+    a.href = URL.createObjectURL(new Blob(['﻿' + csv], {type: 'text/csv'})); a.download = `BULIG Hub Level ${kind.slice(1)} - ${M.className(c)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
 }
 
 function keys(box, c, A, g, el){ const K = M.S.hubKeys = M.S.hubKeys || {};
@@ -303,4 +346,5 @@ function keys(box, c, A, g, el){ const K = M.S.hubKeys = M.S.hubKeys || {};
 }
 
 M.hubClose = closeStage;
+M._hub = {ui, store, resOf, keyOf, learnerById, stars, starHtml, TTS, confetti, chime, stage, closeStage, whoPicker, saveBox, saveRes, splitWrap, splitWire, wordsHtml, countdown, playQuiz, progress, tabsHtml, SKILL_C, homes: {}};
 })();

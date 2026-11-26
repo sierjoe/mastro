@@ -1,4 +1,4 @@
-# MASTRO — Adviser's Workspace (v6.21 · November 26, 2026)
+# MASTRO — Adviser's Workspace (v6.22 · November 26, 2026)
 
 Offline forms, documents and class management for the class adviser
 (Impalutao Integrated School). Runs in the browser on MacBook and iPhone and works without internet once opened.
@@ -19,6 +19,19 @@ Offline forms, documents and class management for the class adviser
 - **Learner status**: tag T/O, SARDO, NLP or Dropped Out; statistics and reports reflect it.
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
+
+### New in v6.22
+- **Split screen** in every BULIG Hub reading activity: the **learner side** shows only a clean page with big text, and the **teacher side** has the timer,
+  miscue marking, answer key, live answers and scoring. **⇆** swaps the sides, **▣ One page** goes back to a single page.
+  Level 4 starts with a 3-2-1 countdown on the learner side.
+- **Level 3 · Word Recognition** (25 lessons): blend and say, build a word (laptop says the word), odd word out, word sort, listen and match,
+  missing blend, and flash reading (speed read, assessment, sight words, phrases, sentences) that you mark ✓ / ✕ on your side.
+- **Level 5 · Listening & Vocabulary** (Grades 7–8 and 9–10): 20 days each — 🎧 listen (text hidden until you show it), vocabulary cards,
+  then the day's activity (synonyms, context clues, homophones, word bank, matching, word search, crossword, unscramble, Frayer model,
+  sketchnotes, word association) and think-and-write answers you mark. Pre- and post-tests (50 items each, with the module keys).
+- **Level 7 · Genuine Love for Reading and Writing** (Grade 7, 27 activities): news, editorial, sports, copyreading (you see what the learner changed),
+  sci-tech, feature, column (match the parts, put in order), editorial cartooning (drawing pad) and radio broadcasting (write the script, then go **ON AIR**
+  with a timer) — scored with a rubric on your side.
 
 ### New in v6.21
 - **✦ BULIG Hub** (Reading → **BULIG Hub**): the Division of Bukidnon BULIG modules as interactive activities on the laptop —
