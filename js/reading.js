@@ -60,6 +60,30 @@ M.readTagsEditor = (c, done) => { const L = M.readLearners(c);
     <div class="row" style="margin-top:12px"><span class="spacer"></span><button class="btn primary" id="rtOk">Done</button></div>`, b => {
     $$('[data-rt]', b).forEach(x => x.onchange = () => { c.readTags = c.readTags || {}; c.readTags[x.dataset.rt] = x.value; M.save(); });
     $('#rtOk', b).onclick = () => { M.closeModal(); done && done(); }; }, true); };
+/* ---------- v6.24: learners assessed by another teacher (BULIG groups are shared across advisers) ----------
+   c.readAssessors = {lid: 'Teacher name'} — shown as a 👩‍🏫 chip in Reading, the BULIG Hub and the reports. */
+M.readAssessor = (c, l) => String(((c && c.readAssessors) || {})[l && l.id] || '').trim();
+const shortT = (n) => { const p = String(n).trim().split(/\s+/); return p.length > 2 ? p[0] + ' ' + p[p.length - 1] : n; };
+M.readAssessorChip = (c, l) => { const a = M.readAssessor(c, l); return a ? ` <span class="rtag rt-as" title="Assessed by ${esc(a)} (other teacher-assessor)">👩‍🏫 ${esc(shortT(a))}</span>` : ''; };
+M.readFrustration = (c, l) => { const r = root(c); return ['ENGLISH', 'FILIPINO'].some(k => { const d = r.langs[k]; if(!d || !d.L) return false; const x = d.L[l.id] || {};
+  const prof = x.eosy || x.mosy || x.bosy; if(prof) return /frustration|emerging/i.test(prof); const ck = x.pre ? curLevel(data(c, k), l.id) : ''; return ck && LVI[ck] <= LVI.L3B; }); };
+M.readAssessorEditor = (c, done) => { const L = M.readLearners(c); const A = c.readAssessors = c.readAssessors || {};
+  const names = () => [...new Set(Object.values(A).map(x => String(x).trim()).filter(Boolean))].sort();
+  const lvTxt = (l) => { const d = data(c); const x = d.L[l.id] || {}; const ck = curLevel(d, l.id); const prof = x.eosy || x.mosy || x.bosy || ''; return `${ck ? `<span class="lvchip lv-${ck}">${lvOf(ck).t}</span>` : ''}${prof ? ` <span class="tiny ${/frustration/i.test(prof) ? 'bad' : 'muted'}">${esc(prof)}</span>` : ''}`; };
+  M.modal('Other teacher-assessors', `<p class="small muted" style="margin-top:0">Tag the learners who are in another teacher's BULIG group (for example the Frustration group). They stay in your class lists and reports, marked <span class="rtag rt-as">👩‍🏫 name</span>, and you can show only them — or only your own — in the Hub progress.</p>
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px"><input class="input" id="asN" list="asDl" placeholder="Teacher-assessor's name" style="max-width:260px"><datalist id="asDl">${names().map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+      <button class="btn sm primary" id="asSet">Assign to ticked</button><button class="btn sm" id="asClr">Clear ticked</button><span class="spacer"></span><button class="btn sm" id="asFr">Tick Frustration readers</button><button class="btn sm" id="asNone">Untick all</button></div>
+    <div class="ps-list" style="max-height:52vh;overflow:auto" id="asList">${[['M','MALE'],['F','FEMALE']].map(([sx, t]) => `<div class="tiny muted" style="margin:10px 0 4px">${t}</div>` + L.filter(l => sx === 'M' ? l.sex === 'M' : l.sex !== 'M').map(l => `<label class="row rt-row" style="gap:8px"><input type="checkbox" data-as="${l.id}"><span class="grow">${esc(l.name)}${M.readTagChip(c, l)} ${lvTxt(l)}</span><input class="input" data-an="${l.id}" list="asDl" value="${esc(A[l.id] || '')}" placeholder="— my learner —" style="width:210px"></label>`).join('')).join('')}</div>
+    <div class="row" style="margin-top:12px"><span class="small muted" id="asCnt"></span><span class="spacer"></span><button class="btn primary" id="asOk">Done</button></div>`, b => {
+    const cnt = () => { const n = Object.values(A).filter(x => String(x).trim()).length; $('#asCnt', b).textContent = `${n} learner(s) with another assessor`; };
+    const put = (lid, v) => { v = String(v || '').trim(); if(v) A[lid] = v; else delete A[lid]; const i = $(`[data-an="${lid}"]`, b); if(i) i.value = v; };
+    $$('[data-an]', b).forEach(x => x.onchange = () => { put(x.dataset.an, x.value); M.save(); cnt(); });
+    const ticked = () => $$('[data-as]:checked', b).map(x => x.dataset.as);
+    $('#asSet', b).onclick = () => { const v = $('#asN', b).value.trim(); if(!v) return M.toast('Type the teacher-assessor\'s name first'); const t = ticked(); if(!t.length) return M.toast('Tick the learners first'); t.forEach(id => put(id, v)); M.save(); cnt(); M.toast(`${t.length} learner(s) assigned to ${v}`); };
+    $('#asClr', b).onclick = () => { const t = ticked(); t.forEach(id => put(id, '')); M.save(); cnt(); };
+    $('#asFr', b).onclick = () => { let n = 0; $$('[data-as]', b).forEach(x => { const l = L.find(y => y.id === x.dataset.as); x.checked = M.readFrustration(c, l); if(x.checked) n++; }); M.toast(n ? `${n} Frustration reader(s) ticked` : 'No Frustration readers found in the reading records'); };
+    $('#asNone', b).onclick = () => $$('[data-as]', b).forEach(x => x.checked = false);
+    $('#asOk', b).onclick = () => { M.closeModal(); done && done(); }; cnt(); }, true); };
 // counts split by sex: [{k, m, f}] for a list of learners and a key function
 M.readBySex = (L, keyOf, keys) => keys.map(k => { const a = L.filter(l => keyOf(l) === k); return {k, m: a.filter(l => l.sex === 'M').length, f: a.filter(l => l.sex !== 'M').length, t: a.length}; });
 const learners = (c) => M.readLearners(c);
@@ -102,13 +126,14 @@ M.views.readingBulig = function view(el, args){
     <div class="bul-ladder" style="margin-top:14px">${LV.map((x, i) => { const a = L.filter(l => curLevel(d, l.id) === x.k); return `<div class="bl-step lv-${x.k}" title="${esc(x.comp)}"><b>Level ${x.short}</b><span>${dist[i]}</span><i class="mf">♂ ${a.filter(l => l.sex === 'M').length} · ♀ ${a.filter(l => l.sex !== 'M').length}</i></div>`; }).join('')}</div>
     <div id="bMatrix"></div>
     <div class="chips" style="margin-top:10px"><span class="chip green">${esc(LANGS.find(x => x[0] === r.lang)[1])} · ${esc(d.tool)}</span><span class="chip">${L.length} learners assessed</span><span class="chip ${profiled < L.length ? 'gold' : 'green'}">${profiled}/${L.length} with pre-test level</span><span class="chip">${d.aps.length} assessment period(s)</span>${last ? `<span class="chip">${apName(d.aps.length)}: ${tagged}/${profiled} tagged</span>` : ''}</div>
-    <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">${(() => { const T = ['TI','TO','NLP','DO'].map(k => [k, L.filter(l => M.readTag(c, l) === k).length]).filter(x => x[1]); return T.map(([k, n]) => `<span class="rtag rt-${k}">${k === 'TI' ? 'T/I' : k === 'TO' ? 'T/O' : k} ${n}</span>`).join(''); })()}<button class="btn sm" id="bTags">🏷️ Tag T/I · T/O · NLP</button>
+    <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">${(() => { const T = ['TI','TO','NLP','DO'].map(k => [k, L.filter(l => M.readTag(c, l) === k).length]).filter(x => x[1]); return T.map(([k, n]) => `<span class="rtag rt-${k}">${k === 'TI' ? 'T/I' : k === 'TO' ? 'T/O' : k} ${n}</span>`).join(''); })()}<button class="btn sm" id="bTags">🏷️ Tag T/I · T/O · NLP</button><button class="btn sm" id="bAs">👩‍🏫 Other assessors${(() => { const n = L.filter(l => M.readAssessor(c, l)).length; return n ? ` (${n})` : ''; })()}</button>
       <button class="btn sm" id="bCopy" title="Copy every learner's pre-test level and BOSY / MOSY / EOSY from the other language">⧉ Same as ${r.lang === 'ENGLISH' ? 'Filipino' : 'English'}</button></div>
   </div>
   <div class="row" style="margin:18px 0 14px"><div class="seg" id="bTabs">${[['mon','1 · Pre-test & profile'],['ap','2 · Assessment periods'],['grp','3 · Groupings'],['rep','4 · Reports']].map(([k, t]) => `<button data-t="${k}" class="${u.tab === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
   <div id="bBody"></div>`;
   $$('#bLang button').forEach(b => b.onclick = () => { r.lang = b.dataset.l; u.ap = null; u.gp = null; M.save(); view(el, []); });
   $('#bTags').onclick = () => M.readTagsEditor(c, () => view(el, []));
+  $('#bAs').onclick = () => M.readAssessorEditor(c, () => view(el, []));
   $('#bCopy').onclick = () => { const other = r.lang === 'ENGLISH' ? 'FILIPINO' : 'ENGLISH'; const src = r.langs[other] && r.langs[other].L; const n = src ? Object.keys(src).length : 0;
     if(!n) return M.toast(`Nothing recorded in ${other === 'ENGLISH' ? 'English' : 'Filipino'} yet`);
     if(Object.keys(d.L).length && !confirm(`Replace this language's pre-test levels and BOSY / MOSY / EOSY with the ${other === 'ENGLISH' ? 'English' : 'Filipino'} ones? You can still change any learner afterwards.`)) return;
@@ -163,7 +188,7 @@ function monTab(el, c, d, L, rr){
   const sel = (lid, k, opts, val, ph) => `<select class="input bsel" data-lid="${lid}" data-k="${k}"><option value="">${ph}</option>${opts.map(o => `<option value="${esc(o[0])}" ${o[0] === val ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select>`;
   const row = (l, i) => { const r = d.L[l.id] || {}; const ck = curLevel(d, l.id); const cx = lvOf(ck);
     const hist = d.aps.map((a, j) => { const m = r.pre ? (a.marks || {})[l.id] : ''; return `<span class="aph ${m || ''}" title="AP${j + 1}: ${m === 'P' ? 'PASSED' : m === 'N' ? 'NOT READY' : 'not assessed'}">${m === 'P' ? '✓' : m === 'N' ? '✕' : '·'}</span>`; }).join('');
-    return `<tr><td class="muted">${i + 1}</td><td class="sticky-col"><b>${esc(l.name)}</b>${M.readTagChip(c, l)}</td>
+    return `<tr><td class="muted">${i + 1}</td><td class="sticky-col"><b>${esc(l.name)}</b>${M.readTagChip(c, l)}${M.readAssessorChip(c, l)}</td>
       <td>${sel(l.id, 'pre', LV.map(x => [x.k, x.t]), r.pre, '— level —')}</td>
       <td class="tiny" style="max-width:170px;white-space:normal">${r.pre ? esc(lvOf(r.pre).comp) : ''}</td>
       ${PER.map(([k]) => `<td class="pcol">${sel(l.id, k, prof.map(p => [p, p]), r[k], '—')}</td>`).join('')}
@@ -207,7 +232,7 @@ function apTab(el, c, d, L, rr){
           <input class="input bg-by" data-lv="${x.k}" value="${esc(ap.byLv[x.k] || '')}" placeholder="Assessor: ${esc(ap.by || 'same as above')}">
           <div class="bg-all"><button class="btn sm" data-all="${x.k}" data-m="P">All passed</button><button class="btn sm" data-all="${x.k}" data-m="N">All not ready</button></div></div>
         <div class="bg-rows"><div class="bg-row bg-cap"><span>#</span><span>Learner</span><span>Result</span><span>New level</span></div>${arr.map((l, i) => { const m = marks[l.id] || ''; const after = levelAt(d, l.id, n);
-          return `<div class="bg-row ${m ? 'is-' + (m === '-' ? 'X' : m) : ''}"><span class="muted">${i + 1}</span><span class="bg-nm"><b>${esc(nm(l))}</b><i>${l.sex === 'M' ? 'Male' : 'Female'}</i></span>
+          return `<div class="bg-row ${m ? 'is-' + (m === '-' ? 'X' : m) : ''}"><span class="muted">${i + 1}</span><span class="bg-nm"><b>${esc(nm(l))}</b><i>${l.sex === 'M' ? 'Male' : 'Female'}${M.readAssessorChip(c, l)}</i></span>
             <div class="tagset" data-lid="${l.id}"><button data-m="P" class="t-p ${m === 'P' ? 'on' : ''}">✓ PASSED</button><button data-m="N" class="t-n ${m === 'N' ? 'on' : ''}">✕ NOT READY</button><button data-m="-" class="t-x ${m === '-' ? 'on' : ''}" title="Not assessed">–</button></div>
             <span class="lvchip lv-${after} ${m === 'P' ? 'up' : ''}">${after ? (m === 'P' && after !== x.k ? '▲ ' : '') + lvOf(after).t : ''}</span></div>`; }).join('')}</div></div>`).join('')}`;
   }

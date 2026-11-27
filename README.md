@@ -20,6 +20,12 @@ Offline forms, documents and class management for the class adviser
 - **Printouts**: SF9 in A4 or A5 (portrait or landscape) with DepEd and school seals (upload them in Settings).
 - **Repository** and **Settings** (backup/restore).
 
+### New in v6.24
+- **BULIG Hub → Progress: type results by hand** (to catch up from paper records). Tap any cell to type, fix or delete a result. **✎ Enter results** types one activity for the whole class at once. Level 4 takes miscues plus the reading time (m:ss) or the words per minute, and works out the score and level. Other levels take score / total. Typed results carry a small dot.
+- **Other teacher-assessors**: tag learners who are in another teacher's BULIG group (Reading → BULIG → 👩‍🏫 Other assessors, or Hub → Progress → Assessors). "Tick Frustration readers" selects them quickly. They show a 👩‍🏫 chip everywhere in Reading. The Hub progress can show All · My learners · Other assessors.
+- **Hub progress reports**: class summary (A4 landscape), one learner, or every learner. View, print, download PDF or Excel.
+- **Attendance shows T/O · NLP · DO**: striped seats with the status, a "T/O · NLP · DO" card under the seat chart, greyed rows and a "not in this seat chart" line in Month. They are no longer counted as present on the seat chart.
+
 ### New in v6.23
 - **Reading → Reports → BULIG RMS**: fills the division BULIG RMS Excel file (.xlsm, macros kept) from MASTRO's reading records — school info, learners, pre-test levels, AP quarters and remarks. Pick English or Filipino; one file per language. Learners without a pre-test level and NLP/TO learners are left out. Template mistakes fixed (pre-test count columns, "Frustration" spelling, quarter cells).
 - **Funds → 📒 Payment records**: see every payment (filter by learner, project, dates; search), edit or delete, print the record. Edits keep a history and can move a payment to the right learner. Each learner row has a 📒 ledger button.

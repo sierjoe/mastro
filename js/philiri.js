@@ -96,7 +96,7 @@ function gstTab(el, c, d, L, rr){
       <label class="field mini">Administered by<input class="input" id="pBy" value="${esc(d.by || '')}"></label></div>
     <div class="table-wrap" style="margin-top:14px"><table class="piri-t"><thead><tr><th>#</th><th class="sticky-col">Learner</th><th class="num">GST score</th><th>Result</th><th>Reading profile</th></tr></thead><tbody>
     ${bySex(L).map(([sx, lab, arr]) => arr.length ? `<tr class="sexrow"><td colspan="5">${lab}</td></tr>` + arr.map((l, i) => { const x = calc(d.L[l.id], d);
-      return `<tr><td class="muted">${i + 1}</td><td class="sticky-col"><b>${esc(l.name)}</b>${M.readTagChip(c, l)}</td><td class="num"><input class="input gcell" data-lid="${l.id}" inputmode="numeric" value="${x.gst ?? ''}"></td>
+      return `<tr><td class="muted">${i + 1}</td><td class="sticky-col"><b>${esc(l.name)}</b>${M.readTagChip(c, l)}${M.readAssessorChip(c, l)}</td><td class="num"><input class="input gcell" data-lid="${l.id}" inputmode="numeric" value="${x.gst ?? ''}"></td>
         <td class="pr-res" data-res="${l.id}">${x.gst == null ? '' : x.below ? '<span class="low">Below cut-off · take the graded passage</span>' : '<span style="color:var(--green)">Passed</span>'}</td><td data-pf="${l.id}">${chip(x.prof)}</td></tr>`; }).join('') : '').join('')}
     </tbody></table></div></div>`;
   $('#pDate', el).onchange = e => { d.date = e.target.value; M.save(); };
@@ -121,7 +121,7 @@ function oralTab(el, c, d, L, rr){
     <div class="tiny muted" style="margin-top:8px">Word reading: Independent 97–100% · Instructional 90–96% · Frustration 89% and below &nbsp;|&nbsp; Comprehension: Independent 80–100% · Instructional 59–79% · Frustration 58% and below</div>
     ${list.length ? `<div class="table-wrap" style="margin-top:12px"><table class="piri-t"><thead><tr><th class="sticky-col">Learner</th><th>Passage<br>grade${fillB('gl')}</th><th>Words${fillB('words')}</th><th>Miscues</th><th>Time<br>(sec)</th><th>Word<br>reading</th><th>WPM</th><th>Questions${fillB('items')}</th><th>Correct</th><th>Compre-<br>hension</th><th>Non-<br>reader</th><th>Profile</th></tr></thead><tbody>
       ${list.map(l => { const x = calc(d.L[l.id], d); const rec = d.L[l.id] || {};
-        return `<tr data-row="${l.id}"><td class="sticky-col"><b>${esc(l.name)}</b>${M.readTagChip(c, l)}${x.gst != null ? `<div class="tiny muted">GST ${x.gst}/${d.gstMax}</div>` : ''}</td>
+        return `<tr data-row="${l.id}"><td class="sticky-col"><b>${esc(l.name)}</b>${M.readTagChip(c, l)}${M.readAssessorChip(c, l)}${x.gst != null ? `<div class="tiny muted">GST ${x.gst}/${d.gstMax}</div>` : ''}</td>
           <td>${cell(l, 'gl', 'Gr', 50)}</td><td>${cell(l, 'words', 'no.')}</td><td>${cell(l, 'mis', 'no.')}</td><td>${cell(l, 'secs', 'sec')}</td>
           <td class="num" data-o="wr">${x.wr != null ? `${x.wr}%<div class="tiny">${esc(PN[x.wrL] || '')}</div>` : ''}</td><td class="num" data-o="wpm">${x.wpm ?? ''}</td>
           <td>${cell(l, 'items', 'no.', 56)}</td><td>${cell(l, 'ok', 'no.', 56)}</td>

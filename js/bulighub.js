@@ -80,7 +80,7 @@ function closeStage(back){ const s = $('#hubStage'); if(!s) return; TTS.stop(); 
 /* ---------- who is reading ---------- */
 function whoPicker(c, id, val, withClass = true){ const L = M.readLearners ? M.readLearners(c) : c.learners;
   return `<select class="input" id="${id}">${withClass ? `<option value="">👥 Whole class (projector)</option>` : `<option value="">— choose a learner —</option>`}
-    ${[['M','Male'],['F','Female']].map(([sx, t]) => { const a = L.filter(l => sx === 'M' ? l.sex === 'M' : l.sex !== 'M'); return a.length ? `<optgroup label="${t}">${a.map(l => `<option value="${l.id}" ${l.id === val ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</optgroup>` : ''; }).join('')}</select>`; }
+    ${[['M','Male'],['F','Female']].map(([sx, t]) => { const a = L.filter(l => sx === 'M' ? l.sex === 'M' : l.sex !== 'M'); return a.length ? `<optgroup label="${t}">${a.map(l => `<option value="${l.id}" ${l.id === val ? 'selected' : ''}>${esc(l.name)}${M.readAssessor && M.readAssessor(c, l) ? ' · 👩‍🏫 ' + esc(M.readAssessor(c, l)) : ''}</option>`).join('')}</optgroup>` : ''; }).join('')}</select>`; }
 function saveBox(c, host, id, rec, after, manual){
   const u = ui();
   if(u.who && manual){ const l = learnerById(c, u.who);
@@ -321,20 +321,140 @@ function l4Home(main, c, el){ const u = ui(); const P = M.HUB_L4;
   $$('.hb-tile', box).forEach(b => b.onclick = () => playL4(c, +b.dataset.i));
 }
 
-function progress(box, c, A, kind, colFn){ const L = M.readLearners ? M.readLearners(c) : c.learners; const R = (c.hub || {}).r || {};
+/* ---------- progress (v6.24): tap a cell to type or fix a result · enter a whole activity at once · assessor filter · reports ---------- */
+const LVL_S = {Independent:'Ind', Instructional:'Ins', Frustration:'Fru'};
+const mmss = (s) => s ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}` : '';
+const secsOf = (t) => { t = String(t || '').trim(); if(!t) return null; const m = t.match(/^(\d+)\s*[:.]\s*(\d{1,2})$/); if(m) return +m[1] * 60 + +m[2]; const n = parseFloat(t); return isFinite(n) && n > 0 ? Math.round(n) : null; };
+const dIso = (ts) => { const d = new Date(ts || Date.now()); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const fDate = (ts) => ts ? new Date(ts).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'}) : '';
+const maxOf = (c, a) => { const R = (c.hub || {}).r || {}; for(const x of Object.values(R)){ const y = x[a.id]; if(y && y.best && y.best.max) return y.best.max; } return a.q ? a.q.length : ''; };
+// a typed L4 record: accuracy from miscues, speed from time (or typed wpm)
+function l4Rec(a, mis, secs, wpm, date){ mis = Math.max(0, Math.round(+mis || 0)); const pct = Math.max(0, Math.round((a.wc - mis) / a.wc * 1000) / 10);
+  const w = wpm != null && wpm !== '' && +wpm > 0 ? Math.round(+wpm) : secs ? Math.round(a.wc * 60 / secs) : 0;
+  return {pct, wpm: w, mis, secs: secs || (w ? Math.round(a.wc * 60 / w) : 0), read: a.wc, lvl: levelOf(pct), ts: date ? new Date(date + 'T12:00:00').getTime() : Date.now(), manual: true}; }
+function scoreRec(score, max, date){ score = +score; max = +max; const pct = max ? Math.round(score / max * 100) : 0; return {score, max, pct, ts: date ? new Date(date + 'T12:00:00').getTime() : Date.now(), manual: true}; }
+// a typed result becomes the learner's result for that activity (it replaces the best, the old one stays in the history)
+function putRes(c, lid, id, rec){ const h = store(c); const r = h.r[lid] = h.r[lid] || {}; const o = r[id] = r[id] || {n: 0, hist: []};
+  o.n = (o.n || 0) + 1; o.ts = Date.now(); o.hist = [rec, ...(o.hist || [])].slice(0, 10); o.best = rec; o.last = rec; }
+function delRes(c, lid, id){ const r = (store(c).r || {})[lid]; if(r){ delete r[id]; if(!Object.keys(r).length) delete store(c).r[lid]; } }
+const pf = () => ui().pf || 'all';
+const asr = (c, l) => M.readAssessor ? M.readAssessor(c, l) : '';
+const filtered = (c, L) => { const f = pf(); return L.filter(l => f === 'all' || (f === 'other' ? asr(c, l) : !asr(c, l))); };
+const cellTxt = (x, kind) => !x ? '' : kind !== 'L4' ? `${x.best.score}/${x.best.max}` : `${x.best.wpm} wpm · ${x.best.pct}% ${LVL_S[x.best.lvl] || ''}${x.best.mis != null ? ` · ${x.best.mis} mis.` : ''}`;
+
+function progress(box, c, A, kind, colFn){ const L0 = M.readLearners ? M.readLearners(c) : c.learners; const R = (c.hub || {}).r || {}; const u = ui();
   const col = colFn || ((a, i) => kind === 'L6' ? (i === 0 ? 'Pre' : i === A.length - 1 ? 'Post' : String(i)) : (/Pre/.test(a.label) ? 'Pre' : /Post-assessment A/.test(a.label) ? 'Post A' : /Post-assessment B/.test(a.label) ? 'Post B' : a.label.replace('Activity ', '')));
-  const cell = (x) => !x ? '<td class="e">·</td>' : kind !== 'L4' ? `<td class="s${stars(x.best.pct)}" title="${x.n} attempt(s)">${x.best.score}/${x.best.max}</td>` : `<td class="lv-${x.best.lvl}" title="${x.best.pct}% · ${x.best.wpm} wpm · ${x.n} attempt(s)">${x.best.wpm}<small>${x.best.pct}%</small></td>`;
+  const L = filtered(c, L0); const nOther = L0.filter(l => asr(c, l)).length;
+  const cell = (l, a) => { const x = (R[l.id] || {})[a.id]; const at = `data-l="${l.id}" data-a="${a.id}"`;
+    return !x ? `<td class="e ed" ${at} title="Tap to type a result">·</td>` : kind !== 'L4' ? `<td class="s${stars(x.best.pct)} ed ${x.best.manual ? 'man' : ''}" ${at} title="${x.n} attempt(s)${x.best.manual ? ' · typed' : ''} · tap to edit">${x.best.score}/${x.best.max}</td>`
+      : `<td class="lv-${x.best.lvl} ed ${x.best.manual ? 'man' : ''}" ${at} title="${x.best.pct}% · ${x.best.wpm} wpm · ${x.best.mis ?? '?'} miscue(s)${x.best.secs ? ' · ' + mmss(x.best.secs) : ''} · ${x.n} attempt(s)${x.best.manual ? ' · typed' : ''} · tap to edit">${x.best.wpm}<small>${x.best.pct}%${x.best.mis != null ? ` · ${x.best.mis}m` : ''}</small></td>`; };
   const any = L.some(l => R[l.id] && A.some(a => R[l.id][a.id]));
-  box.innerHTML = `<div class="card hb-progc"><div class="row" style="margin-bottom:10px"><b>${kind !== 'L4' ? 'Best score per activity' : 'Best reading speed (wpm) and oral reading score per passage'}</b><span class="spacer"></span><button class="btn sm" id="hbCsv">⬇ Download CSV</button></div>
-    ${any ? '' : '<div class="small muted" style="margin-bottom:8px">No results yet — choose a learner in “Who’s reading?” and play an activity, or save a whole-class result to a learner at the end.</div>'}
+  box.innerHTML = `<div class="card hb-progc"><div class="row" style="margin-bottom:10px;gap:8px;flex-wrap:wrap"><b>${kind !== 'L4' ? 'Best score per activity' : 'Reading speed (wpm), oral reading score and miscues per passage'}</b><span class="spacer"></span>
+      <div class="seg" id="hbPf">${[['all', 'All'], ['mine', 'My learners'], ['other', `Other assessors${nOther ? ' (' + nOther + ')' : ''}`]].map(([k, t]) => `<button data-f="${k}" class="${pf() === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+      <button class="btn sm" id="hbAs">👩‍🏫 Assessors</button><button class="btn sm primary" id="hbEnter">✎ Enter results</button><button class="btn sm" id="hbRep">📄 Reports</button><button class="btn sm" id="hbCsv">⬇ CSV</button></div>
+    <div class="tiny muted" style="margin-bottom:8px">${any ? 'Tap any cell to type, fix or delete a result. Typed results are marked with a dot.' : 'No results yet — play an activity with a learner, or use <b>✎ Enter results</b> to type results you recorded on paper.'}</div>
     <div class="hb-tw"><table class="hb-pt"><thead><tr><th class="l">Learner</th>${A.map((a, i) => `<th title="${esc(a.title)}">${col(a, i)}</th>`).join('')}</tr></thead><tbody>
-    ${[['M','MALE'],['F','FEMALE']].map(([sx, t]) => { const arr = L.filter(l => sx === 'M' ? l.sex === 'M' : l.sex !== 'M'); return arr.length ? `<tr class="sx"><td colspan="${A.length + 1}">${t}</td></tr>` + arr.map(l => `<tr><td class="l">${esc(l.name)}</td>${A.map(a => cell((R[l.id] || {})[a.id])).join('')}</tr>`).join('') : ''; }).join('')}</tbody></table></div>
-    ${kind === 'L4' ? '<div class="tiny muted" style="margin-top:8px">Colour = level: green Independent (97–100%), amber Instructional (90–96%), red Frustration (89% and below).</div>' : ''}</div>`;
-  $('#hbCsv', box).onclick = () => { const rows = [['Learner', 'Sex', ...A.map((a, i) => col(a, i) + ' ' + a.title)]];
-    L.forEach(l => rows.push([l.name, l.sex, ...A.map(a => { const x = (R[l.id] || {})[a.id]; return !x ? '' : kind !== 'L4' ? `${x.best.score}/${x.best.max}` : `${x.best.pct}% ${x.best.lvl} ${x.best.wpm} wpm`; })]));
+    ${[['M','MALE'],['F','FEMALE']].map(([sx, t]) => { const arr = L.filter(l => sx === 'M' ? l.sex === 'M' : l.sex !== 'M'); return arr.length ? `<tr class="sx"><td colspan="${A.length + 1}">${t}</td></tr>` + arr.map(l => `<tr><td class="l">${esc(l.name)}${M.readTagChip ? M.readTagChip(c, l) : ''}${M.readAssessorChip ? M.readAssessorChip(c, l) : ''}</td>${A.map(a => cell(l, a)).join('')}</tr>`).join('') : ''; }).join('') || `<tr><td colspan="${A.length + 1}" class="muted" style="padding:14px">No learners in this view.</td></tr>`}</tbody></table></div>
+    ${kind === 'L4' ? '<div class="tiny muted" style="margin-top:8px">Big number = words per minute · small = oral reading score and miscues (m). Colour = level: green Independent (97–100%), amber Instructional (90–96%), red Frustration (89% and below).</div>' : ''}</div>`;
+  const rr = () => progress(box, c, A, kind, colFn);
+  $$('#hbPf button', box).forEach(b => b.onclick = () => { u.pf = b.dataset.f; M.save(); rr(); });
+  $('#hbAs', box).onclick = () => M.readAssessorEditor ? M.readAssessorEditor(c, rr) : null;
+  $('#hbEnter', box).onclick = () => entry(c, A, kind, col, rr);
+  $('#hbRep', box).onclick = () => reportMenu(c, A, kind, col);
+  $$('td.ed', box).forEach(td => td.onclick = () => editCell(c, A.find(a => a.id === td.dataset.a), kind, learnerById(c, td.dataset.l), A.findIndex(a => a.id === td.dataset.a), col, rr));
+  $('#hbCsv', box).onclick = () => { const rows = [['Learner', 'Sex', 'Assessor', ...A.map((a, i) => col(a, i) + ' ' + a.title)]];
+    L.forEach(l => rows.push([l.name, l.sex, asr(c, l), ...A.map(a => cellTxt((R[l.id] || {})[a.id], kind))]));
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n'); const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['﻿' + csv], {type: 'text/csv'})); a.download = `BULIG Hub Level ${kind.slice(1)} - ${M.className(c)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
 }
+
+// fields for one result (shared by the cell editor and the whole-activity entry)
+const l4Fields = (x, pre) => `<input class="input" type="number" min="0" data-k="mis" value="${x && x.mis != null ? x.mis : ''}" placeholder="0" ${pre || ''}><input class="input" data-k="time" value="${x && x.secs ? mmss(x.secs) : ''}" placeholder="m:ss" ${pre || ''}><input class="input" type="number" min="0" data-k="wpm" value="${x && x.wpm ? x.wpm : ''}" placeholder="auto" ${pre || ''}>`;
+function readL4(row, a, date){ const v = (k) => ($(`[data-k="${k}"]`, row) || {}).value; const mis = v('mis'), t = v('time'), w = v('wpm');
+  if(mis === '' && !t && !w) return null; if(mis === '') return 'mis'; const secs = secsOf(t); if(t && !secs) return 'time';
+  if(!secs && !(+w > 0)) return 'speed'; return l4Rec(a, mis, secs, w, date); }
+function readScore(row, date){ const v = (k) => ($(`[data-k="${k}"]`, row) || {}).value; const sc = v('score'), mx = v('max');
+  if(sc === '') return null; if(!(+mx > 0)) return 'max'; if(+sc < 0 || +sc > +mx) return 'score'; return scoreRec(sc, mx, date); }
+const ERR = {mis: 'Type the number of miscues (0 if none)', time: 'Type the reading time as m:ss (for example 1:25)', speed: 'Type the reading time or the words per minute', max: 'Type the total score (out of how many)', score: 'The score cannot be more than the total'};
+const preview4 = (row, a) => { const r = readL4(row, a); const o = $('[data-o]', row); if(!o) return; o.innerHTML = r && typeof r === 'object' ? `<span class="lv-${r.lvl}">${r.pct}% ${esc(r.lvl)}</span>${r.wpm ? ` · ${r.wpm} wpm` : ''}` : ''; };
+
+function editCell(c, a, kind, l, i, col, rr){ if(!a || !l) return; const x = resOf(c, l.id, a.id); const b0 = x && x.best;
+  M.modal(`${l.name} · ${col(a, i)}`, `<div class="small muted" style="margin:-4px 0 12px">${esc(a.label)} · <b>${esc(a.title)}</b>${a.wc ? ` · ${a.wc} words` : ''}${x ? ` · ${x.n} attempt(s)` : ''}${b0 && b0.manual ? ' · typed result' : ''}</div>
+    <div id="hbE" class="hb-ent1">${kind === 'L4' ? `<div class="hb-ef"><label>Miscues</label><label>Reading time</label><label>Words / min</label>${l4Fields(b0)}</div><div class="small" data-o style="margin-top:8px"></div>
+      <div class="tiny muted" style="margin-top:6px">Score = (${a.wc} − miscues) ÷ ${a.wc} × 100. Give the reading time <i>or</i> the words per minute — the other is worked out.</div>`
+      : `<div class="hb-ef sc"><label>Score</label><label>Out of</label><input class="input" type="number" min="0" data-k="score" value="${b0 ? b0.score : ''}"><input class="input" type="number" min="1" data-k="max" value="${b0 ? b0.max : maxOf(c, a)}"></div>`}
+      <label class="field" style="margin-top:10px;max-width:200px">Date<input class="input" type="date" id="hbEd" value="${dIso(b0 && b0.ts)}"></label></div>
+    ${x && x.hist && x.hist.length > 1 ? `<details style="margin-top:10px"><summary class="small">Earlier attempts (${x.hist.length})</summary><div class="tiny" style="margin-top:6px">${x.hist.map(h => `<div>${fDate(h.ts)} · ${kind === 'L4' ? `${h.wpm} wpm · ${h.pct}% ${esc(h.lvl)} · ${h.mis ?? '?'} miscue(s)` : `${h.score}/${h.max}`}${h.manual ? ' · typed' : ''}</div>`).join('')}</div></details>` : ''}
+    <div class="row" style="margin-top:14px">${x ? '<button class="btn danger" id="hbEx">Delete result</button>' : ''}<span class="spacer"></span><button class="btn" id="hbEc">Cancel</button><button class="btn primary" id="hbEs">Save</button></div>`, b => {
+    const row = $('#hbE', b); if(kind === 'L4'){ $$('input', row).forEach(e => e.oninput = () => preview4(row, a)); preview4(row, a); }
+    $('#hbEc', b).onclick = M.closeModal;
+    if($('#hbEx', b)) $('#hbEx', b).onclick = () => { if(!confirm(`Delete ${l.name}'s result for ${a.title}?`)) return; delRes(c, l.id, a.id); M.save(); M.closeModal(); M.toast('Result deleted'); rr(); };
+    $('#hbEs', b).onclick = () => { const dt = $('#hbEd', b).value; const r = kind === 'L4' ? readL4(row, a, dt) : readScore(row, dt);
+      if(!r) return M.toast(kind === 'L4' ? 'Type the miscues and the reading time or speed' : 'Type the score');
+      if(typeof r === 'string') return M.toast(ERR[r]);
+      putRes(c, l.id, a.id, r); M.save(); M.closeModal(); M.toast(`Saved for ${l.name}`); rr(); };
+  }); }
+
+// type one activity's results for the whole list (catching up from paper records)
+function entry(c, A, kind, col, rr, aid){ const u = ui(); const L = filtered(c, M.readLearners ? M.readLearners(c) : c.learners);
+  const a = A.find(x => x.id === (aid || u.entA)) || A[0]; u.entA = a.id; const i = A.indexOf(a);
+  const row = (l) => { const x = resOf(c, l.id, a.id); const b0 = x && x.best;
+    return `<div class="hb-er" data-l="${l.id}"><span class="nm">${esc(l.name)}${M.readAssessorChip ? M.readAssessorChip(c, l) : ''}${b0 ? ` <i class="tiny muted">· saved ${kind === 'L4' ? `${b0.wpm} wpm ${b0.pct}%` : `${b0.score}/${b0.max}`}</i>` : ''}</span>
+      ${kind === 'L4' ? `${l4Fields(b0)}<span class="o" data-o></span>` : `<input class="input" type="number" min="0" data-k="score" value="${b0 ? b0.score : ''}"><input class="input" type="number" min="1" data-k="max" value="${b0 ? b0.max : maxOf(c, a)}">`}</div>`; };
+  M.modal(`Enter results · Level ${kind.slice(1)}`, `<div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+      <label class="field" style="min-width:260px;flex:1">Activity<select class="input" id="hbEa">${A.map((x, j) => `<option value="${x.id}" ${x === a ? 'selected' : ''}>${esc(col(x, j))} · ${esc(x.title)}</option>`).join('')}</select></label>
+      <label class="field" style="width:170px">Date assessed<input class="input" type="date" id="hbEd" value="${dIso()}"></label></div>
+    <div class="tiny muted" style="margin-bottom:8px">${kind === 'L4' ? `${a.wc} words. Type the <b>miscues</b> and the <b>reading time</b> (m:ss) — or the <b>words per minute</b> if that is what you recorded. Leave a row blank to skip it; rows you change replace the saved result.` : 'Type the score and the total. Leave a row blank to skip it; rows you change replace the saved result.'} Showing: <b>${pf() === 'all' ? 'all learners' : pf() === 'mine' ? 'my learners' : 'learners with other assessors'}</b> (change it with the filter on the progress page).</div>
+    <div class="hb-elist ${kind === 'L4' ? 'l4' : 'sc'}"><div class="hb-er h"><span class="nm">Learner</span>${kind === 'L4' ? '<span>Miscues</span><span>Time</span><span>WPM</span><span class="o">Result</span>' : '<span>Score</span><span>Out of</span>'}</div>
+      ${[['M','MALE'],['F','FEMALE']].map(([sx, t]) => { const arr = L.filter(l => sx === 'M' ? l.sex === 'M' : l.sex !== 'M'); return arr.length ? `<div class="hb-eg">${t}</div>` + arr.map(row).join('') : ''; }).join('')}</div>
+    <div class="row" style="margin-top:12px"><span class="small muted" id="hbEn"></span><span class="spacer"></span><button class="btn" id="hbEc">Close</button><button class="btn primary" id="hbEs">Save results</button></div>`, b => {
+    const changed = new Set();
+    $$('.hb-er[data-l]', b).forEach(r => $$('input', r).forEach(e => e.oninput = () => { changed.add(r.dataset.l); if(kind === 'L4') preview4(r, a); $('#hbEn', b).textContent = `${changed.size} row(s) changed`; }));
+    if(kind === 'L4') $$('.hb-er[data-l]', b).forEach(r => preview4(r, a));
+    $('#hbEa', b).onchange = (e) => { if(changed.size && !confirm('Leave without saving the rows you typed?')) { e.target.value = a.id; return; } M.closeModal(); entry(c, A, kind, col, rr, e.target.value); };
+    $('#hbEc', b).onclick = () => { if(changed.size && !confirm('Close without saving the rows you typed?')) return; M.closeModal(); rr(); };
+    $('#hbEs', b).onclick = () => { const dt = $('#hbEd', b).value; let n = 0, bad = null;
+      const recs = [...changed].map(lid => { const r = $(`.hb-er[data-l="${lid}"]`, b); const x = kind === 'L4' ? readL4(r, a, dt) : readScore(r, dt); if(typeof x === 'string' && !bad){ bad = [r, x]; } return [lid, x]; });
+      if(bad){ bad[0].classList.add('bad'); bad[0].scrollIntoView({block: 'center'}); return M.toast(`${learnerById(c, bad[0].dataset.l).name}: ${ERR[bad[1]]}`); }
+      recs.forEach(([lid, x]) => { if(x && typeof x === 'object'){ putRes(c, lid, a.id, x); n++; } });
+      M.save(); changed.clear(); M.toast(n ? `${n} result(s) saved for ${a.title}` : 'Nothing to save'); M.closeModal(); rr(); };
+  }, true); }
+
+/* ---------- progress reports: class summary, one learner, or every learner — view, print, PDF, Excel ---------- */
+function reportMenu(c, A, kind, col){ const L = M.readLearners ? M.readLearners(c) : c.learners; const MOD = MODS.find(m => m.k === kind);
+  M.modal(`Progress reports · Level ${MOD.n} · ${MOD.t}`, `<div class="list">
+    <div class="item" style="gap:12px;align-items:center"><div class="grow"><div class="title">Class progress summary</div><div class="tiny muted">Every learner × every ${kind === 'L4' ? 'passage: words per minute, oral reading score, level and miscues' : 'activity: best score'}. A4 landscape. Uses the filter on the progress page (all / my learners / other assessors).</div></div><button class="btn sm primary" id="rpC">👁 View</button></div>
+    <div class="item" style="gap:12px;align-items:center"><div class="grow"><div class="title">Learner progress report</div><div class="tiny muted">One learner: each ${kind === 'L4' ? 'passage with date, miscues, time, speed, score and level' : 'activity with date, attempts and score'}, plus a summary.</div>
+      <select class="input" id="rpL" style="margin-top:6px;max-width:340px">${L.map(l => `<option value="${l.id}" ${l.id === ui().who ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div><button class="btn sm primary" id="rpO">👁 View</button></div>
+    <div class="item" style="gap:12px;align-items:center"><div class="grow"><div class="title">Every learner's progress report</div><div class="tiny muted">One page per learner who has results (same filter as the progress page).</div></div><button class="btn sm primary" id="rpA">👁 View</button></div></div>
+    <div class="tiny muted" style="margin-top:10px">The viewer has Print, Download PDF and Excel buttons.</div>`, b => {
+    const title = (t) => `BULIG Hub ${t} · Level ${MOD.n} ${MOD.t}`;
+    $('#rpC', b).onclick = () => { M.closeModal(); M.rdPreview(title('Class Progress'), [classPage(c, A, kind, col)], true); };
+    $('#rpO', b).onclick = () => { const l = learnerById(c, $('#rpL', b).value); M.closeModal(); M.rdPreview(`${title('Learner Progress')} · ${l.name}`, [learnerPage(c, A, kind, col, l)], false); };
+    $('#rpA', b).onclick = () => { const R = (c.hub || {}).r || {}; const arr = filtered(c, L).filter(l => R[l.id] && A.some(a => R[l.id][a.id])); if(!arr.length) return M.toast('No learner has results yet');
+      M.closeModal(); M.rdPreview(title('Learner Progress Reports'), arr.map(l => learnerPage(c, A, kind, col, l)), false); };
+  }); }
+const repHead = (c, title, sub) => M.printHeader(title) + `<table class="rd-info"><tr><td>Grade &amp; section</td><td><b>${esc(M.className(c))}</b></td><td>Adviser</td><td><b>${esc(c.adviser || '')}</b></td></tr>
+  <tr><td>Module</td><td><b>${esc(sub)}</b></td><td>Date printed</td><td><b>${fDate(Date.now())}</b></td></tr></table>`;
+function classPage(c, A, kind, col){ const R = (c.hub || {}).r || {}; const L = filtered(c, M.readLearners ? M.readLearners(c) : c.learners); const MOD = MODS.find(m => m.k === kind);
+  const asCol = L.some(l => asr(c, l));
+  const td = (x) => !x ? '<td></td>' : kind !== 'L4' ? `<td>${x.best.score}/${x.best.max}</td>` : `<td class="hbr-${x.best.lvl}"><b>${x.best.wpm}</b><br><span class="sm">${x.best.pct}% ${LVL_S[x.best.lvl] || ''}${x.best.mis != null ? '<br>' + x.best.mis + ' mis.' : ''}</span></td>`;
+  const done = (l) => A.filter(a => (R[l.id] || {})[a.id]).length;
+  return `<div class="rdp">${repHead(c, 'BULIG HUB · CLASS PROGRESS REPORT', `Level ${MOD.n} · ${MOD.t}${pf() === 'mine' ? ' · my learners' : pf() === 'other' ? ' · learners with other assessors' : ''}`)}
+    <table class="rd-t hbr"><thead><tr><th>No.</th><th class="l">Name of learner</th>${asCol ? '<th>Assessor</th>' : ''}${A.map((a, i) => `<th>${esc(col(a, i))}</th>`).join('')}<th>Done</th></tr></thead><tbody>
+    ${[['M','MALE'],['F','FEMALE']].map(([sx, t]) => { const arr = L.filter(l => sx === 'M' ? l.sex === 'M' : l.sex !== 'M'); return arr.length ? `<tr class="grp"><td></td><td class="l" colspan="${A.length + (asCol ? 3 : 2)}"><b>${t}</b></td></tr>` + arr.map((l, j) => `<tr><td>${j + 1}</td><td class="l">${esc(l.name)}${M.readTag && M.readTag(c, l) ? ` (${esc(M.readTag(c, l).replace('TO', 'T/O').replace('TI', 'T/I'))})` : ''}</td>${asCol ? `<td class="sm">${esc(asr(c, l))}</td>` : ''}${A.map(a => td((R[l.id] || {})[a.id])).join('')}<td>${done(l)}/${A.length}</td></tr>`).join('') : ''; }).join('')}</tbody></table>
+    <div class="rd-legend"><i>${kind === 'L4' ? 'Big number = words per minute · oral reading score (Ind = Independent 97–100%, Ins = Instructional 90–96%, Fru = Frustration 89% and below) · mis. = miscues' : 'Best score per activity'}. Columns: ${A.map((a, i) => `${esc(col(a, i))} ${esc(a.title)}`).join(' · ')}</i></div>${M.printSign(c, 'Prepared by:', 'Noted by:')}</div>`; }
+function learnerPage(c, A, kind, col, l){ const R = (c.hub || {}).r || {}; const r = R[l.id] || {}; const MOD = MODS.find(m => m.k === kind);
+  const got = A.filter(a => r[a.id]); const B = got.map(a => r[a.id].best);
+  const avg = (k) => B.length ? Math.round(B.reduce((s, x) => s + (+x[k] || 0), 0) / B.length * 10) / 10 : '';
+  const first = got.length ? r[got[0].id].best : null, last = got.length ? r[got[got.length - 1].id].best : null;
+  const sum = kind === 'L4' ? `<table class="rd-info"><tr><td>Passages read</td><td><b>${got.length} of ${A.length}</b></td><td>Average speed</td><td><b>${avg('wpm')} wpm</b></td></tr><tr><td>Average oral reading score</td><td><b>${avg('pct')}%</b></td><td>First → latest passage</td><td><b>${first ? `${first.wpm} wpm, ${first.pct}% → ${last.wpm} wpm, ${last.pct}% (${esc(last.lvl)})` : ''}</b></td></tr></table>`
+    : `<table class="rd-info"><tr><td>Activities done</td><td><b>${got.length} of ${A.length}</b></td><td>Average score</td><td><b>${avg('pct')}%</b></td></tr></table>`;
+  return `<div class="rdp">${repHead(c, 'BULIG HUB · LEARNER PROGRESS REPORT', `Level ${MOD.n} · ${MOD.t}`)}
+    <table class="rd-info"><tr><td>Learner</td><td><b>${esc(l.name)}</b>${M.readTag && M.readTag(c, l) ? ` (${esc(M.readTag(c, l))})` : ''}</td><td>Teacher-assessor</td><td><b>${esc(asr(c, l) || c.adviser || '')}</b></td></tr></table>${sum}
+    <table class="rd-t"><thead><tr><th>No.</th><th class="l">Activity</th><th>Date</th>${kind === 'L4' ? '<th>Miscues</th><th>Time</th><th>Words / min</th><th>Score</th><th>Level</th>' : '<th>Score</th><th>%</th>'}<th>Attempts</th></tr></thead><tbody>
+    ${A.map((a, i) => { const x = r[a.id]; const b0 = x && x.best; return `<tr><td>${esc(col(a, i))}</td><td class="l">${esc(a.title)}</td><td>${b0 ? fDate(b0.ts) : ''}</td>${kind === 'L4' ? `<td>${b0 && b0.mis != null ? b0.mis : ''}</td><td>${b0 ? mmss(b0.secs) : ''}</td><td>${b0 ? b0.wpm : ''}</td><td>${b0 ? b0.pct + '%' : ''}</td><td class="${b0 ? 'hbr-' + b0.lvl : ''}">${b0 ? esc(b0.lvl) : ''}</td>` : `<td>${b0 ? `${b0.score}/${b0.max}` : ''}</td><td>${b0 ? b0.pct + '%' : ''}</td>`}<td>${x ? x.n : ''}</td></tr>`; }).join('')}</tbody></table>
+    ${M.printSign(c, 'Prepared by:', 'Noted by:')}</div>`; }
 
 function keys(box, c, A, g, el){ const K = M.S.hubKeys = M.S.hubKeys || {};
   const flagged = A.filter(a => a.keyBy || a.keyNote).length;

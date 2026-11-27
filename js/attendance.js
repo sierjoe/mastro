@@ -11,6 +11,17 @@ const A = () => M.S.att;
 const sec = () => { const a = A(); return a.sections.find(s => s.id === a.current) || a.sections[0]; };
 const linkedClass = (s) => M.S.classes.find(c => c.id === s.classId);
 const learnerOf = (s, sid) => { const c = linkedClass(s), st = s.students[sid]; return c && st && st.lid ? c.learners.find(l => l.id === st.lid) : null; };
+// v6.24: T/O · NLP · DO shown on the seats and in the month list (SF1 status, or the reading tag when no SF1 status is set)
+const OUT_TAGS = ['TO','NLP','DO'];
+const ltag = (c, l) => { if(!l) return ''; if(M.STATUS[l.status]) return l.status; const t = ((c && c.readTags) || {})[l.id]; return OUT_TAGS.includes(t) ? t : ''; };
+const tagOf = (s, sid) => { const st = s.students[sid] || {}; const t = ltag(linkedClass(s), learnerOf(s, sid)); return t || (st.outType ? (st.outType === 'dropped' ? 'DO' : 'TO') : ''); };
+const isOutTag = (s, sid) => OUT_TAGS.includes(tagOf(s, sid));
+const TAG_TXT = {TO:'Transferred out', NLP:'No longer participating', DO:'Dropped out', TI:'Transferred in', SARDO:'At risk of dropping out'};
+const tagShort = (t) => t === 'TO' ? 'T/O' : t === 'TI' ? 'T/I' : t;
+const tagChip = (t, cls) => t ? ` <span class="chip ${OUT_TAGS.includes(t) ? 'red' : t === 'TI' ? 'green' : 'gold'} ${cls || ''}" style="font-size:10px;padding:1px 7px" title="${TAG_TXT[t] || t}">${tagShort(t)}</span>` : '';
+// class learners with T/O · NLP · DO who have no record in this SeatCheck section
+const outsiders = (s) => { const c = linkedClass(s); if(!c) return []; const linked = new Set(Object.values(s.students).map(x => x.lid).filter(Boolean));
+  return c.learners.filter(l => !linked.has(l.id) && OUT_TAGS.includes(ltag(c, l))); };
 M.attFullName = (s, sid) => { const l = learnerOf(s, sid); return l ? l.name : (s.students[sid]||{}).name || '?'; };
 const nick = (s, sid) => { const l = learnerOf(s, sid); return l && l.sf1 ? M.shortName(l.name) : ((s.students[sid]||{}).name || '?'); };
 M.attNick = (s, sid) => nick(s, sid);
@@ -51,7 +62,8 @@ M.views.attendance = function view(el){
    ===================================================================== */
 function seatsTab(el, s, rerender){
   const u = ui(); const d = u.date;
-  const unseated = Object.keys(s.students).filter(sid => !s.seats.includes(sid) && !s.students[sid].outType);
+  const unseated = Object.keys(s.students).filter(sid => !s.seats.includes(sid) && !s.students[sid].outType && !isOutTag(s, sid));
+  const outList = [...Object.keys(s.students).filter(sid => isOutTag(s, sid)).map(sid => ({nm: M.attFullName(s, sid), t: tagOf(s, sid), seated: s.seats.includes(sid), st: s.students[sid], l: learnerOf(s, sid)})), ...outsiders(s).map(l => ({nm: l.name, t: ltag(linkedClass(s), l), seated: false, st: {}, l}))].sort((a, b) => a.nm.localeCompare(b.nm));;
   el.innerHTML = `
   <div class="card" id="attHead"></div>
   <div class="card" style="margin-top:20px">
@@ -62,11 +74,13 @@ function seatsTab(el, s, rerender){
     <div class="row" style="margin-top:14px;justify-content:center"><button class="btn sm" id="flipBtn">⇅ ${s.flip?"Teacher's view":"Students' view"} — flip</button></div>
   </div>
   ${unseated.length||u.edit?`<div class="card" style="margin-top:20px"><div class="row"><h2 style="margin:0">Not seated (${unseated.length})</h2><span class="spacer"></span><button class="btn sm" id="addStu">${ico('plus')} Add learner</button></div>
-    <div class="chips" style="margin-top:12px" id="tray">${unseated.map(sid=>`<button class="chip seat-chip ${u.sel===sid?'sel':''}" data-sid="${sid}">${esc(nick(s,sid))}</button>`).join('')||'<span class="muted small">Everyone has a seat.</span>'}</div></div>`:''}`;
+    <div class="chips" style="margin-top:12px" id="tray">${unseated.map(sid=>`<button class="chip seat-chip ${u.sel===sid?'sel':''}" data-sid="${sid}">${esc(nick(s,sid))}${tagChip(tagOf(s,sid))}</button>`).join('')||'<span class="muted small">Everyone has a seat.</span>'}</div></div>`:''}
+  ${outList.length?`<div class="card att-out" style="margin-top:20px"><div class="row"><h2 style="margin:0">T/O · NLP · DO (${outList.length})</h2><span class="spacer"></span><span class="tiny muted">Not counted as present · set in Learners (SF1 status) or Reading tags</span></div>
+    <div class="att-outl">${outList.map(x=>`<div class="att-o"><span class="rtag rt-${x.t}">${tagShort(x.t)}</span><b>${esc(x.nm)}</b><span class="tiny muted">${TAG_TXT[x.t]||''}${(x.l&&x.l.statusDate)||x.st.outDate?' · since '+esc((x.l&&x.l.statusDate)||x.st.outDate):''}${x.seated?' · still has a seat':''}</span></div>`).join('')}</div></div>`:''}`;
   const head = () => {
     const rec = s.att[d];
-    const active = Object.entries(s.students).filter(([,st]) => enrolledOn(st, d));
-    const cnt = (k) => rec ? Object.entries(rec).filter(([sid,v]) => v===k && s.students[sid]).length : 0;
+    const active = Object.entries(s.students).filter(([sid,st]) => enrolledOn(st, d) && !isOutTag(s, sid));
+    const cnt = (k) => rec ? Object.entries(rec).filter(([sid,v]) => v===k && s.students[sid] && !isOutTag(s, sid)).length : 0;
     const bySex = (sx) => active.filter(([sid,st]) => st.sex===sx && !(rec && (rec[sid]==='A'||rec[sid]==='E'))).length;
     $('#attHead').innerHTML = `
     <div class="row">
@@ -79,6 +93,7 @@ function seatsTab(el, s, rerender){
       <span class="chip red">Absent ${cnt('A')}</span>
       <span class="chip gold">Late ${cnt('L')}</span>
       <span class="chip" style="color:#4a6bb5">Excused ${cnt('E')}</span>
+      ${outList.length?`<span class="chip red" title="T/O · NLP · DO — not counted">T/O · NLP ${outList.length}</span>`:''}
     </div>
     <div class="row" style="margin-top:12px">
       <span class="small muted">${M.isSchoolDay(d) ? `<b style="color:var(--green)">● Class day</b> · Boys present ${bySex('M')} · Girls present ${bySex('F')}${d>M.today()?' · <i>future date</i>':''}` : M.offReason(d) ? `<b style="color:var(--red)">● No class:</b> ${esc(M.offReason(d))}` : !M.isWeekday(d) ? '<b>Weekend</b>' : '<b>Outside the school year</b> (see Manage → School calendar)'}</span>
@@ -110,9 +125,9 @@ function seatHtml(s, d, rec, u){
     const sid = s.seats[i];
     if(!sid || !s.students[sid]) return `<div class="seat empty ${u.edit&&u.sel==='@'+i?'sel':''}" data-i="${i}">${u.edit?'+':''}</div>` + aisle;
     const st = s.students[sid]; const v = rec ? rec[sid] : '';
-    const out = !enrolledOn(st, d); const L = learnerOf(s, sid); const tag = L && L.status;
-    return `<div class="seat ${v||''} ${out?'out':''} ${u.sel===sid?'sel':''} ${tag?'tag-'+tag:''}" data-i="${i}" data-sid="${sid}" title="${esc(M.attFullName(s,sid))}${tag?' · '+esc(M.STATUS[tag].label):''}">
-      <span class="nm">${esc(nick(s,sid))}</span>${v?`<span class="badge">${v}</span>`:''}${out?'<span class="badge">OUT</span>':''}${tag&&!out?`<span class="stbadge">${M.STATUS[tag].short}</span>`:''}<span class="sx ${st.sex||''}"></span></div>` + aisle;
+    const out = !enrolledOn(st, d); const tag = tagOf(s, sid);
+    return `<div class="seat ${v||''} ${out?'out':''} ${u.sel===sid?'sel':''} ${tag?'tag-'+tag:''}" data-i="${i}" data-sid="${sid}" title="${esc(M.attFullName(s,sid))}${tag?' · '+esc(TAG_TXT[tag]||tag):''}">
+      <span class="nm">${esc(nick(s,sid))}</span>${v?`<span class="badge">${v}</span>`:''}${out?'<span class="badge">OUT</span>':''}${tag?`<span class="stbadge">${tagShort(tag)}</span>`:''}${OUT_TAGS.includes(tag)?`<span class="stnote">${TAG_TXT[tag]}</span>`:''}<span class="sx ${st.sex||''}"></span></div>` + aisle;
   }).join('');
 }
 function setMark(s, d, sid, v){
@@ -218,9 +233,10 @@ function monthTab(el, s, rerender){
       if(!live(d)) return `<td class="mc fut"></td>`;
       if(v==='A')a++; if(v==='L')l++; if(v==='E')e++;
       return `<td class="mc rec ${v} ${en?'':'na'}" data-d="${d}" data-sid="${sid}">${en?v:'·'}</td>`; }).join('');
-    return pre + `<tr><td class="muted">${++n}</td><td class="sticky-col">${esc(M.attFullName(s,sid))} ${M.statusChip(learnerOf(s,sid),1)}${st.outType?` <span class="chip red" style="font-size:10px;padding:1px 6px">${st.outType==='dropped'?'DO':'T/O'}</span>`:''}</td>${cells}<td class="num"><b class="${a+e?'low':''}">${a+e}</b></td><td class="num">${l}</td><td class="num muted">${e}</td></tr>`;
+    const tg = tagOf(s, sid);
+    return pre + `<tr class="${OUT_TAGS.includes(tg)?'tagrow':''}"><td class="muted">${++n}</td><td class="sticky-col">${esc(M.attFullName(s,sid))}${tagChip(tg)}</td>${cells}<td class="num"><b class="${a+e?'low':''}">${a+e}</b></td><td class="num">${l}</td><td class="num muted">${e}</td></tr>`;
   }).join('');
-  const present = days.map(d => live(d) ? list.filter(sid => enrolledOn(s.students[sid], d) && !['A','E'].includes((s.att[d]||{})[sid])).length : '');
+  const present = days.map(d => live(d) ? list.filter(sid => enrolledOn(s.students[sid], d) && !isOutTag(s, sid) && !['A','E'].includes((s.att[d]||{})[sid])).length : '');
   const classDays = days.filter(live).length, schoolDays = days.filter(d => M.isSchoolDay(d)).length;
   el.innerHTML = `
   <div class="card">
@@ -235,6 +251,7 @@ function monthTab(el, s, rerender){
       <tbody>${rows}</tbody>
       <tfoot><tr><td></td><td class="sticky-col"><b>Present</b></td>${present.map(p=>`<td class="c computed">${p}</td>`).join('')}<td colspan="3"></td></tr></tfoot>
     </table></div>
+    ${outsiders(s).length?`<div class="small" style="margin-top:10px"><b>Not in this seat chart:</b> ${outsiders(s).map(l=>`${esc(l.name)}${tagChip(ltag(linkedClass(s),l))}`).join(' · ')}</div>`:''}
     ${days.some(d=>M.offReason(d))?`<div class="tiny muted" style="margin-top:10px">${days.filter(d=>M.offReason(d)).map(d=>`<b>${M.parse(d).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</b> ${esc(M.offReason(d))}`).join(' · ')}</div>`:''}
   </div>`;
   $('#mPick').onchange = e => { if(e.target.value){ u.month = e.target.value; rerender(); } };

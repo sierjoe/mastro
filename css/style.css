@@ -1882,3 +1882,26 @@ body.hub-open{overflow:hidden}
 .gp-l{flex-wrap:nowrap}
 .gp-l>span{white-space:nowrap}
 .gp-l>.gp-u.grow{flex:1 1 auto;white-space:normal}
+.rtag.rt-as{background:rgba(74,107,181,.14);color:#3d5c9e;margin-left:3px}
+/* v6.24 · BULIG Hub typed results, assessors, progress reports */
+.hb-pt td.ed{cursor:pointer;position:relative}.hb-pt td.ed:hover{outline:2px solid var(--green);outline-offset:-2px}
+.hb-pt td.man::after{content:'';position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:#3d5c9e}
+.hb-ef{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 10px;max-width:460px}.hb-ef.sc{grid-template-columns:repeat(2,minmax(0,1fr));max-width:300px}
+.hb-ef label{font-size:12px;font-weight:700;color:var(--muted)}
+.hb-elist{max-height:56vh;overflow:auto;border-radius:12px}
+.hb-er{display:grid;grid-template-columns:minmax(180px,1fr) 80px 90px 80px 150px;gap:6px;align-items:center;padding:4px 6px;border-bottom:1px solid rgba(127,127,127,.12)}
+.hb-elist.sc .hb-er{grid-template-columns:minmax(180px,1fr) 90px 90px}
+.hb-er.h{position:sticky;top:0;z-index:1;background:var(--card,#f4f6f3);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.hb-er .nm{font-size:13px;font-weight:600}.hb-er .input{padding:6px 8px;min-height:0}.hb-er .o{font-size:12px}
+.hb-er.bad{background:rgba(194,77,77,.12)}
+.hb-eg{font-size:11px;font-weight:800;color:var(--muted);padding:10px 6px 4px;letter-spacing:.05em}
+.rd-t.hbr{font-size:8.5pt}.rd-t.hbr td{padding:2px 3px}.rd-t.hbr .sm{font-size:7pt}.rd-t.hbr tr.grp td{background:#eef2ee}
+.hbr-Independent{background:#d7f0dd}.hbr-Instructional{background:#fbefc8}.hbr-Frustration{background:#f8d7d3}
+@media (max-width:700px){.hb-er{grid-template-columns:1fr 60px 70px 60px}.hb-er .o{grid-column:1/-1}}
+.seat.tag-NLP,.seat.tag-TO,.seat.tag-DO{background-image:repeating-linear-gradient(135deg,rgba(194,77,77,.10) 0 6px,transparent 6px 12px)}
+.seat .stnote{position:absolute;bottom:9px;left:0;right:0;text-align:center;font-size:8.5px;font-weight:800;color:#b23a3a;letter-spacing:.02em}
+table.month tr.tagrow td{opacity:.55;background-image:repeating-linear-gradient(135deg,rgba(194,77,77,.07) 0 6px,transparent 6px 12px)}
+table.month tr.tagrow td.sticky-col{opacity:1}
+.att-outl{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;margin-top:12px}
+.att-o{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:8px 10px;border-radius:12px;background:rgba(194,77,77,.07)}
+.att-o b{font-size:13px}.att-o .tiny{flex-basis:100%}
